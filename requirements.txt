@@ -1,0 +1,44 @@
+# Core Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Azure OpenAI - Updated to latest compatible version
+openai==1.57.2
+
+# Azure SDK - Identity & Core
+azure-identity==1.15.0
+azure-core==1.30.0
+
+# Azure SDK - Management
+azure-mgmt-costmanagement==4.0.1
+azure-mgmt-resourcegraph==8.0.0
+azure-mgmt-resource==23.0.1
+azure-mgmt-compute==30.0.0
+azure-mgmt-sql==3.0.1
+azure-mgmt-storage==21.0.0
+azure-mgmt-web==7.0.0
+azure-mgmt-network==25.0.0
+azure-mgmt-authorization==4.0.0
+
+# Authentication & JWT
+PyJWT==2.10.1
+cryptography==46.0.4
+
+# Service Bus & Messaging
+azure-servicebus==7.11.4
+
+# Cosmos DB
+azure-cosmos==4.5.1
+
+# Dependencies for Azure SDKs
+six==1.16.0
+msrest==0.7.1
+isodate==0.6.1
+requests==2.32.3
+
+# Data Validation
+pydantic==2.5.3
+
+# Environment Configuration
+python-dotenv==1.0.0

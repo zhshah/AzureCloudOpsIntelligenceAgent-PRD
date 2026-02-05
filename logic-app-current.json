@@ -1,0 +1,217 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "actions": {
+      "Check_Response": {
+        "actions": {
+          "Send_Approval_Notification": {
+            "inputs": {
+              "body": {
+                "Body": "<html><body style='font-family: Segoe UI, Arial, sans-serif;'><div style='max-width: 600px; margin: 0 auto; padding: 20px;'><div style='background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; border-radius: 10px; text-align: center; color: white;'><h1 style='margin: 0;'> Deployment Approved!</h1></div><div style='background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;'><p style='font-size: 16px; color: #333;'>Hi <strong>@{body('Parse_Request')?['userName']}</strong>,</p><p>Your deployment request for <strong>@{body('Parse_Request')?['resourceName']}</strong> has been approved and is being processed.</p><div style='background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;'><p style='margin: 5px 0;'><strong>Resource:</strong> @{body('Parse_Request')?['resourceName']}</p><p style='margin: 5px 0;'><strong>Type:</strong> @{body('Parse_Request')?['resourceType']}</p><p style='margin: 5px 0;'><strong>Resource Group:</strong> @{body('Parse_Request')?['resourceGroup']}</p><p style='margin: 5px 0;'><strong>Request ID:</strong> @{body('Parse_Request')?['requestId']}</p></div><p style='font-size: 14px; color: #666;'>The deployment is being executed. You'll be notified when complete.</p></div></div></body></html>",
+                "Importance": "Normal",
+                "Subject": " Deployment Approved: @{body('Parse_Request')?['resourceName']}",
+                "To": "@body('Parse_Request')?['userEmail']"
+              },
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['office365']['connectionId']"
+                }
+              },
+              "method": "post",
+              "path": "/v2/Mail"
+            },
+            "runAfter": {},
+            "type": "ApiConnection"
+          }
+        },
+        "else": {
+          "actions": {
+            "Send_Rejection_Email": {
+              "inputs": {
+                "body": {
+                  "Body": "<html><body style='font-family: Segoe UI, Arial, sans-serif;'><div style='max-width: 600px; margin: 0 auto; padding: 20px;'><div style='background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); padding: 30px; border-radius: 10px; text-align: center; color: white;'><h1 style='margin: 0;'> Deployment Rejected</h1></div><div style='background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 10px 10px;'><p style='font-size: 16px; color: #333;'>Hi <strong>@{body('Parse_Request')?['userName']}</strong>,</p><p>Your deployment request for <strong>@{body('Parse_Request')?['resourceName']}</strong> has been rejected.</p></div></div></body></html>",
+                  "Importance": "Normal",
+                  "Subject": " Deployment Rejected: @{body('Parse_Request')?['resourceName']}",
+                  "To": "@body('Parse_Request')?['userEmail']"
+                },
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['office365']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "path": "/v2/Mail"
+              },
+              "type": "ApiConnection"
+            }
+          }
+        },
+        "expression": {
+          "and": [
+            {
+              "equals": [
+                "@body('Send_Approval_Email')?['SelectedOption']",
+                "Approve"
+              ]
+            }
+          ]
+        },
+        "runAfter": {
+          "Send_Approval_Email": [
+            "Succeeded"
+          ]
+        },
+        "type": "If"
+      },
+      "Parse_Request": {
+        "inputs": {
+          "content": "@triggerBody()",
+          "schema": {
+            "properties": {
+              "details": {
+                "type": "object"
+              },
+              "estimatedCost": {
+                "type": "string"
+              },
+              "justification": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "resourceGroup": {
+                "type": "string"
+              },
+              "resourceName": {
+                "type": "string"
+              },
+              "resourceType": {
+                "type": "string"
+              },
+              "userEmail": {
+                "type": "string"
+              },
+              "userName": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "runAfter": {},
+        "type": "ParseJson"
+      },
+      "Send_Approval_Email": {
+        "inputs": {
+          "body": {
+            "Message": {
+              "Body": "<html><body style='font-family: Segoe UI, Arial, sans-serif;'><div style='max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;'><div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;'><h1 style='color: white; margin: 0;'> Deployment Approval Required</h1></div><div style='background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'><p style='font-size: 16px; color: #333;'>Hi <strong>@{body('Parse_Request')?['userName']}</strong>,</p><p style='font-size: 14px; color: #666;'>Your Azure resource deployment request is ready for approval:</p><div style='background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;'><table style='width: 100%; border-collapse: collapse;'><tr><td style='padding: 8px 0; font-weight: 600; color: #495057;'> Resource Type:</td><td style='padding: 8px 0; color: #6c757d;'>@{body('Parse_Request')?['resourceType']}</td></tr><tr><td style='padding: 8px 0; font-weight: 600; color: #495057;'> Resource Name:</td><td style='padding: 8px 0; color: #6c757d;'>@{body('Parse_Request')?['resourceName']}</td></tr><tr><td style='padding: 8px 0; font-weight: 600; color: #495057;'> Resource Group:</td><td style='padding: 8px 0; color: #6c757d;'>@{body('Parse_Request')?['resourceGroup']}</td></tr><tr><td style='padding: 8px 0; font-weight: 600; color: #495057;'> Estimated Cost:</td><td style='padding: 8px 0; color: #6c757d;'>@{body('Parse_Request')?['estimatedCost']}</td></tr><tr><td style='padding: 8px 0; font-weight: 600; color: #495057;'> Justification:</td><td style='padding: 8px 0; color: #6c757d;'>@{body('Parse_Request')?['justification']}</td></tr><tr><td style='padding: 8px 0; font-weight: 600; color: #495057;'> Request ID:</td><td style='padding: 8px 0; color: #6c757d; font-family: monospace; font-size: 12px;'>@{body('Parse_Request')?['requestId']}</td></tr><tr><td style='padding: 8px 0; font-weight: 600; color: #495057;'> Command:</td><td style='padding: 8px 0; color: #6c757d; font-family: monospace; font-size: 11px; background: #f8f9fa; padding: 10px; border-radius: 4px;'>@{body('Parse_Request')?['details']?['command']}</td></tr></table></div><p style='font-size: 14px; color: #666;'>Please review and approve or reject this deployment:</p></div></div></body></html>",
+              "Importance": "High",
+              "Options": "Approve, Reject",
+              "Subject": " Deployment Approval Required: @{body('Parse_Request')?['resourceName']}",
+              "To": "@body('Parse_Request')?['userEmail']"
+            },
+            "NotificationUrl": "@{listCallbackUrl()}"
+          },
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['office365']['connectionId']"
+            }
+          },
+          "path": "/approvalmail/$subscriptions"
+        },
+        "runAfter": {
+          "Parse_Request": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnectionWebhook"
+      }
+    },
+    "contentVersion": "1.0.0.0",
+    "outputs": {},
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    },
+    "triggers": {
+      "manual": {
+        "inputs": {
+          "schema": {
+            "properties": {
+              "details": {
+                "properties": {
+                  "command": {
+                    "type": "string"
+                  },
+                  "deployment_method": {
+                    "type": "string"
+                  },
+                  "explanation": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "estimatedCost": {
+                "type": "string"
+              },
+              "justification": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "resourceGroup": {
+                "type": "string"
+              },
+              "resourceName": {
+                "type": "string"
+              },
+              "resourceType": {
+                "type": "string"
+              },
+              "userEmail": {
+                "type": "string"
+              },
+              "userName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "requestId",
+              "resourceType",
+              "resourceName",
+              "resourceGroup",
+              "details",
+              "userEmail"
+            ],
+            "type": "object"
+          }
+        },
+        "kind": "Http",
+        "type": "Request"
+      }
+    }
+  },
+  "parameters": {
+    "$connections": {
+      "value": {
+        "office365": {
+          "connectionId": "/subscriptions/b28cc86b-8f84-47e5-a38a-b814b44d047e/resourceGroups/Az-AICost-Agent-RG/providers/Microsoft.Web/connections/office365-1",
+          "connectionName": "office365-1",
+          "id": "/subscriptions/b28cc86b-8f84-47e5-a38a-b814b44d047e/providers/Microsoft.Web/locations/westeurope/managedApis/office365"
+        }
+      }
+    }
+  }
+}

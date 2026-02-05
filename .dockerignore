@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+MILESTONE_BACKUPS/
+
+# Backup files
+*.backup
+*.backup-*
+*.MILESTONE-*
+
+# Test files
+test_*.py
+*_test.py
+
+# Azure
+.azure/
+
+# Misc
+.DS_Store
+*.log

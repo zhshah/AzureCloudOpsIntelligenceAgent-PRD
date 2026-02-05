@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure CloudOps Intelligence Agent - Secure Access</title>
+    <style>
+        :root {
+            --azure-blue: #0078D4;
+            --azure-dark: #005A9E;
+            --azure-light: #50E6FF;
+            --neutral-white: #FFFFFF;
+            --neutral-gray-10: #FAF9F8;
+            --neutral-gray-20: #F3F2F1;
+            --neutral-gray-90: #323130;
+            --neutral-gray-130: #201F1E;
+            --success-green: #107C10;
+            --shadow-depth-4: 0 1.6px 3.6px 0 rgba(0,0,0,.132), 0 0.3px 0.9px 0 rgba(0,0,0,.108);
+            --shadow-depth-16: 0 6.4px 14.4px 0 rgba(0,0,0,.132), 0 1.2px 3.6px 0 rgba(0,0,0,.108);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #0078D4 0%, #005A9E 50%, #003D66 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animated background pattern */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(80, 230, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(80, 230, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(30px, -30px) rotate(120deg); }
+            66% { transform: translate(-20px, 20px) rotate(240deg); }
+        }
+
+        .login-container {
+            background: var(--neutral-white);
+            border-radius: 20px;
+            box-shadow: 
+                0 25.6px 57.6px 0 rgba(0, 0, 0, 0.22),
+                0 4.8px 14.4px 0 rgba(0, 0, 0, 0.18),
+                0 0 0 1px rgba(0, 120, 212, 0.05);
+            padding: 56px;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            z-index: 1;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo {
+            width: 88px;
+            height: 88px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, var(--azure-blue) 0%, var(--azure-dark) 100%);
+            border-radius: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            box-shadow: 
+                0 12px 32px rgba(0, 120, 212, 0.35),
+                0 2px 8px rgba(0, 120, 212, 0.25);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        .logo:hover {
+            transform: scale(1.08) rotate(-5deg);
+            box-shadow: 
+                0 16px 48px rgba(0, 120, 212, 0.45),
+                0 4px 12px rgba(0, 120, 212, 0.35);
+            animation: none;
+        }
+
+        h1 {
+            font-size: 30px;
+            font-weight: 600;
+            color: var(--neutral-gray-130);
+            margin-bottom: 10px;
+            letter-spacing: -0.03em;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            color: var(--neutral-gray-90);
+            margin-bottom: 36px;
+            font-size: 15px;
+            font-weight: 400;
+            line-height: 1.6;
+            opacity: 0.85;
+        }
+
+        .sign-in-button {
+            background: var(--azure-blue);
+            color: var(--neutral-white);
+            border: none;
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-depth-4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sign-in-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .sign-in-button:hover {
+            background: var(--azure-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 120, 212, 0.4);
+        }
+
+        .sign-in-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .sign-in-button:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-depth-4);
+        }
+
+        .microsoft-icon {
+            width: 24px;
+            height: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .features {
+            margin-top: 36px;
+            text-align: left;
+            padding: 28px;
+            background: linear-gradient(135deg, var(--neutral-gray-10) 0%, rgba(250, 249, 248, 0.5) 100%);
+            border-radius: 16px;
+            border-left: 4px solid var(--azure-blue);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0, 120, 212, 0.08);
+            border-left: 4px solid var(--azure-blue);
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: var(--neutral-gray-90);
+            font-weight: 500;
+            line-height: 1.5;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 4px 0;
+        }
+
+        .feature-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .feature-item:hover {
+            color: var(--azure-blue);
+            transform: translateX(4px);
+        }
+
+        .feature-item:hover .feature-icon {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .feature-icon {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            border-radius: 8px;
+            background: var(--neutral-white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            box-shadow: 
+                0 2px 6px rgba(0, 0, 0, 0.1),
+                0 1px 3px rgba(0, 0, 0, 0.08);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .feature-icon.lock { color: #D13438; }
+        .feature-icon.user { color: #0078D4; }
+        .feature-icon.check { color: var(--success-green); }
+        .feature-icon.shield { color: #5C2E91; }
+
+        .loading {
+            display: none;
+            margin-top: 24px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .spinner::before {
+            content: '';
+            box-sizing: border-box;
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid var(--neutral-gray-20);
+            border-top-color: var(--azure-blue);
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            display: none;
+            color: #A4262C;
+            background: #FDE7E9;
+            border: 1px solid #F1AEB5;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            animation: shake 0.5s ease;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @media (max-width: 640px) {
+            .login-container {
+                padding: 40px 28px;
+                max-width: 95%;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+
+            .logo {
+                width: 72px;
+                height: 72px;
+                font-size: 40px;
+            }
+
+            .features {
+                padding: 24px;
+            }
+
+            .feature-item {
+                margin-bottom: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-container">
+            <div class="logo">⚡</div>
+            <h1>Azure CloudOps Intelligence Agent</h1>
+            <p class="subtitle">Enterprise Edition - Secure Access</p>
+        </div>
+
+        <button class="sign-in-button" onclick="signIn()">
+            <svg class="microsoft-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23">
+                <rect width="11" height="11" fill="#F25022"/>
+                <rect x="12" width="11" height="11" fill="#7FBA00"/>
+                <rect y="12" width="11" height="11" fill="#00A4EF"/>
+                <rect x="12" y="12" width="11" height="11" fill="#FFB900"/>
+            </svg>
+            Sign in with Microsoft
+        </button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 16px; color: var(--neutral-gray-90); font-weight: 500;">Authenticating securely...</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="features">
+            <div class="feature-item">
+                <span class="feature-icon lock">🔒</span>
+                <span>Secure Entra ID Authentication</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon user">👤</span>
+                <span>User Context-Based Operations</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon check">✅</span>
+                <span>Approval Workflow Integration</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon shield">🛡️</span>
+                <span>Role-Based Access Control</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://alcdn.msauth.net/browser/2.28.0/js/msal-browser.min.js"></script>
+    <script>
+        // MSAL Configuration
+        const msalConfig = {
+            auth: {
+                clientId: 'd2cb3ded-b2d0-44c8-a91f-fdc73a2cd303',  // App Registration Client ID
+                authority: 'https://login.microsoftonline.com/8d7622f8-d815-4120-b5b8-bee841c23a1c',  // Tenant ID
+                redirectUri: window.location.origin + '/login.html'
+            },
+            cache: {
+                cacheLocation: 'sessionStorage',
+                storeAuthStateInCookie: true
+            }
+        };
+
+        const loginRequest = {
+            scopes: ['openid', 'profile', 'email', 'User.Read']
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+        // Initialize MSAL
+        msalInstance.initialize().then(() => {
+            // Handle redirect response
+            msalInstance.handleRedirectPromise().then(response => {
+                if (response) {
+                    handleLoginSuccess(response);
+                } else {
+                    // Check if user is already signed in
+                    const accounts = msalInstance.getAllAccounts();
+                    if (accounts.length > 0) {
+                        acquireTokenSilent();
+                    }
+                }
+            }).catch(error => {
+                handleLoginError(error);
+            });
+        });
+
+        async function signIn() {
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('errorMessage').classList.remove('active');
+            
+            try {
+                await msalInstance.loginRedirect(loginRequest);
+            } catch (error) {
+                handleLoginError(error);
+            }
+        }
+
+        async function acquireTokenSilent() {
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length === 0) {
+                return;
+            }
+
+            const request = {
+                ...loginRequest,
+                account: accounts[0]
+            };
+
+            try {
+                const response = await msalInstance.acquireTokenSilent(request);
+                handleLoginSuccess(response);
+            } catch (error) {
+                if (error instanceof msal.InteractionRequiredAuthError) {
+                    await msalInstance.loginRedirect(loginRequest);
+                } else {
+                    handleLoginError(error);
+                }
+            }
+        }
+
+        function handleLoginSuccess(response) {
+            console.log('✅ Login successful:', response);
+            
+            // Store user info in format expected by index.html
+            const userInfo = {
+                name: response.account.name || response.account.username,
+                email: response.account.username,
+                id: response.account.localAccountId
+            };
+            
+            // Store in both sessionStorage and localStorage for reliability
+            sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            sessionStorage.setItem('accessToken', response.accessToken);
+            sessionStorage.setItem('loginComplete', 'true');
+            
+            console.log('✅ User info stored:', userInfo);
+            console.log('✅ Redirecting to main app...');
+
+            // Small delay to ensure storage completes, then redirect
+            setTimeout(() => {
+                window.location.replace('/');
+            }, 100);
+        }
+
+        function handleLoginError(error) {
+            console.error('Login error:', error);
+            document.getElementById('loading').classList.remove('active');
+            
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = error.message || 'Failed to sign in. Please try again.';
+            errorMessage.classList.add('active');
+        }
+    </script>
+</body>
+</html>
