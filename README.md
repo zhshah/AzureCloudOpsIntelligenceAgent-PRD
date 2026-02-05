@@ -151,6 +151,41 @@ When you chat with the agent (e.g., "Show me all VMs" or "What's my cost this mo
 
 ### Option A: System-Assigned Managed Identity (Automated Deployment)
 
+#### 🎯 Which Resource Has the Managed Identity?
+
+> **IMPORTANT**: The System-Assigned Managed Identity belongs to the **AZURE CONTAINER APP** - NOT the Azure OpenAI (Foundry) resource.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Azure Container App (cloudops-agent)                           │
+│  ├─ Has: System-Assigned Managed Identity                       │
+│  └─ Principal ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx          │
+│                     │                                           │
+│                     │ Authenticates to:                         │
+│                     ▼                                           │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ • Azure Resource Graph (query VMs, storage, networks)   │   │
+│  │ • Azure Cost Management (read spending data)            │   │
+│  │ • Azure OpenAI (send prompts to GPT-4o)                 │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### How to Find the Container App's Managed Identity Principal ID
+
+**Via CLI:**
+```bash
+az containerapp show --name <app-name> --resource-group <rg-name> --query "identity.principalId" -o tsv
+```
+
+**Via Azure Portal:**
+1. Go to **Resource Groups** → Your resource group
+2. Click the **Container App** (e.g., `cloudops-agent`)
+3. Go to **Settings** → **Identity**
+4. Under **System assigned**, see **Object (principal) ID**
+
+---
+
 The **automated deployment script** creates a **System-Assigned Managed Identity** and assigns these roles:
 
 #### Application Runtime Permissions (READ-ONLY)
@@ -161,11 +196,123 @@ The **automated deployment script** creates a **System-Assigned Managed Identity
 | **Cost Management Reader** | Subscription | Read billing and cost data | Read costs, spending trends, budgets (read-only) | ❌ Modify budgets, billing, or make financial changes |
 | **Cognitive Services OpenAI User** | OpenAI Resource ONLY | Use GPT-4o for chat | Send prompts and receive responses | ❌ Create/delete models, modify OpenAI settings |
 
+---
+
+#### What is "Cognitive Services OpenAI User" Role?
+
+| Property | Value |
+|----------|-------|
+| **Role Name** | Cognitive Services OpenAI User |
+| **Role ID** | `5e0bd9bd-7b93-4f28-af87-19fc36ad61bd` |
+| **Purpose** | Allow using Azure OpenAI API without managing the resource |
+
+✅ **Allows:** Call chat completions, embeddings APIs
+❌ **Does NOT allow:** Create/delete OpenAI resources, modify deployments, access API keys
+
+**Why this role?** Least-privilege - the app only needs to USE the API, not manage it.
+
 #### Key Security Points:
 - ✅ **100% Read-Only** - Application cannot create, modify, or delete any Azure resources
 - ✅ **No Secrets Stored** - Managed Identity handles authentication automatically
 - ✅ **Principle of Least Privilege** - Minimum permissions required for functionality
 - ✅ **Scoped OpenAI Access** - OpenAI role is limited to the specific resource, not subscription-wide
+
+---
+
+### 🔧 Post-Deployment: Granting Access to Other Subscriptions or Management Groups
+
+> ⚠️ **FOR ADMINISTRATORS**: The deployment script only assigns permissions to the **deployment subscription**. For multi-subscription or Management Group access, an administrator must manually complete these steps AFTER deployment.
+
+#### Why Manual Assignment is Required
+
+The deployment engineer may not have permissions to:
+- Assign roles at Management Group level
+- Assign roles to other subscriptions they don't own
+
+**An Azure Administrator with appropriate access must complete this step.**
+
+#### Step 1: Get the Container App's Managed Identity Principal ID
+
+```bash
+# Replace with your actual values
+RESOURCE_GROUP="rg-cloudops-agent"
+CONTAINER_APP_NAME="cloudops-agent"
+
+# Get the Principal ID
+PRINCIPAL_ID=$(az containerapp show \
+    --name $CONTAINER_APP_NAME \
+    --resource-group $RESOURCE_GROUP \
+    --query "identity.principalId" -o tsv)
+
+echo "Container App Managed Identity Principal ID: $PRINCIPAL_ID"
+```
+
+**Save this Principal ID** - you'll need it for the role assignments below.
+
+#### Step 2: Choose Your Scope
+
+| Scope Level | Use Case | Example Scope |
+|-------------|----------|---------------|
+| **Subscription** | Query resources in one additional subscription | `/subscriptions/<subscription-id>` |
+| **Management Group** | Query resources across ALL subscriptions in the group | `/providers/Microsoft.Management/managementGroups/<mg-name>` |
+| **Root Management Group** | Query resources across ENTIRE tenant | `/providers/Microsoft.Management/managementGroups/<tenant-id>` |
+
+#### Step 3: Assign Roles at the Desired Scope
+
+**For a Single Additional Subscription:**
+
+```bash
+PRINCIPAL_ID="<container-app-principal-id-from-step-1>"
+OTHER_SUBSCRIPTION_ID="<subscription-id-to-grant-access>"
+
+# Assign Reader role (for resource queries)
+az role assignment create --assignee $PRINCIPAL_ID --role "Reader" \
+    --scope "/subscriptions/$OTHER_SUBSCRIPTION_ID"
+
+# Assign Cost Management Reader role (for cost data)
+az role assignment create --assignee $PRINCIPAL_ID --role "Cost Management Reader" \
+    --scope "/subscriptions/$OTHER_SUBSCRIPTION_ID"
+```
+
+**For a Management Group (All Subscriptions Under It):**
+
+```bash
+PRINCIPAL_ID="<container-app-principal-id-from-step-1>"
+MANAGEMENT_GROUP_NAME="<your-management-group-name>"
+
+# Assign Reader role at Management Group level
+az role assignment create --assignee $PRINCIPAL_ID --role "Reader" \
+    --scope "/providers/Microsoft.Management/managementGroups/$MANAGEMENT_GROUP_NAME"
+
+# Assign Cost Management Reader role at Management Group level
+az role assignment create --assignee $PRINCIPAL_ID --role "Cost Management Reader" \
+    --scope "/providers/Microsoft.Management/managementGroups/$MANAGEMENT_GROUP_NAME"
+```
+
+**For Root Management Group (Entire Tenant):**
+
+```bash
+# Get your tenant's root management group ID (same as tenant ID)
+TENANT_ID=$(az account show --query "tenantId" -o tsv)
+PRINCIPAL_ID="<container-app-principal-id-from-step-1>"
+
+# Assign Reader role at root (all subscriptions in tenant)
+az role assignment create --assignee $PRINCIPAL_ID --role "Reader" \
+    --scope "/providers/Microsoft.Management/managementGroups/$TENANT_ID"
+
+# Assign Cost Management Reader role at root
+az role assignment create --assignee $PRINCIPAL_ID --role "Cost Management Reader" \
+    --scope "/providers/Microsoft.Management/managementGroups/$TENANT_ID"
+```
+
+#### Roles Summary for Multi-Subscription/Management Group Access
+
+| Role | Required For | Scope to Assign |
+|------|--------------|-----------------|
+| **Reader** | Query VMs, storage, networks, all resources | Subscription OR Management Group |
+| **Cost Management Reader** | Read cost and billing data | Subscription OR Management Group |
+
+> 📝 **Note**: The "Cognitive Services OpenAI User" role does **NOT** need to be assigned at other scopes. It's only needed on the specific Azure OpenAI resource where your GPT-4o model is deployed.
 
 ---
 
