@@ -27,3 +27,40 @@ Thumbs.db
 # Azure Functions
 local.settings.json
 .python_packages/
+# Sensitive files - NEVER commit these
+webhook-url.txt
+webhook-create.json
+**/webhook*.txt
+**/webhook*.json
+
+# Internal development files
+MILESTONE_BACKUPS/
+UI Designs/
+*.backup
+*.backup-*
+*MILESTONE*
+*FIX*.md
+*FIX*.txt
+SETUP_STATUS.md
+*GUIDE.md
+*INSTRUCTIONS.md
+
+# Test files
+test_*.py
+
+# Logic app configs with hardcoded values
+logic-app-*.json
+
+# Development setup scripts
+complete-setup.ps1
+setup-complete.ps1
+deploy-complete.ps1
+deploy-function.ps1
+deploy-logic-app.ps1
+automation-*.ps1
+
+# Backup static files
+static/*.backup*
+static/*-new*.html
+static/*-enhanced*.html
+static/*-dashboard-backup*.html
