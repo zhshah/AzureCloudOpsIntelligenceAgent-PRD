@@ -5,16 +5,19 @@ Provides conversational AI interface for Azure cost management and resource quer
 
 from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import os
 from dotenv import load_dotenv
 import json
+import uuid
+import io
 from datetime import datetime, timedelta
 
 from azure_cost_manager import AzureCostManager
 from azure_resource_manager import AzureResourceManager
+from entra_id_manager import EntraIDManager
 from openai_agent import OpenAIAgent
 from auth_manager import get_auth_manager
 
@@ -27,11 +30,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Query results cache for CSV export (stores full results)
+# Format: {query_id: {"data": [...], "timestamp": datetime, "query_type": str}}
+query_results_cache: Dict[str, Dict] = {}
+
 # Initialize managers
 cost_manager = AzureCostManager()
 resource_manager = AzureResourceManager()
-ai_agent = OpenAIAgent(cost_manager, resource_manager)
+entra_manager = EntraIDManager()
+ai_agent = OpenAIAgent(cost_manager, resource_manager, entra_manager)
 auth_manager = get_auth_manager()
+
+# Share the query cache with the agent
+ai_agent.query_cache = query_results_cache
 
 
 class ChatMessage(BaseModel):
@@ -124,6 +135,91 @@ async def get_subscriptions():
         print(f"Error fetching subscriptions: {e}")
         # Return empty array on error so UI doesn't break
         return []
+
+
+@app.get("/api/export-csv/{query_id}")
+async def export_csv(query_id: str):
+    """
+    Export full query results as CSV
+    This endpoint returns ALL data from the cached query, not just what's displayed
+    """
+    try:
+        # Clean up old cache entries (older than 1 hour)
+        cutoff_time = datetime.utcnow() - timedelta(hours=1)
+        expired_keys = [k for k, v in query_results_cache.items() 
+                       if v.get("timestamp", datetime.min) < cutoff_time]
+        for key in expired_keys:
+            del query_results_cache[key]
+        
+        # Check if query exists in cache
+        if query_id not in query_results_cache:
+            raise HTTPException(status_code=404, detail="Query results not found or expired. Please run the query again.")
+        
+        cached = query_results_cache[query_id]
+        data = cached.get("data", [])
+        query_type = cached.get("query_type", "azure_export")
+        
+        if not data:
+            raise HTTPException(status_code=404, detail="No data found for this query")
+        
+        # Generate CSV content
+        output = io.StringIO()
+        
+        # Add BOM for Excel UTF-8 compatibility
+        output.write('\ufeff')
+        
+        # Write headers (first row)
+        if data:
+            headers = list(data[0].keys()) if isinstance(data[0], dict) else []
+            output.write(','.join(headers) + '\n')
+            
+            # Write data rows
+            for row in data:
+                if isinstance(row, dict):
+                    row_values = []
+                    for h in headers:
+                        val = str(row.get(h, ''))
+                        # Escape quotes and wrap if contains comma, quote, or newline
+                        if ',' in val or '"' in val or '\n' in val:
+                            val = '"' + val.replace('"', '""') + '"'
+                        row_values.append(val)
+                    output.write(','.join(row_values) + '\n')
+        
+        # Generate filename with timestamp
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"{query_type}_{timestamp}.csv"
+        
+        # Return as streaming response
+        output.seek(0)
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            media_type='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'X-Total-Rows': str(len(data))
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error exporting CSV: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/query-info/{query_id}")
+async def get_query_info(query_id: str):
+    """Get information about a cached query (row count, type, etc.)"""
+    if query_id not in query_results_cache:
+        return {"exists": False, "total_rows": 0}
+    
+    cached = query_results_cache[query_id]
+    return {
+        "exists": True,
+        "total_rows": len(cached.get("data", [])),
+        "query_type": cached.get("query_type", "unknown"),
+        "timestamp": cached.get("timestamp", "").isoformat() if cached.get("timestamp") else None
+    }
 
 
 class ExecuteApprovedRequest(BaseModel):

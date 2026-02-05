@@ -5,6 +5,8 @@ Handles conversational AI with Azure OpenAI and function calling for Azure APIs
 
 import os
 import json
+import uuid
+from datetime import datetime
 from typing import List, Dict, Any, Tuple
 from openai import AzureOpenAI
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
@@ -19,20 +21,25 @@ from universal_cli_deployment import UniversalCLIDeployment
 
 
 class OpenAIAgent:
-    def __init__(self, cost_manager, resource_manager):
+    def __init__(self, cost_manager, resource_manager, entra_manager=None):
         """
         Initialize OpenAI Agent
         
         Args:
             cost_manager: AzureCostManager instance
             resource_manager: AzureResourceManager instance
+            entra_manager: EntraIDManager instance (optional)
         """
         self.cost_manager = cost_manager
         self.resource_manager = resource_manager
+        self.entra_manager = entra_manager
         
         # User context for deployments
         self.user_email = None
         self.user_name = None
+        
+        # Query cache for CSV export (will be set by main.py)
+        self.query_cache = {}
         
         # Initialize modern deployment manager
         self.resource_deployment = ModernResourceDeployment(
@@ -538,10 +545,20 @@ class OpenAIAgent:
                 "type": "function",
                 "function": {
                     "name": "get_policy_compliance_status",
-                    "description": "Get Azure Policy compliance status across subscriptions. Shows policy assignments, compliant/non-compliant resources, and compliance percentage. Use when user asks about policy compliance, policy status, or governance compliance.",
+                    "description": "Get Azure Policy compliance status. IMPORTANT: Before showing results, ASK the user which scope level they want: 'subscription' level (default) or 'resource_group' level. If resource_group level, ask which resource group. The response shows policy assignments, compliant/non-compliant resources, compliance percentage, and includes SubscriptionId and ResourceGroup columns.",
                     "parameters": {
                         "type": "object",
                         "properties": {
+                            "scope": {
+                                "type": "string",
+                                "enum": ["subscription", "resource_group"],
+                                "description": "Scope level for compliance report. 'subscription' shows subscription-level compliance, 'resource_group' shows compliance for a specific resource group. Default is 'subscription'.",
+                                "default": "subscription"
+                            },
+                            "resource_group": {
+                                "type": "string",
+                                "description": "Required when scope is 'resource_group'. The name of the resource group to filter compliance results."
+                            },
                             "subscriptions": {
                                 "type": "array",
                                 "items": {"type": "string"},
@@ -1034,6 +1051,934 @@ class OpenAIAgent:
                         "required": ["resource_type", "resource_name", "resource_group", "tags"]
                     }
                 }
+            },
+            # ============================================================
+            # NEW SERVICE-SPECIFIC TOOLS
+            # ============================================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_app_services_detailed",
+                    "description": "Get all Azure App Services with detailed configuration including HTTPS settings, TLS version, plan info. Use when user asks about App Services, web apps, Function Apps.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs. Leave empty for current subscription."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_app_services_without_appinsights",
+                    "description": "Get App Services not connected to Application Insights for monitoring. Use when user asks about App Services without monitoring or App Insights.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_app_services_public_access",
+                    "description": "Get App Services with public access enabled (no IP restrictions or private endpoints). Use when checking App Service security or public exposure.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_aks_clusters",
+                    "description": "Get all AKS clusters with detailed information including Kubernetes version, node count, network settings. Use when user asks about AKS, Kubernetes clusters.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_aks_public_access",
+                    "description": "Get AKS clusters with public API server access. Use when checking AKS security or public exposure.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_aks_private_access",
+                    "description": "Get AKS clusters with private API server access (private clusters). Use when checking AKS private cluster configuration.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_aks_without_monitoring",
+                    "description": "Get AKS clusters without Container Insights monitoring enabled. Use when checking AKS monitoring status.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_sql_databases_detailed",
+                    "description": "Get all Azure SQL Databases with SKU, tier, and size information. Use when user asks about SQL databases.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_sql_managed_instances",
+                    "description": "Get all Azure SQL Managed Instances. Use when user asks about SQL MI or managed instances.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_sql_public_access",
+                    "description": "Get SQL Servers with public network access enabled. Use when checking SQL security or public exposure.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_vmss",
+                    "description": "Get all Virtual Machine Scale Sets. Use when user asks about VMSS or scale sets.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_postgresql_servers",
+                    "description": "Get all Azure Database for PostgreSQL Flexible servers. Use when user asks about PostgreSQL.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_postgresql_public_access",
+                    "description": "Get PostgreSQL servers with public network access. Use when checking PostgreSQL security.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_mysql_servers",
+                    "description": "Get all Azure Database for MySQL Flexible servers. Use when user asks about MySQL.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_mysql_public_access",
+                    "description": "Get MySQL servers with public network access. Use when checking MySQL security.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_cosmosdb_accounts",
+                    "description": "Get all Cosmos DB accounts with API type and replication info. Use when user asks about Cosmos DB.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_cosmosdb_public_access",
+                    "description": "Get Cosmos DB accounts with public network access. Use when checking Cosmos DB security.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_apim_instances",
+                    "description": "Get all API Management instances. Use when user asks about APIM or API Management.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_tag_inventory",
+                    "description": "Get high-level tag inventory showing all tags used across the environment. Use when user asks about tag usage or tag inventory.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_vms_without_azure_monitor",
+                    "description": "Get VMs without Azure Monitor Agent installed. Use when checking VM monitoring gaps.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_arc_machines_without_azure_monitor",
+                    "description": "Get Arc machines without Azure Monitor Agent. Use when checking Arc machine monitoring gaps.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            # STORAGE ACCOUNTS TOOLS
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_storage_accounts_detailed",
+                    "description": "Get comprehensive storage account summary with all details. Use when user asks about storage accounts, storage summary, or list storage.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_storage_accounts_public_access",
+                    "description": "Get storage accounts with public access enabled (blob anonymous access). Use when user asks about storage security, public storage, or storage with public access.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_storage_accounts_with_private_endpoints_detailed",
+                    "description": "Get storage accounts with private endpoints configured. Use when user asks about storage private endpoints or private storage access.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_storage_accounts_empty",
+                    "description": "Get storage accounts that appear to be empty or unused. Use when user asks about empty storage, unused storage accounts.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_storage_accounts_unused",
+                    "description": "Get storage accounts potentially unused in last 3 months. Use when user asks about unused storage, storage not used, inactive storage.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_storage_accounts_capacity",
+                    "description": "Get storage accounts ordered by capacity and tier. Use when user asks about storage capacity, storage size, capacity wise.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_file_shares",
+                    "description": "Get Azure File Shares inventory across all storage accounts. Use when user asks about file shares, Azure Files.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_file_shares_with_ad_auth",
+                    "description": "Get storage accounts with Azure Files AD authentication configured. Use when user asks about file shares AD authentication, AD joined file shares.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_storage_accounts_with_lifecycle_policy",
+                    "description": "Get storage accounts with lifecycle management policies configured. Use when user asks about lifecycle management, storage lifecycle policies.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_storage_cost_optimization",
+                    "description": "Get storage account cost optimization opportunities. Use when user asks about storage cost optimization, storage savings, reduce storage costs.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            # ============================================
+            # ENTRA ID (AZURE AD) TOOLS
+            # ============================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_entra_id_overview",
+                    "description": "Get overview of Entra ID tenant showing counts of users, groups, applications, devices, and conditional access policies. Use when user asks about Entra ID overview, Azure AD summary, tenant overview.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_users_not_signed_in_30_days",
+                    "description": "Get users who haven't signed in for 30+ days. Use when user asks about inactive users, users not logging in, stale accounts.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_users_sync_stopped",
+                    "description": "Get users that stopped synchronizing from on-premises Active Directory. Use when user asks about AD sync issues, hybrid sync problems.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_guest_accounts",
+                    "description": "Get orphaned guest accounts that haven't signed in for 90+ days. Use when user asks about orphaned guests, inactive guest users, guest account cleanup.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_privileged_role_users",
+                    "description": "Get users with privileged directory roles. Use when user asks about privileged users, admins, role assignments.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_global_admins",
+                    "description": "Get users with Global Administrator role. Use when user asks about global admins, who has global admin.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_custom_roles",
+                    "description": "Get custom directory roles defined in the tenant. Use when user asks about custom roles, custom RBAC roles in Entra ID.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_unused_applications",
+                    "description": "Get applications that appear to be unused (no recent sign-ins). Use when user asks about unused apps, stale applications, app registrations not in use.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_devices",
+                    "description": "Get all registered devices in Entra ID. Use when user asks about devices, registered devices, device inventory.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_stale_devices",
+                    "description": "Get devices that haven't been active in 90+ days. Use when user asks about stale devices, inactive devices, device cleanup.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_app_registrations",
+                    "description": "Get all app registrations in Entra ID. Use when user asks about app registrations, registered apps.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_enterprise_apps",
+                    "description": "Get enterprise applications (service principals). Use when user asks about enterprise apps, service principals.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_groups",
+                    "description": "Get all groups in Entra ID. Use when user asks about groups, security groups, Microsoft 365 groups.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_empty_groups",
+                    "description": "Get groups with no members. Use when user asks about empty groups, groups without members.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_conditional_access_policies",
+                    "description": "Get all Conditional Access policies. Use when user asks about conditional access, CA policies.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_conditional_access_policies_disabled",
+                    "description": "Get disabled Conditional Access policies. Use when user asks about disabled CA policies.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_conditional_access_without_mfa",
+                    "description": "Get Conditional Access policies that don't require MFA. Use when user asks about CA policies without MFA, MFA gaps.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }
+            },
+            # ============================================
+            # AZURE BACKUP TOOLS
+            # ============================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_vms_with_backup",
+                    "description": "Get Virtual Machines enabled with Azure Backup. Use when user asks about VMs with backup, protected VMs.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_vms_without_backup_detailed",
+                    "description": "Get Virtual Machines NOT enabled with Azure Backup. Use when user asks about VMs without backup, unprotected VMs.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_file_shares_with_backup",
+                    "description": "Get Azure File Shares enabled for backup. Use when user asks about file shares with backup, protected file shares.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_file_shares_without_backup",
+                    "description": "Get Azure File Shares NOT enabled for backup. Use when user asks about file shares without backup, unprotected file shares.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_managed_disks_with_backup",
+                    "description": "Get Managed Disks enabled for backup using Backup Vault. Use when user asks about disks with backup, protected disks.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_managed_disks_without_backup",
+                    "description": "Get Managed Disks NOT enabled for backup. Use when user asks about disks without backup, unprotected disks.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_shared_disks",
+                    "description": "Get Managed Disks configured for shared disk. Use when user asks about shared disks, multi-attach disks.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_storage_blobs_with_backup",
+                    "description": "Get Storage Account Blobs enabled for backup using Backup Vault. Use when user asks about blob backup, storage backup.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_sql_databases_with_backup",
+                    "description": "Get Azure SQL Databases enabled for backup. Use when user asks about SQL backup, SQL database protection.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_sql_managed_instance_with_backup",
+                    "description": "Get SQL Managed Instances enabled for backup. Use when user asks about managed instance backup.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_backup_vaults_summary",
+                    "description": "Get summary of all Backup Vaults and Recovery Services Vaults. Use when user asks about backup vaults, recovery vaults.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_backup_jobs_failed",
+                    "description": "Get failed backup jobs. Use when user asks about failed backups, backup failures, backup job status.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
             }
         ]
         
@@ -1400,6 +2345,15 @@ IMPORTANT RULES:
 - If parameters missing, ask user for them, then deploy
 - After calling function, explain what happens next (approval email, deployment)
 
+📊 **CSV EXPORT - LARGE DATASET HANDLING (CRITICAL)**:
+When function results include "query_id" and "total_rows" fields, this means data has been cached for full CSV export.
+- ALWAYS show the query_id at the END of your table in this EXACT format on a new line:
+  `[EXPORT:query_id:ROWS:total_rows]` (e.g., [EXPORT:abc12345:ROWS:454])
+- Display up to 50 rows in the table (data is already limited by the function)
+- If "message" field exists in result, include it after the table
+- The frontend will parse this tag to enable "Download Full Report" button
+- Example: If result has query_id="abc123" and total_rows=454, add: [EXPORT:abc123:ROWS:454] after the table
+
 Formatting Guidelines:
 - **Use Markdown Tables**: For lists of resources, VMs, costs, or structured data
 - **Clear Headers**: Include comprehensive field coverage
@@ -1531,6 +2485,55 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
             ]
             return error_message, updated_history
     
+    def _cache_query_results(self, data: Any, query_type: str, display_limit: int = 50) -> Dict[str, Any]:
+        """
+        Cache query results for CSV export and return with query_id
+        
+        Args:
+            data: Full query results (list of dicts or dict with 'data' key)
+            query_type: Type of query (e.g., 'all_resources', 'vms', 'storage')
+            display_limit: Max rows to include in display (default 50)
+            
+        Returns:
+            Result dict with query_id, total_rows, and display_data
+        """
+        # Extract data list if wrapped in a dict
+        if isinstance(data, dict):
+            if "error" in data:
+                return data  # Return errors as-is
+            result_list = data.get("data", data.get("resources", []))
+            if not result_list and not any(k in data for k in ["data", "resources"]):
+                # Try to convert dict results to list format
+                result_list = [data]
+        elif isinstance(data, list):
+            result_list = data
+        else:
+            return data  # Return non-list results as-is
+        
+        # Generate unique query_id
+        query_id = str(uuid.uuid4())[:8]  # Short UUID for readability
+        
+        # Cache full results
+        self.query_cache[query_id] = {
+            "data": result_list,
+            "query_type": query_type,
+            "timestamp": datetime.utcnow(),
+            "total_rows": len(result_list)
+        }
+        
+        print(f"📦 Cached {len(result_list)} rows with query_id: {query_id}")
+        
+        # Return result with query_id for frontend
+        return {
+            "query_id": query_id,
+            "total_rows": len(result_list),
+            "display_rows": min(display_limit, len(result_list)),
+            "data": result_list[:display_limit],  # Limited data for display
+            "query_type": query_type,
+            "export_available": len(result_list) > display_limit,
+            "message": f"Showing {min(display_limit, len(result_list))} of {len(result_list)} results. Use Export to CSV for all data." if len(result_list) > display_limit else None
+        }
+    
     async def _execute_function(self, function_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute the requested function
@@ -1615,28 +2618,32 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                 return self.resource_manager.get_vms_without_backup()
             
             elif function_name == "get_resources_by_type":
-                return self.resource_manager.get_resources_by_type(
+                result = self.resource_manager.get_resources_by_type(
                     resource_type=arguments.get("resource_type")
                 )
+                return self._cache_query_results(result, f"resources_{arguments.get('resource_type', 'by_type')}")
             
             elif function_name == "get_resource_count_by_type":
                 return self.resource_manager.get_resource_count_by_type()
             
             elif function_name == "get_all_resources_detailed":
-                return self.resource_manager.get_all_resources_detailed(
+                result = self.resource_manager.get_all_resources_detailed(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "all_resources")
             
             elif function_name == "get_resources_by_resource_group":
-                return self.resource_manager.get_resources_by_resource_group(
+                result = self.resource_manager.get_resources_by_resource_group(
                     resource_group=arguments.get("resource_group"),
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, f"rg_{arguments.get('resource_group', 'resources')}")
             
             elif function_name == "search_resources":
-                return self.resource_manager.search_resources(
+                result = self.resource_manager.search_resources(
                     search_term=arguments.get("search_term")
                 )
+                return self._cache_query_results(result, f"search_{arguments.get('search_term', 'results')}")
             
             elif function_name == "get_subscriptions_for_selection":
                 # Get all subscriptions and format as numbered list
@@ -1661,19 +2668,23 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                 }
             
             elif function_name == "get_app_services":
-                return self.resource_manager.get_app_services()
+                result = self.resource_manager.get_app_services()
+                return self._cache_query_results(result, "app_services")
             
             elif function_name == "get_sql_databases":
-                return self.resource_manager.get_sql_databases()
+                result = self.resource_manager.get_sql_databases()
+                return self._cache_query_results(result, "sql_databases")
             
             elif function_name == "get_key_vaults":
-                return self.resource_manager.get_key_vaults()
+                result = self.resource_manager.get_key_vaults()
+                return self._cache_query_results(result, "key_vaults")
             
             elif function_name == "get_resources_by_tag":
-                return self.resource_manager.get_resources_by_tag(
+                result = self.resource_manager.get_resources_by_tag(
                     tag_name=arguments.get("tag_name"),
                     tag_value=arguments.get("tag_value")
                 )
+                return self._cache_query_results(result, f"tag_{arguments.get('tag_name', 'resources')}")
             
             elif function_name == "get_resources_by_tag_with_costs":
                 return await self._get_resources_by_tag_with_costs(
@@ -1683,22 +2694,28 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                 )
             
             elif function_name == "get_all_vms":
-                return self.resource_manager.get_all_vms()
+                result = self.resource_manager.get_all_vms()
+                return self._cache_query_results(result, "virtual_machines")
             
             elif function_name == "get_storage_accounts":
-                return self.resource_manager.get_storage_accounts()
+                result = self.resource_manager.get_storage_accounts()
+                return self._cache_query_results(result, "storage_accounts")
             
             elif function_name == "get_paas_without_private_endpoints":
-                return self.resource_manager.get_paas_without_private_endpoints()
+                result = self.resource_manager.get_paas_without_private_endpoints()
+                return self._cache_query_results(result, "paas_no_private_endpoints")
             
             elif function_name == "get_resources_with_public_access":
-                return self.resource_manager.get_resources_with_public_access()
+                result = self.resource_manager.get_resources_with_public_access()
+                return self._cache_query_results(result, "public_access_resources")
             
             elif function_name == "get_all_databases":
-                return self.resource_manager.get_all_databases()
+                result = self.resource_manager.get_all_databases()
+                return self._cache_query_results(result, "all_databases")
             
             elif function_name == "get_resources_without_tags":
-                return self.resource_manager.get_resources_without_tags()
+                result = self.resource_manager.get_resources_without_tags()
+                return self._cache_query_results(result, "untagged_resources")
             
             elif function_name == "get_unused_resources":
                 return self.resource_manager.get_unused_resources()
@@ -1711,9 +2728,12 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
             
             # AZURE POLICY FUNCTIONS
             elif function_name == "get_policy_compliance_status":
-                return self.resource_manager.get_policy_compliance_status(
+                result = self.resource_manager.get_policy_compliance_status(
+                    scope=arguments.get("scope", "subscription"),
+                    resource_group=arguments.get("resource_group"),
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "policy_compliance_status")
             
             elif function_name == "get_non_compliant_resources":
                 return self.resource_manager.get_non_compliant_resources(
@@ -1836,6 +2856,366 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
             
             elif function_name == "update_resource_tags":
                 return await self.cli_deployment.update_resource_tags(arguments)
+            
+            # ============================================================
+            # NEW SERVICE-SPECIFIC FUNCTIONS
+            # ============================================================
+            
+            # APP SERVICES
+            elif function_name == "get_app_services_detailed":
+                return self.resource_manager.get_app_services_detailed(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_app_services_without_appinsights":
+                return self.resource_manager.get_app_services_without_appinsights(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_app_services_public_access":
+                return self.resource_manager.get_app_services_public_access(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            # AKS CLUSTERS
+            elif function_name == "get_aks_clusters":
+                return self.resource_manager.get_aks_clusters(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_aks_public_access":
+                return self.resource_manager.get_aks_public_access(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_aks_private_access":
+                return self.resource_manager.get_aks_private_access(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_aks_without_monitoring":
+                return self.resource_manager.get_aks_without_monitoring(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            # SQL DATABASES AND MANAGED INSTANCES
+            elif function_name == "get_sql_databases_detailed":
+                return self.resource_manager.get_sql_databases_detailed(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_sql_managed_instances":
+                return self.resource_manager.get_sql_managed_instances(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_sql_public_access":
+                return self.resource_manager.get_sql_public_access(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            # VIRTUAL MACHINE SCALE SETS
+            elif function_name == "get_vmss":
+                return self.resource_manager.get_vmss(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            # POSTGRESQL
+            elif function_name == "get_postgresql_servers":
+                return self.resource_manager.get_postgresql_servers(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_postgresql_public_access":
+                return self.resource_manager.get_postgresql_public_access(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            # MYSQL
+            elif function_name == "get_mysql_servers":
+                return self.resource_manager.get_mysql_servers(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_mysql_public_access":
+                return self.resource_manager.get_mysql_public_access(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            # COSMOS DB
+            elif function_name == "get_cosmosdb_accounts":
+                return self.resource_manager.get_cosmosdb_accounts(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_cosmosdb_public_access":
+                return self.resource_manager.get_cosmosdb_public_access(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            # API MANAGEMENT
+            elif function_name == "get_apim_instances":
+                return self.resource_manager.get_apim_instances(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            # TAG INVENTORY
+            elif function_name == "get_tag_inventory":
+                return self.resource_manager.get_tag_inventory(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            # MONITORING GAPS
+            elif function_name == "get_vms_without_azure_monitor":
+                return self.resource_manager.get_vms_without_azure_monitor(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            elif function_name == "get_arc_machines_without_azure_monitor":
+                return self.resource_manager.get_arc_machines_without_azure_monitor(
+                    subscriptions=arguments.get("subscriptions")
+                )
+            
+            # STORAGE ACCOUNTS
+            elif function_name == "get_storage_accounts_detailed":
+                result = self.resource_manager.get_storage_accounts_detailed(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "storage_accounts")
+            
+            elif function_name == "get_storage_accounts_public_access":
+                result = self.resource_manager.get_storage_accounts_public_access(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "storage_public_access")
+            
+            elif function_name == "get_storage_accounts_with_private_endpoints_detailed":
+                result = self.resource_manager.get_storage_accounts_with_private_endpoints_detailed(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "storage_private_endpoints")
+            
+            elif function_name == "get_storage_accounts_empty":
+                result = self.resource_manager.get_storage_accounts_empty(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "storage_empty")
+            
+            elif function_name == "get_storage_accounts_unused":
+                result = self.resource_manager.get_storage_accounts_unused(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "storage_unused")
+            
+            elif function_name == "get_storage_accounts_capacity":
+                result = self.resource_manager.get_storage_accounts_capacity(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "storage_capacity")
+            
+            elif function_name == "get_file_shares":
+                result = self.resource_manager.get_file_shares(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "file_shares")
+            
+            elif function_name == "get_file_shares_with_ad_auth":
+                result = self.resource_manager.get_file_shares_with_ad_auth(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "file_shares_ad_auth")
+            
+            elif function_name == "get_storage_accounts_with_lifecycle_policy":
+                result = self.resource_manager.get_storage_accounts_with_lifecycle_policy(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "storage_lifecycle")
+            
+            elif function_name == "get_storage_cost_optimization":
+                result = self.resource_manager.get_storage_cost_optimization(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "storage_cost_optimization")
+            
+            # ============================================================
+            # ENTRA ID (AZURE AD) FUNCTIONS
+            # ============================================================
+            elif function_name == "get_entra_id_overview":
+                if self.entra_manager:
+                    result = self.entra_manager.get_entra_id_overview()
+                    return self._cache_query_results(result, "entra_overview")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_users_not_signed_in_30_days":
+                if self.entra_manager:
+                    result = self.entra_manager.get_users_not_signed_in_30_days()
+                    return self._cache_query_results(result, "users_inactive_30days")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_users_sync_stopped":
+                if self.entra_manager:
+                    result = self.entra_manager.get_users_sync_stopped()
+                    return self._cache_query_results(result, "users_sync_stopped")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_orphaned_guest_accounts":
+                if self.entra_manager:
+                    result = self.entra_manager.get_orphaned_guest_accounts()
+                    return self._cache_query_results(result, "orphaned_guests")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_privileged_role_users":
+                if self.entra_manager:
+                    result = self.entra_manager.get_privileged_role_users()
+                    return self._cache_query_results(result, "privileged_users")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_global_admins":
+                if self.entra_manager:
+                    result = self.entra_manager.get_global_admins()
+                    return self._cache_query_results(result, "global_admins")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_custom_roles":
+                if self.entra_manager:
+                    result = self.entra_manager.get_custom_roles()
+                    return self._cache_query_results(result, "custom_roles")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_unused_applications":
+                if self.entra_manager:
+                    result = self.entra_manager.get_unused_applications()
+                    return self._cache_query_results(result, "unused_apps")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_devices":
+                if self.entra_manager:
+                    result = self.entra_manager.get_devices()
+                    return self._cache_query_results(result, "entra_devices")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_stale_devices":
+                if self.entra_manager:
+                    result = self.entra_manager.get_stale_devices()
+                    return self._cache_query_results(result, "stale_devices")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_app_registrations":
+                if self.entra_manager:
+                    result = self.entra_manager.get_app_registrations()
+                    return self._cache_query_results(result, "app_registrations")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_enterprise_apps":
+                if self.entra_manager:
+                    result = self.entra_manager.get_enterprise_apps()
+                    return self._cache_query_results(result, "enterprise_apps")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_groups":
+                if self.entra_manager:
+                    result = self.entra_manager.get_groups()
+                    return self._cache_query_results(result, "entra_groups")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_empty_groups":
+                if self.entra_manager:
+                    result = self.entra_manager.get_empty_groups()
+                    return self._cache_query_results(result, "empty_groups")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_conditional_access_policies":
+                if self.entra_manager:
+                    result = self.entra_manager.get_conditional_access_policies()
+                    return self._cache_query_results(result, "ca_policies")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_conditional_access_policies_disabled":
+                if self.entra_manager:
+                    result = self.entra_manager.get_conditional_access_policies_disabled()
+                    return self._cache_query_results(result, "ca_policies_disabled")
+                return {"error": "Entra ID manager not configured"}
+            
+            elif function_name == "get_conditional_access_without_mfa":
+                if self.entra_manager:
+                    result = self.entra_manager.get_conditional_access_without_mfa()
+                    return self._cache_query_results(result, "ca_no_mfa")
+                return {"error": "Entra ID manager not configured"}
+            
+            # ============================================================
+            # AZURE BACKUP FUNCTIONS
+            # ============================================================
+            elif function_name == "get_vms_with_backup":
+                result = self.resource_manager.get_vms_with_backup(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "vms_with_backup")
+            
+            elif function_name == "get_vms_without_backup_detailed":
+                result = self.resource_manager.get_vms_without_backup(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "vms_without_backup")
+            
+            elif function_name == "get_file_shares_with_backup":
+                result = self.resource_manager.get_file_shares_with_backup(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "file_shares_with_backup")
+            
+            elif function_name == "get_file_shares_without_backup":
+                result = self.resource_manager.get_file_shares_without_backup(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "file_shares_without_backup")
+            
+            elif function_name == "get_managed_disks_with_backup":
+                result = self.resource_manager.get_managed_disks_with_backup(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "disks_with_backup")
+            
+            elif function_name == "get_managed_disks_without_backup":
+                result = self.resource_manager.get_managed_disks_without_backup(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "disks_without_backup")
+            
+            elif function_name == "get_shared_disks":
+                result = self.resource_manager.get_shared_disks(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "shared_disks")
+            
+            elif function_name == "get_storage_blobs_with_backup":
+                result = self.resource_manager.get_storage_blobs_with_backup(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "blobs_with_backup")
+            
+            elif function_name == "get_sql_databases_with_backup":
+                result = self.resource_manager.get_sql_databases_with_backup(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "sql_with_backup")
+            
+            elif function_name == "get_sql_managed_instance_with_backup":
+                result = self.resource_manager.get_sql_managed_instance_with_backup(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "sqlmi_with_backup")
+            
+            elif function_name == "get_backup_vaults_summary":
+                result = self.resource_manager.get_backup_vaults_summary(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "backup_vaults")
+            
+            elif function_name == "get_backup_jobs_failed":
+                result = self.resource_manager.get_backup_jobs_failed(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "backup_jobs_failed")
             
             else:
                 return {"error": f"Unknown function: {function_name}"}

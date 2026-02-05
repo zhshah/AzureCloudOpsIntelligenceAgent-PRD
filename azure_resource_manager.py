@@ -53,7 +53,24 @@ class AzureResourceManager:
         """
         try:
             if not subscriptions:
-                subscriptions = [self.subscription_id]
+                # If no subscription provided, try to get from env or use cached list
+                if self.subscription_id:
+                    subscriptions = [self.subscription_id]
+                elif hasattr(self, '_cached_subscriptions') and self._cached_subscriptions:
+                    subscriptions = self._cached_subscriptions
+                else:
+                    # Get all accessible subscriptions and cache them
+                    all_subs = []
+                    try:
+                        for sub in self.sub_client.subscriptions.list():
+                            if sub.state == "Enabled":
+                                all_subs.append(sub.subscription_id)
+                    except Exception as sub_err:
+                        return {"error": f"Failed to fetch subscriptions: {str(sub_err)}", "count": 0, "data": []}
+                    if not all_subs:
+                        return {"error": "No accessible subscriptions found", "count": 0, "data": []}
+                    self._cached_subscriptions = all_subs
+                    subscriptions = all_subs
             
             request = QueryRequest(
                 subscriptions=subscriptions,
@@ -69,7 +86,7 @@ class AzureResourceManager:
                 "data": response.data
             }
         except Exception as e:
-            return {"error": str(e)}
+            return {"error": str(e), "count": 0, "data": []}
     
     def get_storage_accounts_with_private_endpoints(self) -> Dict[str, Any]:
         """Get storage accounts with private endpoints"""
@@ -260,7 +277,7 @@ class AzureResourceManager:
         Resources
         | where type == 'microsoft.web/sites'
         | project name, resourceGroup, location,
-                  kind = kind,
+                  Kind = kindVal,
                   state = properties.state,
                   defaultHostName = properties.defaultHostName,
                   sku = properties.sku
@@ -462,24 +479,39 @@ class AzureResourceManager:
         """
         return self.query_resources(query)
     
-    def get_policy_compliance_status(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+    def get_policy_compliance_status(self, scope: str = "subscription", resource_group: str = None, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Get Azure Policy compliance status using policyresources
         Returns policy assignments and their compliance state
+        
+        Args:
+            scope: Level of compliance report - 'subscription' or 'resource_group'
+            resource_group: Required when scope is 'resource_group' - filter to specific RG
+            subscriptions: List of subscription IDs to query
         """
-        query = """
+        # Build resource group filter if specified
+        rg_filter = ""
+        if scope == "resource_group" and resource_group:
+            rg_filter = f"| where properties.resourceGroup =~ '{resource_group}'"
+        
+        query = f"""
         policyresources
         | where type =~ 'microsoft.policyinsights/policystates'
+        {rg_filter}
+        | extend subId = tostring(subscriptionId)
+        | extend rgName = tostring(properties.resourceGroup)
         | summarize 
             TotalResources = count(),
             CompliantResources = countif(properties.complianceState == 'Compliant'),
             NonCompliantResources = countif(properties.complianceState == 'NonCompliant')
             by policyAssignmentName = tostring(properties.policyAssignmentName), 
                policyDefinitionName = tostring(properties.policyDefinitionName),
-               policyDefinitionAction = tostring(properties.policyDefinitionAction)
+               policyDefinitionAction = tostring(properties.policyDefinitionAction),
+               subscriptionId = subId,
+               resourceGroup = rgName
         | extend CompliancePercentage = round(todouble(CompliantResources) / todouble(TotalResources) * 100, 2)
         | project 
-            PolicyName = policyAssignmentName,
+            PolicyAssignmentName = policyAssignmentName,
             ComplianceState = case(
                 CompliancePercentage == 100, 'Compliant',
                 CompliancePercentage >= 80, 'Mostly Compliant',
@@ -488,13 +520,15 @@ class AzureResourceManager:
             ),
             CompliantResources,
             NonCompliantResources,
-            CompliancePercentage,
+            CompliancePercentage = strcat(tostring(CompliancePercentage), '%'),
             Severity = case(
                 policyDefinitionAction == 'deny', 'High',
                 policyDefinitionAction == 'audit', 'Medium',
                 'Low'
             ),
-            RemediationRequired = case(NonCompliantResources > 0, 'Yes', 'No')
+            RemediationRequired = case(NonCompliantResources > 0, 'Yes', 'No'),
+            SubscriptionId = subscriptionId,
+            ResourceGroup = resourceGroup
         | order by NonCompliantResources desc
         """
         return self.query_resources(query, subscriptions)
@@ -922,13 +956,12 @@ class AzureResourceManager:
         query = """
         Resources
         | where type == 'microsoft.hybridcompute/machines'
-        | extend osType = properties.osType
-        | extend osVersion = properties.osVersion
-        | extend status = properties.status
-        | extend agentVersion = properties.agentVersion
-        | extend lastStatusChange = properties.lastStatusChange
-        | extend defenderStatus = properties.extensions[0].provisioningState
-        | extend monitoringStatus = properties.extensions[1].provisioningState
+        | extend osType = tostring(properties.osType)
+        | extend osVersion = tostring(properties.osVersion)
+        | extend status = tostring(properties.status)
+        | extend agentVersion = tostring(properties.agentVersion)
+        | extend lastStatusChange = tostring(properties.lastStatusChange)
+        | extend extensionCount = array_length(properties.extensions)
         | project 
             MachineName = name,
             ResourceGroup = resourceGroup,
@@ -937,16 +970,7 @@ class AzureResourceManager:
             OSVersion = osVersion,
             AgentStatus = status,
             AgentVersion = agentVersion,
-            DefenderStatus = case(
-                defenderStatus == 'Succeeded', 'Enabled',
-                defenderStatus == 'Failed', 'Failed',
-                'Not Configured'
-            ),
-            MonitoringStatus = case(
-                monitoringStatus == 'Succeeded', 'Enabled',
-                monitoringStatus == 'Failed', 'Failed',
-                'Not Configured'
-            ),
+            ExtensionCount = extensionCount,
             PendingUpdates = 'Check Update Manager',
             LastStatusChange = lastStatusChange,
             Location = location,
@@ -1354,3 +1378,1127 @@ class AzureResourceManager:
         
         return result
 
+    # ============================================================
+    # NEW SERVICE-SPECIFIC QUERIES
+    # ============================================================
+    
+    # APP SERVICES
+    def get_app_services_detailed(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all App Services with detailed configuration"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.web/sites'
+        | extend appServicePlanId = tostring(properties.serverFarmId)
+        | extend httpsOnly = tobool(properties.httpsOnly)
+        | extend ftpsState = tostring(properties.siteConfig.ftpsState)
+        | extend minTlsVersion = tostring(properties.siteConfig.minTlsVersion)
+        | project 
+            AppName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            Type = kind,
+            Status = tostring(properties.state),
+            DefaultHostname = tostring(properties.defaultHostName),
+            HTTPSOnly = httpsOnly,
+            TLSVersion = minTlsVersion,
+            FTPSState = ftpsState,
+            AppServicePlan = tostring(split(appServicePlanId, '/')[-1]),
+            Tags = tags
+        | order by AppName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_app_services_without_appinsights(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get App Services not connected to Application Insights"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.web/sites'
+        | extend appInsightsKey = properties.siteConfig.appSettings
+        | project 
+            AppName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            Status = tostring(properties.state),
+            AppInsightsStatus = case(
+                isnotnull(properties.siteConfig.appSettings) and tostring(properties.siteConfig.appSettings) contains 'APPINSIGHTS_INSTRUMENTATIONKEY', 'Configured',
+                'Not Configured'
+            ),
+            Recommendation = 'Enable Application Insights for monitoring and diagnostics'
+        | where AppInsightsStatus == 'Not Configured'
+        | order by AppName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_app_services_public_access(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get App Services with public access enabled"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.web/sites'
+        | extend publicNetworkAccess = properties.publicNetworkAccess
+        | extend ipSecurityRestrictions = array_length(properties.siteConfig.ipSecurityRestrictions)
+        | project 
+            AppName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            Status = tostring(properties.state),
+            PublicAccess = case(
+                publicNetworkAccess =~ 'Disabled', 'Disabled',
+                'Enabled'
+            ),
+            IPRestrictions = case(
+                ipSecurityRestrictions > 0, strcat(tostring(ipSecurityRestrictions), ' rules'),
+                'None'
+            ),
+            RiskLevel = case(
+                publicNetworkAccess =~ 'Disabled', 'Low',
+                ipSecurityRestrictions > 0, 'Medium',
+                'High'
+            ),
+            Recommendation = case(
+                publicNetworkAccess =~ 'Disabled', 'Good - Public access disabled',
+                ipSecurityRestrictions > 0, 'Review IP restrictions',
+                'Consider enabling IP restrictions or private endpoints'
+            )
+        | where PublicAccess == 'Enabled'
+        | order by RiskLevel desc, AppName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    # AKS CLUSTERS
+    def get_aks_clusters(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all AKS clusters with detailed information"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.containerservice/managedclusters'
+        | extend k8sVersion = tostring(properties.kubernetesVersion)
+        | extend networkPlugin = tostring(properties.networkProfile.networkPlugin)
+        | extend enableRBAC = tobool(properties.enableRBAC)
+        | extend agentPools = properties.agentPoolProfiles
+        | extend nodePoolCount = array_length(agentPools)
+        | project 
+            ClusterName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            KubernetesVersion = k8sVersion,
+            NetworkPlugin = networkPlugin,
+            NodePools = nodePoolCount,
+            RBACEnabled = enableRBAC,
+            Status = tostring(properties.provisioningState),
+            Tags = tags
+        | order by ClusterName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_aks_public_access(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get AKS clusters with public API server access"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.containerservice/managedclusters'
+        | extend privateCluster = tobool(properties.apiServerAccessProfile.enablePrivateCluster)
+        | extend hasIpRanges = isnotempty(properties.apiServerAccessProfile.authorizedIPRanges)
+        | where privateCluster != true
+        | project 
+            ClusterName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            IsPrivateCluster = privateCluster,
+            AuthorizedIPRanges = iff(hasIpRanges, 'Configured', 'None'),
+            RiskLevel = case(
+                hasIpRanges == true, 'Medium - IP restricted',
+                'High - Public access'
+            ),
+            Recommendation = case(
+                hasIpRanges == true, 'Consider private cluster for better security',
+                'Enable private cluster or configure authorized IP ranges'
+            )
+        | order by ClusterName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_aks_private_access(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get AKS clusters with private API server access"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.containerservice/managedclusters'
+        | extend privateCluster = tobool(properties.apiServerAccessProfile.enablePrivateCluster)
+        | extend privateDnsZone = tostring(properties.apiServerAccessProfile.privateDNSZone)
+        | where privateCluster == true
+        | project 
+            ClusterName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            PrivateClusterEnabled = 'Yes',
+            PrivateDNSZone = case(
+                isnotempty(privateDnsZone), privateDnsZone,
+                'System-managed'
+            ),
+            SecurityPosture = 'Good - Private cluster'
+        | order by ClusterName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    # SQL DATABASES AND MANAGED INSTANCES
+    def get_sql_databases_detailed(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Azure SQL Databases with detailed information"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.sql/servers/databases'
+        | where name != 'master'
+        | extend serverName = tostring(split(id, '/')[8])
+        | project 
+            DatabaseName = name,
+            ServerName = serverName,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            SKU = tostring(sku.name),
+            Tier = tostring(sku.tier),
+            Capacity = tostring(sku.capacity),
+            MaxSizeGB = tostring(toint(properties.maxSizeBytes) / 1073741824),
+            Status = tostring(properties.status),
+            Tags = tags
+        | order by ServerName asc, DatabaseName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_sql_managed_instances(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Azure SQL Managed Instances"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.sql/managedinstances'
+        | project 
+            InstanceName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            SKU = tostring(sku.name),
+            Tier = tostring(sku.tier),
+            vCores = tostring(properties.vCores),
+            StorageSizeGB = tostring(properties.storageSizeInGB),
+            Status = tostring(properties.state),
+            SubnetId = tostring(properties.subnetId),
+            Tags = tags
+        | order by InstanceName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_sql_public_access(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get SQL Servers with public network access enabled"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.sql/servers'
+        | extend publicNetworkAccess = tostring(properties.publicNetworkAccess)
+        | extend hasPrivateEndpoint = isnotnull(properties.privateEndpointConnections) and array_length(properties.privateEndpointConnections) > 0
+        | project 
+            ServerName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            PublicNetworkAccess = case(
+                publicNetworkAccess =~ 'Enabled', 'Enabled',
+                publicNetworkAccess =~ 'Disabled', 'Disabled',
+                'Default (Enabled)'
+            ),
+            PrivateEndpoint = case(hasPrivateEndpoint, 'Yes', 'No'),
+            RiskLevel = case(
+                publicNetworkAccess =~ 'Disabled', 'Low',
+                hasPrivateEndpoint, 'Medium',
+                'High'
+            ),
+            Recommendation = case(
+                publicNetworkAccess =~ 'Disabled', 'Good - Public access disabled',
+                hasPrivateEndpoint, 'Consider disabling public access',
+                'Configure private endpoints and disable public access'
+            )
+        | where PublicNetworkAccess != 'Disabled'
+        | order by RiskLevel desc, ServerName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    # VIRTUAL MACHINE SCALE SETS
+    def get_vmss(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Virtual Machine Scale Sets"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.compute/virtualmachinescalesets'
+        | extend instanceCount = toint(sku.capacity)
+        | extend vmSize = tostring(sku.name)
+        | extend osType = tostring(properties.virtualMachineProfile.storageProfile.osDisk.osType)
+        | extend upgradePolicy = tostring(properties.upgradePolicy.mode)
+        | project 
+            VMSSName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            VMSize = vmSize,
+            InstanceCount = instanceCount,
+            OSType = osType,
+            UpgradePolicy = upgradePolicy,
+            Status = tostring(properties.provisioningState),
+            Tags = tags
+        | order by VMSSName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    # POSTGRESQL SERVERS
+    def get_postgresql_servers(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Azure Database for PostgreSQL Flexible servers"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.dbforpostgresql/flexibleservers'
+        | project 
+            ServerName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            Version = tostring(properties.version),
+            SKU = tostring(sku.name),
+            Tier = tostring(sku.tier),
+            StorageGB = tostring(properties.storage.storageSizeGB),
+            Status = tostring(properties.state),
+            HAMode = tostring(properties.highAvailability.mode),
+            Tags = tags
+        | order by ServerName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_postgresql_public_access(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get PostgreSQL servers with public network access"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.dbforpostgresql/flexibleservers'
+        | extend publicAccess = tostring(properties.network.publicNetworkAccess)
+        | project 
+            ServerName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            PublicAccess = case(
+                publicAccess =~ 'Disabled', 'Disabled',
+                'Enabled'
+            ),
+            SSLMode = tostring(properties.dataEncryption.type),
+            RiskLevel = case(
+                publicAccess =~ 'Disabled', 'Low',
+                'High'
+            ),
+            Recommendation = case(
+                publicAccess =~ 'Disabled', 'Good - Public access disabled',
+                'Disable public access and use private endpoints'
+            )
+        | where PublicAccess == 'Enabled'
+        | order by ServerName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    # MYSQL SERVERS
+    def get_mysql_servers(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Azure Database for MySQL Flexible servers"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.dbformysql/flexibleservers'
+        | project 
+            ServerName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            Version = tostring(properties.version),
+            SKU = tostring(sku.name),
+            Tier = tostring(sku.tier),
+            StorageGB = tostring(properties.storage.storageSizeGB),
+            Status = tostring(properties.state),
+            Tags = tags
+        | order by ServerName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_mysql_public_access(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get MySQL servers with public network access"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.dbformysql/flexibleservers'
+        | extend publicAccess = tostring(properties.network.publicNetworkAccess)
+        | project 
+            ServerName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            PublicAccess = case(
+                publicAccess =~ 'Disabled', 'Disabled',
+                'Enabled'
+            ),
+            RiskLevel = case(
+                publicAccess =~ 'Disabled', 'Low',
+                'High'
+            ),
+            Recommendation = case(
+                publicAccess =~ 'Disabled', 'Good - Public access disabled',
+                'Disable public access and use private endpoints'
+            )
+        | where PublicAccess == 'Enabled'
+        | order by ServerName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    # COSMOS DB
+    def get_cosmosdb_accounts(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Cosmos DB accounts"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.documentdb/databaseaccounts'
+        | extend apiType = case(
+            kind =~ 'MongoDB', 'MongoDB',
+            tostring(properties.capabilities) contains 'EnableCassandra', 'Cassandra',
+            tostring(properties.capabilities) contains 'EnableGremlin', 'Gremlin',
+            tostring(properties.capabilities) contains 'EnableTable', 'Table',
+            'SQL'
+        )
+        | project 
+            AccountName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            APIType = apiType,
+            ConsistencyLevel = tostring(properties.consistencyPolicy.defaultConsistencyLevel),
+            WriteLocations = array_length(properties.writeLocations),
+            ReadLocations = array_length(properties.readLocations),
+            Status = tostring(properties.provisioningState),
+            Tags = tags
+        | order by AccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_cosmosdb_public_access(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Cosmos DB accounts with public network access"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.documentdb/databaseaccounts'
+        | extend publicNetworkAccess = tostring(properties.publicNetworkAccess)
+        | extend hasPrivateEndpoint = isnotnull(properties.privateEndpointConnections) and array_length(properties.privateEndpointConnections) > 0
+        | project 
+            AccountName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            PublicNetworkAccess = case(
+                publicNetworkAccess =~ 'Disabled', 'Disabled',
+                'Enabled'
+            ),
+            PrivateEndpoint = case(hasPrivateEndpoint, 'Yes', 'No'),
+            RiskLevel = case(
+                publicNetworkAccess =~ 'Disabled', 'Low',
+                hasPrivateEndpoint, 'Medium',
+                'High'
+            ),
+            Recommendation = case(
+                publicNetworkAccess =~ 'Disabled', 'Good - Public access disabled',
+                hasPrivateEndpoint, 'Consider disabling public access',
+                'Configure private endpoints and disable public access'
+            )
+        | where PublicNetworkAccess == 'Enabled'
+        | order by RiskLevel desc, AccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    # API MANAGEMENT
+    def get_apim_instances(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all API Management instances"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.apimanagement/service'
+        | project 
+            APIMName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            SKU = tostring(sku.name),
+            Capacity = tostring(sku.capacity),
+            GatewayUrl = tostring(properties.gatewayUrl),
+            Status = tostring(properties.provisioningState),
+            VNetMode = tostring(properties.virtualNetworkType),
+            Tags = tags
+        | order by APIMName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    # TAG INVENTORY
+    def get_tag_inventory(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get high-level tag inventory across environment"""
+        query = """
+        Resources
+        | where isnotempty(tags)
+        | project name, type, resourceGroup, tags
+        | mv-expand tags
+        | extend tagKey = tostring(bag_keys(tags)[0])
+        | extend tagValue = tostring(tags[tagKey])
+        | summarize 
+            ResourceCount = count(),
+            UniqueValues = dcount(tagValue)
+        by tagKey
+        | project 
+            TagName = tagKey,
+            TotalResources = ResourceCount,
+            UniqueValueCount = UniqueValues
+        | order by TotalResources desc
+        | take 50
+        """
+        return self.query_resources(query, subscriptions)
+    
+    # MONITORING GAPS - VMs without Azure Monitor
+    def get_vms_without_azure_monitor(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get VMs without Azure Monitor Agent extension"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.compute/virtualmachines'
+        | extend osType = properties.storageProfile.osDisk.osType
+        | extend powerState = tostring(properties.extended.instanceView.powerState.displayStatus)
+        | join kind=leftouter (
+            Resources
+            | where type =~ 'microsoft.compute/virtualmachines/extensions'
+            | where name contains 'AzureMonitorAgent' or name contains 'MicrosoftMonitoringAgent' or name contains 'OmsAgentForLinux'
+            | extend vmName = tostring(split(id, '/')[8])
+            | project vmName, hasMonitoring = true
+        ) on $left.name == $right.vmName
+        | where isnull(hasMonitoring)
+        | project 
+            VMName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            OSType = osType,
+            PowerState = powerState,
+            AgentStatus = 'Not Installed',
+            Recommendation = 'Install Azure Monitor Agent for monitoring and log collection'
+        | order by VMName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_arc_machines_without_azure_monitor(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Arc machines without Azure Monitor Agent"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.hybridcompute/machines'
+        | extend osType = properties.osType
+        | extend status = properties.status
+        | join kind=leftouter (
+            Resources
+            | where type =~ 'microsoft.hybridcompute/machines/extensions'
+            | where name contains 'AzureMonitorAgent' or name contains 'MicrosoftMonitoringAgent' or name contains 'OmsAgentForLinux'
+            | extend machineName = tostring(split(id, '/')[8])
+            | project machineName, hasMonitoring = true
+        ) on $left.name == $right.machineName
+        | where isnull(hasMonitoring)
+        | project 
+            MachineName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            OSType = osType,
+            Status = status,
+            AgentStatus = 'Not Installed',
+            Recommendation = 'Install Azure Monitor Agent for monitoring'
+        | order by MachineName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    # AKS without monitoring
+    def get_aks_without_monitoring(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get AKS clusters without Container Insights enabled"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.containerservice/managedclusters'
+        | extend addonProfiles = properties.addonProfiles
+        | extend omsAgentEnabled = tobool(addonProfiles.omsagent.enabled)
+        | where omsAgentEnabled != true
+        | project 
+            ClusterName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            KubernetesVersion = tostring(properties.kubernetesVersion),
+            MonitoringStatus = 'Not Enabled',
+            LogAnalyticsWorkspace = 'Not Configured',
+            Recommendation = 'Enable Container Insights for cluster monitoring'
+        | order by ClusterName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================
+    # STORAGE ACCOUNTS - COMPREHENSIVE FUNCTIONS
+    # ============================================
+    
+    def get_storage_accounts_detailed(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get comprehensive storage account summary"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.storage/storageaccounts'
+        | extend accessTier = tostring(properties.accessTier)
+        | extend kindVal = tostring(kind)
+        | extend skuName = tostring(sku.name)
+        | extend skuTier = tostring(sku.tier)
+        | extend replication = case(
+            skuName contains 'LRS', 'Locally Redundant',
+            skuName contains 'ZRS', 'Zone Redundant',
+            skuName contains 'GRS', 'Geo Redundant',
+            skuName contains 'GZRS', 'Geo-Zone Redundant',
+            skuName contains 'RAGRS', 'Read-Access Geo Redundant',
+            skuName contains 'RAGZRS', 'Read-Access Geo-Zone Redundant',
+            'Unknown')
+        | extend createdTime = tostring(properties.creationTime)
+        | extend status = tostring(properties.provisioningState)
+        | project 
+            StorageAccountName = name,
+            ResourceGroup = resourceGroup,
+            Subscription = subscriptionId,
+            Location = location,
+            SKU = skuName,
+            Tier = skuTier,
+            Kind = kindVal,
+            Status = status,
+            AccessTier = accessTier,
+            Replication = replication,
+            CreatedDate = createdTime,
+            Tags = tags
+        | order by StorageAccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_storage_accounts_public_access(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get storage accounts with public access enabled"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.storage/storageaccounts'
+        | extend allowBlobPublicAccess = tobool(properties.allowBlobPublicAccess)
+        | extend networkDefaultAction = tostring(properties.networkAcls.defaultAction)
+        | extend publicNetworkAccess = tostring(properties.publicNetworkAccess)
+        | where allowBlobPublicAccess == true or networkDefaultAction == 'Allow' or publicNetworkAccess == 'Enabled'
+        | extend riskLevel = case(
+            allowBlobPublicAccess == true and networkDefaultAction == 'Allow', 'Critical',
+            allowBlobPublicAccess == true, 'High',
+            networkDefaultAction == 'Allow', 'Medium',
+            'Low')
+        | project 
+            AccountName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            BlobPublicAccess = allowBlobPublicAccess,
+            NetworkDefaultAction = networkDefaultAction,
+            PublicNetworkAccess = publicNetworkAccess,
+            RiskLevel = riskLevel,
+            Recommendation = case(
+                allowBlobPublicAccess == true, 'Disable anonymous blob access immediately',
+                networkDefaultAction == 'Allow', 'Configure network rules to restrict access',
+                'Review and enhance security settings')
+        | order by RiskLevel asc, AccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_storage_accounts_with_private_endpoints_detailed(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get storage accounts with private endpoints - detailed view"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.network/privateendpoints'
+        | mv-expand connection = properties.privateLinkServiceConnections
+        | extend targetResourceId = tostring(connection.properties.privateLinkServiceId)
+        | where targetResourceId contains 'storageAccounts'
+        | extend storageAccountName = tostring(split(targetResourceId, '/')[8])
+        | extend connectionStatus = tostring(connection.properties.privateLinkServiceConnectionState.status)
+        | extend groupIds = tostring(connection.properties.groupIds)
+        | extend subnet = tostring(properties.subnet.id)
+        | extend vnet = tostring(split(subnet, '/subnets/')[0])
+        | extend vnetName = tostring(split(vnet, '/')[8])
+        | extend subnetName = tostring(split(subnet, '/')[10])
+        | project 
+            AccountName = storageAccountName,
+            ResourceGroup = resourceGroup,
+            PrivateEndpointName = name,
+            Location = location,
+            VNet = vnetName,
+            Subnet = subnetName,
+            ConnectionStatus = connectionStatus,
+            ServiceGroup = groupIds
+        | order by AccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_storage_accounts_empty(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get storage accounts that appear to be empty (no containers or very old)"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.storage/storageaccounts'
+        | extend kindVal = tostring(kind)
+        | extend createdTime = tostring(properties.creationTime)
+        | extend accessTier = tostring(properties.accessTier)
+        | extend skuName = tostring(sku.name)
+        | project 
+            AccountName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            Kind = kindVal,
+            SKU = skuName,
+            AccessTier = accessTier,
+            CreatedDate = createdTime,
+            Note = 'Check Azure Monitor metrics for actual usage data',
+            Recommendation = 'Review if storage account is needed or can be deleted'
+        | order by AccountName asc
+        """
+        # Note: Actual emptiness requires metrics API - this returns all for review
+        return self.query_resources(query, subscriptions)
+    
+    def get_storage_accounts_unused(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get storage accounts potentially unused - requires metrics validation"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.storage/storageaccounts'
+        | extend kindVal = tostring(kind)
+        | extend createdTime = tostring(properties.creationTime)
+        | extend lastModified = tostring(properties.lastModifiedTime)
+        | extend accessTier = tostring(properties.accessTier)
+        | extend skuName = tostring(sku.name)
+        | project 
+            AccountName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            Kind = kindVal,
+            SKU = skuName,
+            AccessTier = accessTier,
+            CreatedDate = createdTime,
+            LastModified = lastModified,
+            UsagePattern = 'Review Azure Monitor transaction metrics',
+            Recommendation = 'Check last 90 days transaction count in Azure Monitor'
+        | order by AccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_storage_accounts_capacity(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get storage accounts ordered by potential capacity"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.storage/storageaccounts'
+        | extend kindVal = tostring(kind)
+        | extend accessTier = tostring(properties.accessTier)
+        | extend skuName = tostring(sku.name)
+        | extend skuTier = tostring(sku.tier)
+        | extend isPremium = skuName contains 'Premium'
+        | project 
+            AccountName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            Kind = kindVal,
+            SKU = skuName,
+            Tier = skuTier,
+            AccessTier = accessTier,
+            IsPremium = isPremium,
+            CapacityNote = 'Use Azure Monitor Metrics for actual capacity (UsedCapacity metric)',
+            CostNote = 'Premium storage has higher cost - verify usage justifies tier'
+        | order by IsPremium desc, AccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_file_shares(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Azure File Shares inventory"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.storage/storageaccounts/fileservices/shares'
+        | extend storageAccount = tostring(split(id, '/')[8])
+        | extend shareQuota = toint(properties.shareQuota)
+        | extend accessTier = tostring(properties.accessTier)
+        | extend enabledProtocols = tostring(properties.enabledProtocols)
+        | project 
+            FileShareName = name,
+            StorageAccount = storageAccount,
+            ResourceGroup = resourceGroup,
+            QuotaGB = shareQuota,
+            AccessTier = accessTier,
+            Protocol = case(
+                enabledProtocols == 'SMB', 'SMB',
+                enabledProtocols == 'NFS', 'NFS',
+                'SMB'),
+            Note = 'Use Azure Monitor for used capacity metrics'
+        | order by StorageAccount asc, FileShareName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_file_shares_with_ad_auth(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get storage accounts with Azure Files AD authentication configured"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.storage/storageaccounts'
+        | extend azureFilesIdentityBasedAuth = properties.azureFilesIdentityBasedAuthentication
+        | extend directoryServiceOptions = tostring(azureFilesIdentityBasedAuth.directoryServiceOptions)
+        | extend activeDirectoryProperties = azureFilesIdentityBasedAuth.activeDirectoryProperties
+        | extend domainName = tostring(activeDirectoryProperties.domainName)
+        | where directoryServiceOptions != '' and directoryServiceOptions != 'None'
+        | project 
+            AccountName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            ADJoinStatus = 'Configured',
+            DirectoryService = directoryServiceOptions,
+            DomainName = domainName,
+            AuthType = case(
+                directoryServiceOptions == 'AD', 'On-premises AD DS',
+                directoryServiceOptions == 'AADDS', 'Azure AD DS',
+                directoryServiceOptions == 'AADKERB', 'Azure AD Kerberos',
+                'Other'),
+            RBACEnabled = 'Check IAM assignments'
+        | order by AccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_storage_accounts_with_lifecycle_policy(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get storage accounts with lifecycle management policies"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.storage/storageaccounts/managementpolicies'
+        | extend storageAccount = tostring(split(id, '/')[8])
+        | extend policy = properties.policy
+        | extend rules = policy.rules
+        | extend ruleCount = array_length(rules)
+        | mv-expand rule = rules
+        | extend ruleName = tostring(rule.name)
+        | extend ruleEnabled = tobool(rule.enabled)
+        | extend tierToCool = rule.definition.actions.baseBlob.tierToCool
+        | extend tierToArchive = rule.definition.actions.baseBlob.tierToArchive
+        | extend deleteBlob = rule.definition.actions.baseBlob.delete
+        | summarize 
+            RuleCount = count(),
+            EnabledRules = countif(ruleEnabled == true),
+            Rules = make_list(ruleName)
+        by storageAccount, resourceGroup
+        | project 
+            AccountName = storageAccount,
+            ResourceGroup = resourceGroup,
+            PolicyRuleCount = RuleCount,
+            EnabledRules = EnabledRules,
+            RuleNames = Rules,
+            Benefit = 'Automated data lifecycle management reduces storage costs'
+        | order by AccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_storage_cost_optimization(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get storage accounts with cost optimization recommendations"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.storage/storageaccounts'
+        | extend kindVal = tostring(kind)
+        | extend skuName = tostring(sku.name)
+        | extend skuTier = tostring(sku.tier)
+        | extend accessTier = tostring(properties.accessTier)
+        | extend isPremium = skuName contains 'Premium'
+        | extend isHot = accessTier == 'Hot' or accessTier == ''
+        | extend hasLifecyclePolicy = false  // Would need separate query
+        | extend optimizationType = case(
+            isPremium, 'Tier Review',
+            isHot and kind == 'StorageV2', 'Consider Cool/Archive Tier',
+            kind == 'Storage', 'Upgrade to StorageV2',
+            'Review Usage')
+        | project 
+            AccountName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            CurrentTier = skuTier,
+            CurrentSKU = skuName,
+            AccessTier = accessTier,
+            Kind = kindVal,
+            OptimizationType = optimizationType,
+            Recommendation = case(
+                isPremium, 'Verify Premium usage justifies cost; consider Standard for non-performance-critical data',
+                isHot and kind == 'StorageV2', 'Analyze access patterns; move infrequently accessed data to Cool or Archive',
+                kind == 'Storage', 'Upgrade to StorageV2 for lifecycle management and better pricing',
+                'Review storage metrics for optimization opportunities'),
+            EstimatedSavings = case(
+                isPremium, 'Up to 60% by moving to Standard',
+                isHot, 'Up to 50% for Cool, 90% for Archive tier',
+                kind == 'Storage', 'Varies based on usage',
+                'Analyze metrics for estimate')
+        | order by OptimizationType asc, AccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================
+    # AZURE BACKUP - COMPREHENSIVE FUNCTIONS
+    # ============================================
+    
+    def get_vms_with_backup(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Virtual Machines enabled with Azure Backup"""
+        query = """
+        RecoveryServicesResources
+        | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+        | where properties.backupManagementType == 'AzureIaasVM'
+        | extend vmId = tostring(properties.sourceResourceId)
+        | extend vmName = tostring(split(vmId, '/')[8])
+        | extend vaultName = tostring(split(id, '/')[8])
+        | extend vaultResourceGroup = tostring(split(id, '/')[4])
+        | extend protectionStatus = tostring(properties.protectionStatus)
+        | extend lastBackupStatus = tostring(properties.lastBackupStatus)
+        | extend lastBackupTime = tostring(properties.lastBackupTime)
+        | extend policyName = tostring(split(properties.policyId, '/')[12])
+        | project 
+            VMName = vmName,
+            VaultName = vaultName,
+            VaultResourceGroup = vaultResourceGroup,
+            ProtectionStatus = protectionStatus,
+            LastBackupStatus = lastBackupStatus,
+            LastBackupTime = lastBackupTime,
+            BackupPolicy = policyName,
+            SourceResourceId = vmId
+        | order by VMName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_vms_without_backup(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Virtual Machines NOT enabled with Azure Backup"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.compute/virtualmachines'
+        | extend vmId = tolower(id)
+        | join kind=leftouter (
+            RecoveryServicesResources
+            | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+            | where properties.backupManagementType == 'AzureIaasVM'
+            | extend vmId = tolower(tostring(properties.sourceResourceId))
+            | project vmId, isProtected = true
+        ) on vmId
+        | where isnull(isProtected)
+        | extend powerState = tostring(properties.extended.instanceView.powerState.displayStatus)
+        | extend vmSize = tostring(properties.hardwareProfile.vmSize)
+        | extend osType = tostring(properties.storageProfile.osDisk.osType)
+        | extend riskLevel = case(
+                powerState contains 'running', 'High',
+                'Medium')
+        | project 
+            VMName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            OSType = osType,
+            VMSize = vmSize,
+            PowerState = powerState,
+            BackupStatus = 'Not Protected',
+            RiskLevel = riskLevel,
+            Recommendation = 'Enable Azure Backup to protect this VM'
+        | order by RiskLevel desc, VMName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_file_shares_with_backup(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Azure File Shares enabled for backup"""
+        query = """
+        RecoveryServicesResources
+        | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+        | where properties.backupManagementType == 'AzureStorage'
+        | extend fileShareId = tostring(properties.sourceResourceId)
+        | extend fileShareName = tostring(properties.friendlyName)
+        | extend vaultName = tostring(split(id, '/')[8])
+        | extend protectionStatus = tostring(properties.protectionStatus)
+        | extend lastBackupStatus = tostring(properties.lastBackupStatus)
+        | extend lastBackupTime = tostring(properties.lastBackupTime)
+        | extend policyName = tostring(split(properties.policyId, '/')[12])
+        | project 
+            FileShareName = fileShareName,
+            VaultName = vaultName,
+            ProtectionStatus = protectionStatus,
+            LastBackupStatus = lastBackupStatus,
+            LastBackupTime = lastBackupTime,
+            BackupPolicy = policyName,
+            SourceResourceId = fileShareId
+        | order by FileShareName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_file_shares_without_backup(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Azure File Shares NOT enabled for backup"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.storage/storageaccounts/fileservices/shares'
+        | extend shareId = tolower(id)
+        | extend storageAccount = tostring(split(id, '/')[8])
+        | extend shareName = name
+        | join kind=leftouter (
+            RecoveryServicesResources
+            | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+            | where properties.backupManagementType == 'AzureStorage'
+            | extend shareId = tolower(tostring(properties.sourceResourceId))
+            | project shareId, isProtected = true
+        ) on shareId
+        | where isnull(isProtected)
+        | project 
+            FileShareName = shareName,
+            StorageAccount = storageAccount,
+            ResourceGroup = resourceGroup,
+            BackupStatus = 'Not Protected',
+            Recommendation = 'Enable Azure Backup for this file share'
+        | order by StorageAccount asc, FileShareName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_managed_disks_with_backup(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Managed Disks enabled for backup using Backup Vault"""
+        query = """
+        RecoveryServicesResources
+        | where type =~ 'microsoft.dataprotection/backupvaults/backupinstances'
+        | where properties.dataSourceInfo.datasourceType == 'Microsoft.Compute/disks'
+        | extend diskId = tostring(properties.dataSourceInfo.resourceID)
+        | extend diskName = tostring(properties.dataSourceInfo.resourceName)
+        | extend vaultName = tostring(split(id, '/')[8])
+        | extend protectionStatus = tostring(properties.protectionStatus.status)
+        | extend policyName = tostring(split(properties.policyInfo.policyId, '/')[10])
+        | project 
+            DiskName = diskName,
+            BackupVault = vaultName,
+            ProtectionStatus = protectionStatus,
+            BackupPolicy = policyName,
+            SourceResourceId = diskId
+        | order by DiskName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_managed_disks_without_backup(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Managed Disks that could benefit from backup (unattached disks)"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.compute/disks'
+        | extend managedBy = tostring(properties.managedBy)
+        | where isempty(managedBy)
+        | extend diskState = tostring(properties.diskState)
+        | extend diskSizeGb = toint(properties.diskSizeGB)
+        | extend skuName = tostring(sku.name)
+        | extend timeCreated = tostring(properties.timeCreated)
+        | project 
+            DiskName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            DiskSizeGB = diskSizeGb,
+            DiskSKU = skuName,
+            DiskState = diskState,
+            AttachedToVM = 'Unattached',
+            CreatedTime = timeCreated,
+            Recommendation = 'Consider backup via Backup Vault or delete if unused'
+        | order by DiskName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_shared_disks(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Managed Disks configured for shared disk"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.compute/disks'
+        | where toint(properties.maxShares) > 1
+        | extend diskSizeGb = toint(properties.diskSizeGB)
+        | extend skuName = tostring(sku.name)
+        | extend maxShares = toint(properties.maxShares)
+        | extend diskState = tostring(properties.diskState)
+        | project 
+            DiskName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            DiskSizeGB = diskSizeGb,
+            DiskSKU = skuName,
+            MaxShares = maxShares,
+            DiskState = diskState,
+            Note = 'Shared disk - ensure appropriate backup strategy for clustered workloads'
+        | order by DiskName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_storage_blobs_with_backup(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Storage Account Blobs enabled for backup using Backup Vault"""
+        query = """
+        RecoveryServicesResources
+        | where type =~ 'microsoft.dataprotection/backupvaults/backupinstances'
+        | where properties.dataSourceInfo.datasourceType == 'Microsoft.Storage/storageAccounts/blobServices'
+        | extend storageAccountId = tostring(properties.dataSourceInfo.resourceID)
+        | extend storageAccountName = tostring(properties.dataSourceInfo.resourceName)
+        | extend vaultName = tostring(split(id, '/')[8])
+        | extend protectionStatus = tostring(properties.protectionStatus.status)
+        | extend policyName = tostring(split(properties.policyInfo.policyId, '/')[10])
+        | project 
+            StorageAccountName = storageAccountName,
+            BackupVault = vaultName,
+            ProtectionStatus = protectionStatus,
+            BackupPolicy = policyName,
+            SourceResourceId = storageAccountId
+        | order by StorageAccountName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_sql_databases_with_backup(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Azure SQL Databases enabled for backup"""
+        query = """
+        RecoveryServicesResources
+        | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+        | where properties.backupManagementType == 'AzureWorkload' and properties.workloadType == 'SQLDataBase'
+        | extend dbName = tostring(properties.friendlyName)
+        | extend vaultName = tostring(split(id, '/')[8])
+        | extend protectionStatus = tostring(properties.protectionStatus)
+        | extend lastBackupStatus = tostring(properties.lastBackupStatus)
+        | extend lastBackupTime = tostring(properties.lastBackupTime)
+        | extend policyName = tostring(split(properties.policyId, '/')[12])
+        | project 
+            DatabaseName = dbName,
+            VaultName = vaultName,
+            ProtectionStatus = protectionStatus,
+            LastBackupStatus = lastBackupStatus,
+            LastBackupTime = lastBackupTime,
+            BackupPolicy = policyName
+        | order by DatabaseName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_sql_managed_instance_with_backup(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get SQL Managed Instances enabled for backup"""
+        query = """
+        RecoveryServicesResources
+        | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+        | where properties.backupManagementType == 'AzureWorkload' and properties.workloadType == 'SAPHanaDatabase' 
+            or (properties.backupManagementType == 'AzureWorkload' and tostring(properties.sourceResourceId) contains 'managedInstances')
+        | extend instanceName = tostring(properties.friendlyName)
+        | extend vaultName = tostring(split(id, '/')[8])
+        | extend protectionStatus = tostring(properties.protectionStatus)
+        | extend lastBackupStatus = tostring(properties.lastBackupStatus)
+        | extend lastBackupTime = tostring(properties.lastBackupTime)
+        | project 
+            InstanceName = instanceName,
+            VaultName = vaultName,
+            ProtectionStatus = protectionStatus,
+            LastBackupStatus = lastBackupStatus,
+            LastBackupTime = lastBackupTime
+        | order by InstanceName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_backup_vaults_summary(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get summary of all Backup Vaults and Recovery Services Vaults"""
+        query = """
+        Resources
+        | where type =~ 'microsoft.recoveryservices/vaults' or type =~ 'microsoft.dataprotection/backupvaults'
+        | extend vaultType = case(
+            type =~ 'microsoft.recoveryservices/vaults', 'Recovery Services Vault',
+            type =~ 'microsoft.dataprotection/backupvaults', 'Backup Vault',
+            'Unknown')
+        | extend skuName = tostring(sku.name)
+        | extend softDelete = tostring(properties.securitySettings.softDeleteSettings.softDeleteState)
+        | project 
+            VaultName = name,
+            VaultType = vaultType,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            SKU = skuName,
+            SoftDelete = softDelete,
+            Tags = tags
+        | order by VaultType asc, VaultName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_backup_jobs_failed(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get failed backup jobs from Recovery Services Vaults"""
+        query = """
+        RecoveryServicesResources
+        | where type =~ 'microsoft.recoveryservices/vaults/backupjobs'
+        | where properties.status == 'Failed' or properties.status == 'CompletedWithWarnings'
+        | extend jobName = name
+        | extend vaultName = tostring(split(id, '/')[8])
+        | extend entityName = tostring(properties.entityFriendlyName)
+        | extend jobStatus = tostring(properties.status)
+        | extend startTime = tostring(properties.startTime)
+        | extend duration = tostring(properties.duration)
+        | extend errorCode = tostring(properties.errorDetails.errorCode)
+        | project 
+            JobName = jobName,
+            VaultName = vaultName,
+            EntityName = entityName,
+            JobStatus = jobStatus,
+            StartTime = startTime,
+            Duration = duration,
+            ErrorCode = errorCode
+        | order by StartTime desc
+        | take 100
+        """
+        return self.query_resources(query, subscriptions)
