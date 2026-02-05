@@ -610,28 +610,60 @@
 
     <script src="https://alcdn.msauth.net/browser/2.28.0/js/msal-browser.min.js"></script>
     <script>
-        // MSAL Configuration
-        const msalConfig = {
-            auth: {
-                clientId: 'd2cb3ded-b2d0-44c8-a91f-fdc73a2cd303',
-                authority: 'https://login.microsoftonline.com/8d7622f8-d815-4120-b5b8-bee841c23a1c',
-                redirectUri: window.location.origin + '/login.html'
-            },
-            cache: {
-                cacheLocation: 'sessionStorage',
-                storeAuthStateInCookie: true
-            }
-        };
+        // MSAL Configuration - loaded dynamically from backend
+        let msalConfig = null;
+        let msalInstance = null;
 
         const loginRequest = {
             scopes: ['openid', 'profile', 'email', 'User.Read']
         };
 
-        const msalInstance = new msal.PublicClientApplication(msalConfig);
+        // Fetch auth configuration from backend
+        async function loadAuthConfig() {
+            try {
+                const response = await fetch('/api/auth-config');
+                if (!response.ok) {
+                    throw new Error('Failed to load authentication configuration');
+                }
+                const config = await response.json();
+                
+                if (config.error) {
+                    throw new Error(config.message || 'Authentication not configured');
+                }
+                
+                msalConfig = {
+                    auth: {
+                        clientId: config.clientId,
+                        authority: config.authority,
+                        redirectUri: window.location.origin + '/login.html'
+                    },
+                    cache: {
+                        cacheLocation: 'sessionStorage',
+                        storeAuthStateInCookie: true
+                    }
+                };
+                
+                return true;
+            } catch (error) {
+                console.error('Failed to load auth config:', error);
+                const errorMessage = document.getElementById('errorMessage');
+                errorMessage.textContent = 'Authentication not configured. Please contact your administrator.';
+                errorMessage.classList.add('active');
+                return false;
+            }
+        }
 
-        // Initialize MSAL
-        msalInstance.initialize().then(() => {
-            msalInstance.handleRedirectPromise().then(response => {
+        // Initialize MSAL after loading config
+        async function initializeMsal() {
+            const configLoaded = await loadAuthConfig();
+            if (!configLoaded) return;
+            
+            msalInstance = new msal.PublicClientApplication(msalConfig);
+            
+            await msalInstance.initialize();
+            
+            try {
+                const response = await msalInstance.handleRedirectPromise();
                 if (response) {
                     handleLoginSuccess(response);
                 } else {
@@ -640,12 +672,22 @@
                         acquireTokenSilent();
                     }
                 }
-            }).catch(error => {
+            } catch (error) {
                 handleLoginError(error);
-            });
-        });
+            }
+        }
+
+        // Start initialization
+        initializeMsal();
 
         async function signIn() {
+            if (!msalInstance) {
+                const errorMessage = document.getElementById('errorMessage');
+                errorMessage.textContent = 'Authentication not initialized. Please refresh the page.';
+                errorMessage.classList.add('active');
+                return;
+            }
+            
             document.getElementById('loading').classList.add('active');
             document.getElementById('errorMessage').classList.remove('active');
             
@@ -657,6 +699,8 @@
         }
 
         async function acquireTokenSilent() {
+            if (!msalInstance) return;
+            
             const accounts = msalInstance.getAllAccounts();
             if (accounts.length === 0) return;
 

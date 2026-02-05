@@ -80,6 +80,31 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 
+@app.get("/api/auth-config")
+async def get_auth_config():
+    """
+    Return authentication configuration for the frontend.
+    These values are set via environment variables during deployment.
+    """
+    client_id = os.getenv("AZURE_AUTH_CLIENT_ID", "")
+    tenant_id = os.getenv("AZURE_TENANT_ID", "")
+    
+    if not client_id or not tenant_id:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Authentication not configured",
+                "message": "AZURE_AUTH_CLIENT_ID and AZURE_TENANT_ID environment variables must be set"
+            }
+        )
+    
+    return {
+        "clientId": client_id,
+        "tenantId": tenant_id,
+        "authority": f"https://login.microsoftonline.com/{tenant_id}"
+    }
+
+
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatMessage, authorization: Optional[str] = Header(None)):
     """

@@ -108,6 +108,57 @@ Azure CloudOps Intelligence Agent is an enterprise-grade, AI-powered platform th
 | **Azure OpenAI Access** | Your subscription must have OpenAI access approved | [Request access here](https://aka.ms/oai/access) |
 | **Git** | For cloning the repository | `git --version` |
 | **PowerShell 5.1+** | For running the deployment script (Windows) | `$PSVersionTable.PSVersion` |
+| **Entra ID App Registration** | Required for user login (see below) | Create in Azure Portal |
+
+---
+
+### 🔐 PREREQUISITE: Create Entra ID App Registration (For User Login)
+
+> ⚠️ **IMPORTANT**: You MUST complete this step BEFORE running the deployment script. This App Registration enables users to log in via Microsoft Entra ID.
+
+#### Step 1: Create App Registration
+
+1. Go to **Azure Portal** → **Microsoft Entra ID** → **App registrations**
+2. Click **New registration**
+3. Configure:
+   - **Name**: `CloudOps Intelligence Agent` (or your preferred name)
+   - **Supported account types**: `Accounts in this organizational directory only`
+   - **Redirect URI**: Select `Single-page application (SPA)` - leave URL blank for now
+4. Click **Register**
+
+#### Step 2: Note These Values (Required for Deployment Script)
+
+After registration, find these values on the **Overview** page:
+
+| Value | Where to Find | Script Parameter |
+|-------|---------------|------------------|
+| **Application (client) ID** | Overview → Application (client) ID | `-EntraAppClientId` |
+| **Directory (tenant) ID** | Overview → Directory (tenant) ID | `-EntraTenantId` |
+
+#### Step 3: Configure API Permissions
+
+1. Go to **API permissions** in your App Registration
+2. Click **Add a permission** → **Microsoft Graph** → **Delegated permissions**
+3. Select these permissions:
+   - `openid`
+   - `profile`
+   - `email`
+   - `User.Read`
+4. Click **Add permissions**
+5. Click **Grant admin consent for [Your Organization]** (requires admin)
+
+#### Step 4: After Deployment - Add Redirect URI
+
+After deployment completes, you'll get the application URL. Then:
+
+1. Go back to **App Registration** → **Authentication**
+2. Under **Single-page application** → **Redirect URIs**, add:
+   ```
+   https://<your-app-url>/login.html
+   ```
+3. Click **Save**
+
+---
 
 ### Deployer Role Requirements
 
@@ -429,8 +480,12 @@ cd AzureCloudOpsIntelligenceAgent-PRD
 ```powershell
 .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" `
                        -Location "westeurope" `
-                       -ContainerRegistryName "yourcrname"
+                       -ContainerRegistryName "yourcrname" `
+                       -EntraAppClientId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" `
+                       -EntraTenantId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
+
+> 📝 **Note**: Replace `EntraAppClientId` and `EntraTenantId` with the values from your App Registration (see Prerequisites section above).
 
 **Parameters:**
 
@@ -439,6 +494,8 @@ cd AzureCloudOpsIntelligenceAgent-PRD
 | `-ResourceGroupName` | Yes | Name for the resource group | `rg-cloudops-agent` |
 | `-Location` | No | Azure region (default: westeurope) | `eastus`, `westeurope` |
 | `-ContainerRegistryName` | Yes | Globally unique name (lowercase, no dashes) | `mycompanyacr` |
+| `-EntraAppClientId` | Yes | Application (client) ID from App Registration | `d2cb3ded-b2d0-...` |
+| `-EntraTenantId` | Yes | Directory (tenant) ID from Entra ID | `8d7622f8-d815-...` |
 | `-ContainerAppName` | No | Name for the app (default: cloudops-agent) | `cloudops-agent` |
 | `-OpenAIResourceName` | No | Name for OpenAI resource (auto-generated) | `openai-prod` |
 
@@ -456,7 +513,17 @@ The script will:
 9. ✅ Assign all required RBAC roles
 10. ✅ Output the application URL
 
-#### Step 4: Access Your Application
+#### Step 4: Complete App Registration Setup
+
+After deployment, add the redirect URI to your App Registration:
+
+1. Copy the application URL from the script output
+2. Go to **Azure Portal** → **Entra ID** → **App registrations** → Your app
+3. Go to **Authentication** → **Single-page application**
+4. Add redirect URI: `https://<your-app-url>/login.html`
+5. Click **Save**
+
+#### Step 5: Access Your Application
 
 Once complete, the script outputs your application URL:
 ```
