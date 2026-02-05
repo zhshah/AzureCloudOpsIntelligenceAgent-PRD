@@ -80,6 +80,28 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 
+@app.get("/api/auth-config")
+async def get_auth_config():
+    """
+    Return authentication configuration for the frontend.
+    This allows dynamic configuration without hardcoding values in the UI.
+    """
+    client_id = os.getenv("ENTRA_APP_CLIENT_ID", "")
+    tenant_id = os.getenv("ENTRA_TENANT_ID", "")
+    
+    if not client_id or not tenant_id:
+        raise HTTPException(
+            status_code=500,
+            detail="Authentication not configured. Please set ENTRA_APP_CLIENT_ID and ENTRA_TENANT_ID environment variables."
+        )
+    
+    return {
+        "clientId": client_id,
+        "tenantId": tenant_id,
+        "authority": f"https://login.microsoftonline.com/{tenant_id}"
+    }
+
+
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatMessage, authorization: Optional[str] = Header(None)):
     """

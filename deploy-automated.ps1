@@ -28,8 +28,15 @@
 .PARAMETER ContainerAppName
     Name for the Container App (default: cloudops-agent)
 
+.PARAMETER EntraAppClientId
+    Client ID of the Entra ID App Registration for user authentication (REQUIRED)
+    Create this BEFORE running the script - see Prerequisites section below
+
+.PARAMETER EntraTenantId
+    Azure AD Tenant ID for authentication (REQUIRED)
+
 .EXAMPLE
-    .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname"
+    .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname" -EntraAppClientId "your-app-client-id" -EntraTenantId "your-tenant-id"
 
 # ==============================================================================
 # ⚠️  IMPORTANT: TWO TYPES OF PERMISSIONS (READ CAREFULLY!)
@@ -208,7 +215,13 @@ param(
     [string]$ContainerAppName = "cloudops-agent",
     
     [Parameter(Mandatory=$false)]
-    [string]$ContainerAppEnvName = "cloudops-env"
+    [string]$ContainerAppEnvName = "cloudops-env",
+    
+    [Parameter(Mandatory=$true)]
+    [string]$EntraAppClientId,
+    
+    [Parameter(Mandatory=$true)]
+    [string]$EntraTenantId
 )
 
 # ============================================
@@ -510,6 +523,8 @@ if ($LASTEXITCODE -eq 0) {
             "AZURE_SUBSCRIPTION_ID=$subscriptionId" `
             "USE_MANAGED_IDENTITY=true" `
             "ENABLE_APPROVAL_WORKFLOW=false" `
+            "ENTRA_APP_CLIENT_ID=$EntraAppClientId" `
+            "ENTRA_TENANT_ID=$EntraTenantId" `
         --output none
     
     if ($LASTEXITCODE -ne 0) {

@@ -610,42 +610,61 @@
 
     <script src="https://alcdn.msauth.net/browser/2.28.0/js/msal-browser.min.js"></script>
     <script>
-        // MSAL Configuration
-        const msalConfig = {
-            auth: {
-                clientId: 'd2cb3ded-b2d0-44c8-a91f-fdc73a2cd303',
-                authority: 'https://login.microsoftonline.com/8d7622f8-d815-4120-b5b8-bee841c23a1c',
-                redirectUri: window.location.origin + '/login.html'
-            },
-            cache: {
-                cacheLocation: 'sessionStorage',
-                storeAuthStateInCookie: true
-            }
-        };
-
+        // MSAL Configuration - Fetched dynamically from backend
+        let msalInstance = null;
+        
         const loginRequest = {
             scopes: ['openid', 'profile', 'email', 'User.Read']
         };
 
-        const msalInstance = new msal.PublicClientApplication(msalConfig);
-
-        // Initialize MSAL
-        msalInstance.initialize().then(() => {
-            msalInstance.handleRedirectPromise().then(response => {
-                if (response) {
-                    handleLoginSuccess(response);
+        // Initialize authentication by fetching config from backend
+        async function initializeAuth() {
+            try {
+                const response = await fetch('/api/auth-config');
+                if (!response.ok) {
+                    throw new Error('Authentication not configured. Contact your administrator.');
+                }
+                const authConfig = await response.json();
+                
+                const msalConfig = {
+                    auth: {
+                        clientId: authConfig.clientId,
+                        authority: authConfig.authority,
+                        redirectUri: window.location.origin + '/login.html'
+                    },
+                    cache: {
+                        cacheLocation: 'sessionStorage',
+                        storeAuthStateInCookie: true
+                    }
+                };
+                
+                msalInstance = new msal.PublicClientApplication(msalConfig);
+                
+                await msalInstance.initialize();
+                const redirectResponse = await msalInstance.handleRedirectPromise();
+                
+                if (redirectResponse) {
+                    handleLoginSuccess(redirectResponse);
                 } else {
                     const accounts = msalInstance.getAllAccounts();
                     if (accounts.length > 0) {
                         acquireTokenSilent();
                     }
                 }
-            }).catch(error => {
+            } catch (error) {
                 handleLoginError(error);
-            });
-        });
+            }
+        }
+
+        // Start initialization
+        initializeAuth();
 
         async function signIn() {
+            if (!msalInstance) {
+                handleLoginError(new Error('Authentication not initialized. Please refresh the page.'));
+                return;
+            }
+            
             document.getElementById('loading').classList.add('active');
             document.getElementById('errorMessage').classList.remove('active');
             
@@ -657,6 +676,8 @@
         }
 
         async function acquireTokenSilent() {
+            if (!msalInstance) return;
+            
             const accounts = msalInstance.getAllAccounts();
             if (accounts.length === 0) return;
 
