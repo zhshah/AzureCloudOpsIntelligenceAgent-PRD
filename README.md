@@ -99,16 +99,38 @@ Azure CloudOps Intelligence Agent is an enterprise-grade, AI-powered platform th
 
 ## 📋 Prerequisites
 
-Before deploying, you need:
+### Requirements for Deployment
 
-| Requirement | Description |
-|-------------|-------------|
-| **Azure Subscription** | With Owner or Contributor access |
-| **Azure CLI** | Installed and logged in (`az login`) |
-| **Azure OpenAI Access** | [Request access here](https://aka.ms/oai/access) if you don't have it |
-| **Git** | For cloning the repository |
+| Requirement | Description | How to Check/Get |
+|-------------|-------------|------------------|
+| **Azure Subscription** | With Owner or Contributor + User Access Administrator | `az account show` |
+| **Azure CLI** | Version 2.50 or later | `az --version` |
+| **Azure OpenAI Access** | Your subscription must have OpenAI access approved | [Request access here](https://aka.ms/oai/access) |
+| **Git** | For cloning the repository | `git --version` |
+| **PowerShell 5.1+** | For running the deployment script (Windows) | `$PSVersionTable.PSVersion` |
 
-> **Note**: You do NOT need to pre-create any Azure resources. The deployment script creates everything automatically!
+### Deployer Role Requirements
+
+The person running the deployment script needs these Azure RBAC roles:
+
+| Role | Scope | Why Required |
+|------|-------|--------------|
+| **Contributor** | Subscription | Create Resource Group, Azure OpenAI, Container Registry, Container App |
+| **User Access Administrator** | Subscription | Assign RBAC roles to the Container App's Managed Identity |
+
+> **Alternative**: The **Owner** role includes both permissions above.
+
+> **Note**: These permissions are only needed during deployment. After deployment completes, the deployer's elevated access is not required for the application to run.
+
+### What You DON'T Need (Script Creates Everything!)
+
+| NOT Required | Why |
+|--------------|-----|
+| ❌ Pre-created Azure OpenAI | Script creates it automatically |
+| ❌ Pre-created Container Registry | Script creates it automatically |
+| ❌ API keys or secrets | Uses Managed Identity (no keys needed) |
+| ❌ `.env` file for Azure deployment | Only needed for local development |
+| ❌ Docker installed | ACR Tasks builds the image in the cloud |
 
 ---
 
@@ -398,11 +420,31 @@ Access the dashboard at: `http://localhost:8000`
 ### Q: How does the application authenticate without API keys?
 **A: Managed Identity.** The Container App uses a system-assigned managed identity to authenticate with Azure services (OpenAI, Resource Graph, Cost Management). No API keys are stored in the application.
 
+### Q: What RBAC roles does the application need?
+**A: Three roles with least-privilege:**
+- **Reader** (Subscription) - Query resources via Resource Graph
+- **Cost Management Reader** (Subscription) - Read cost data
+- **Cognitive Services OpenAI User** (OpenAI resource only) - Use GPT-4o
+
+### Q: Can the application modify or delete my Azure resources?
+**A: No!** The Managed Identity only has **Reader** role. It cannot create, modify, or delete any Azure resources. It's read-only.
+
+### Q: How do I enable access to multiple subscriptions?
+**A: Assign roles to additional subscriptions:**
+```bash
+PRINCIPAL_ID=$(az containerapp show --name cloudops-agent --resource-group rg-cloudops-agent --query "identity.principalId" -o tsv)
+az role assignment create --assignee $PRINCIPAL_ID --role "Reader" --scope /subscriptions/<other-sub-id>
+az role assignment create --assignee $PRINCIPAL_ID --role "Cost Management Reader" --scope /subscriptions/<other-sub-id>
+```
+
+### Q: What permissions does the DEPLOYER need (not the app)?
+**A: Owner, or Contributor + User Access Administrator** at subscription level. This is only needed during deployment to create resources and assign RBAC roles.
+
 ### Q: How long does deployment take?
 **A: Approximately 10-15 minutes.** The longest steps are creating Azure OpenAI (~3 min), deploying GPT-4o model (~3 min), and building the container image (~3-5 min).
 
-### Q: What Azure permissions do I need?
-**A: Owner or Contributor** on the subscription where you're deploying. The script creates resources and assigns RBAC roles, which requires these permissions.
+### Q: Why is Cognitive Services OpenAI User role scoped to resource only?
+**A: Least-privilege principle.** The app only needs OpenAI access to its specific resource, not to all OpenAI resources in the subscription.
 
 ---
 
@@ -437,12 +479,77 @@ Access the dashboard at: `http://localhost:8000`
 
 ---
 
-## 🔐 Security Features
+## 🔐 Security Architecture (Least-Privilege Principle)
 
-- **Managed Identity** - No API keys or credentials stored in the application
-- **RBAC Integration** - Respects Azure role-based access control
+This application follows Azure security best practices with **zero credentials stored** and **minimum required permissions**.
+
+### System-Assigned Managed Identity
+
+The application uses a **System-Assigned Managed Identity** instead of API keys or App Registrations:
+
+| Feature | Benefit |
+|---------|---------|
+| **Auto-lifecycle** | Created/deleted with the Container App |
+| **No secrets** | No passwords, keys, or certificates to manage |
+| **No rotation** | Credentials are handled automatically by Azure AD |
+| **Audit trail** | All access is logged in Azure Activity Log |
+
+### RBAC Roles Assigned (Least-Privilege)
+
+The Managed Identity is granted **only the minimum permissions required**:
+
+| Role | Scope | Purpose | Restrictions |
+|------|-------|---------|--------------|
+| **Reader** | Subscription | Query Azure resources via Resource Graph | ❌ Cannot create, modify, or delete resources |
+| **Cost Management Reader** | Subscription | Read cost and billing data | ❌ Cannot modify budgets or billing settings |
+| **Cognitive Services OpenAI User** | OpenAI Resource Only | Use GPT-4o for chat completions | ❌ Cannot create/delete deployments or modify settings |
+
+### What the Application CAN Do
+- ✅ Read resource inventory (VMs, storage, networks, etc.)
+- ✅ Query cost data and spending trends
+- ✅ Send prompts to Azure OpenAI GPT-4o
+- ✅ List security recommendations (if Defender enabled)
+- ✅ Check policy compliance status
+
+### What the Application CANNOT Do
+- ❌ Create, modify, or delete any Azure resources
+- ❌ Access secrets in Key Vault
+- ❌ Modify billing or cost settings
+- ❌ Change Azure OpenAI deployments or settings
+- ❌ Access other subscriptions (unless explicitly granted)
+
+### Multi-Subscription Access
+
+To query resources across multiple subscriptions, grant the Managed Identity access to additional subscriptions:
+
+```bash
+# Get the Principal ID of your Container App
+PRINCIPAL_ID=$(az containerapp show --name cloudops-agent --resource-group rg-cloudops-agent --query "identity.principalId" -o tsv)
+
+# Grant access to another subscription (Reader + Cost Management Reader only)
+az role assignment create --assignee $PRINCIPAL_ID --role "Reader" --scope /subscriptions/<other-sub-id>
+az role assignment create --assignee $PRINCIPAL_ID --role "Cost Management Reader" --scope /subscriptions/<other-sub-id>
+```
+
+### Prerequisites for the Deployer
+
+The **user running the deployment script** needs these permissions (temporary, only during deployment):
+
+| Permission | Reason |
+|------------|--------|
+| **Contributor** | Create resource group, OpenAI, ACR, Container App |
+| **User Access Administrator** | Assign RBAC roles to the Managed Identity |
+
+> **Tip**: After deployment, the deployer's elevated permissions are not needed for the application to run.
+
+### Security Features Summary
+
+- **Managed Identity** - No API keys or credentials stored anywhere
+- **Resource-Scoped OpenAI** - OpenAI access limited to specific resource, not subscription
+- **Read-Only Access** - Cannot modify any Azure resources
 - **Data Integrity** - Only displays real data from Azure APIs, never fabricated
-- **Secure Communication** - HTTPS only, no sensitive data in logs
+- **HTTPS Only** - All communication encrypted
+- **No Sensitive Logging** - Credentials never appear in logs
 
 ---
 
