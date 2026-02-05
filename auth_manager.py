@@ -13,17 +13,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Entra ID Configuration - loaded from environment variables
-TENANT_ID = os.getenv("AZURE_TENANT_ID", "")
-CLIENT_ID = os.getenv("AZURE_AUTH_CLIENT_ID", "")  # App Registration Client ID for token validation
-
-if not TENANT_ID:
-    logger.warning("AZURE_TENANT_ID not set - authentication may not work properly")
-if not CLIENT_ID:
-    logger.warning("AZURE_AUTH_CLIENT_ID not set - authentication may not work properly")
-
-ISSUER = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0" if TENANT_ID else ""
-JWKS_URI = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys" if TENANT_ID else ""
+# Entra ID Configuration
+TENANT_ID = os.getenv("AZURE_TENANT_ID", "8d7622f8-d815-4120-b5b8-bee841c23a1c")
+CLIENT_ID = os.getenv("AZURE_CLIENT_ID")  # App Registration Client ID
+ISSUER = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
+JWKS_URI = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
 
 security = HTTPBearer()
 

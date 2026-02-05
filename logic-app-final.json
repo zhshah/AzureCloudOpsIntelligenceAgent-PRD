@@ -1,0 +1,194 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    },
+    "triggers": {
+      "manual": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "requestId": {"type": "string"},
+              "resourceType": {"type": "string"},
+              "resourceName": {"type": "string"},
+              "resourceGroup": {"type": "string"},
+              "location": {"type": "string"},
+              "details": {
+                "type": "object",
+                "properties": {
+                  "command": {"type": "string"}
+                }
+              },
+              "userEmail": {"type": "string"},
+              "userName": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "actions": {
+      "Parse_Request": {
+        "runAfter": {},
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@triggerBody()",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "requestId": {"type": "string"},
+              "resourceType": {"type": "string"},
+              "resourceName": {"type": "string"},
+              "resourceGroup": {"type": "string"},
+              "location": {"type": "string"},
+              "details": {
+                "type": "object",
+                "properties": {
+                  "command": {"type": "string"}
+                }
+              },
+              "userEmail": {"type": "string"},
+              "userName": {"type": "string"}
+            }
+          }
+        }
+      },
+      "Send_Approval_Email": {
+        "runAfter": {
+          "Parse_Request": ["Succeeded"]
+        },
+        "type": "ApiConnectionWebhook",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['office365']['connectionId']"
+            }
+          },
+          "body": {
+            "NotificationUrl": "@{listCallbackUrl()}",
+            "Message": {
+              "To": "@body('Parse_Request')?['userEmail']",
+              "Subject": "Approval Required: @{body('Parse_Request')?['resourceName']}",
+              "Options": "Approve, Reject",
+              "Body": "<p><strong>Request ID:</strong> @{body('Parse_Request')?['requestId']}</p><p><strong>Resource:</strong> @{body('Parse_Request')?['resourceName']}</p><p><strong>Resource Group:</strong> @{body('Parse_Request')?['resourceGroup']}</p><p><strong>Command:</strong> @{body('Parse_Request')?['details']?['command']}</p>",
+              "Importance": "High"
+            }
+          },
+          "path": "/approvalmail/$subscriptions"
+        }
+      },
+      "Check_Response": {
+        "runAfter": {
+          "Send_Approval_Email": ["Succeeded"]
+        },
+        "type": "If",
+        "expression": {
+          "and": [
+            {"equals": ["@body('Send_Approval_Email')?['SelectedOption']", "Approve"]}
+          ]
+        },
+        "actions": {
+          "Create_Job": {
+            "runAfter": {},
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['azureautomation']['connectionId']"
+                }
+              },
+              "method": "put",
+              "path": "/subscriptions/@{encodeURIComponent('b28cc86b-8f84-47e5-a38a-b814b44d047e')}/resourceGroups/@{encodeURIComponent('Az-AICost-Agent-RG')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent('aa-cli-executor')}/jobs",
+              "queries": {
+                "x-ms-api-version": "2015-10-31"
+              },
+              "body": {
+                "properties": {
+                  "runbook": {
+                    "name": "Execute-Deployment"
+                  },
+                  "parameters": {
+                    "Command": "@{body('Parse_Request')?['details']?['command']}",
+                    "ResourceName": "@{body('Parse_Request')?['resourceName']}",
+                    "ResourceGroup": "@{body('Parse_Request')?['resourceGroup']}",
+                    "ResourceType": "@{body('Parse_Request')?['resourceType']}",
+                    "Location": "@{body('Parse_Request')?['location']}",
+                    "RequestId": "@{body('Parse_Request')?['requestId']}"
+                  }
+                }
+              }
+            }
+          },
+          "Send_Approved": {
+            "runAfter": {
+              "Create_Job": ["Succeeded"]
+            },
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['office365']['connectionId']"
+                }
+              },
+              "method": "post",
+              "body": {
+                "To": "@body('Parse_Request')?['userEmail']",
+                "Subject": "Deployment Approved: @{body('Parse_Request')?['resourceName']}",
+                "Body": "<p>Deployment in progress. Job ID: @{body('Create_Job')?['name']}</p>",
+                "Importance": "Normal"
+              },
+              "path": "/v2/Mail"
+            }
+          }
+        },
+        "else": {
+          "actions": {
+            "Send_Rejected": {
+              "runAfter": {},
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['office365']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "To": "@body('Parse_Request')?['userEmail']",
+                  "Subject": "Deployment Rejected: @{body('Parse_Request')?['resourceName']}",
+                  "Body": "<p>Deployment canceled.</p>",
+                  "Importance": "Normal"
+                },
+                "path": "/v2/Mail"
+              }
+            }
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "parameters": {
+    "$connections": {
+      "value": {
+        "office365": {
+          "connectionId": "/subscriptions/b28cc86b-8f84-47e5-a38a-b814b44d047e/resourceGroups/Az-AICost-Agent-RG/providers/Microsoft.Web/connections/office365",
+          "connectionName": "office365",
+          "id": "/subscriptions/b28cc86b-8f84-47e5-a38a-b814b44d047e/providers/Microsoft.Web/locations/westeurope/managedApis/office365"
+        },
+        "azureautomation": {
+          "connectionId": "/subscriptions/b28cc86b-8f84-47e5-a38a-b814b44d047e/resourceGroups/Az-AICost-Agent-RG/providers/Microsoft.Web/connections/azureautomation",
+          "connectionName": "azureautomation",
+          "id": "/subscriptions/b28cc86b-8f84-47e5-a38a-b814b44d047e/providers/Microsoft.Web/locations/westeurope/managedApis/azureautomation"
+        }
+      }
+    }
+  }
+}

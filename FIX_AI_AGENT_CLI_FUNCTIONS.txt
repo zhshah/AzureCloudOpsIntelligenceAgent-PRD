@@ -1,0 +1,153 @@
+"""
+CRITICAL FIX: Add CLI-Based Resource Creation to AI Agent
+
+Problem: AI agent refuses to create availability sets and disks standalone
+Root Cause: Agent doesn't have CLI-based functions registered
+Solution: Add universal CLI deployment functions
+"""
+
+# Add this to openai_agent.py __init__ method:
+
+# Initialize Universal CLI Deployment
+from universal_cli_deployment import UniversalCLIDeployment
+
+self.cli_deployment = UniversalCLIDeployment(
+    subscription_id=os.getenv("AZURE_SUBSCRIPTION_ID")
+)
+
+# Add these NEW function definitions to self.tools array:
+
+# 1. CREATE AVAILABILITY SET
+{
+    "type": "function",
+    "function": {
+        "name": "create_availability_set",
+        "description": "Create an Azure availability set (standalone, no VM required). Use this when user asks to create an availability set.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Availability set name"
+                },
+                "resource_group": {
+                    "type": "string",
+                    "description": "Resource group name"
+                },
+                "location": {
+                    "type": "string",
+                    "description": "Azure region (e.g., westeurope)"
+                },
+                "platform_fault_domain_count": {
+                    "type": "integer",
+                    "description": "Number of fault domains (default: 2)"
+                },
+                "platform_update_domain_count": {
+                    "type": "integer",
+                    "description": "Number of update domains (default: 5)"
+                },
+                "tags": {
+                    "type": "object",
+                    "description": "Resource tags"
+                }
+            },
+            "required": ["name", "resource_group", "location"]
+        }
+    }
+},
+
+# 2. CREATE MANAGED DISK
+{
+    "type": "function",
+    "function": {
+        "name": "create_managed_disk",
+        "description": "Create an Azure managed disk (standalone, no VM required). Use this when user asks to create a disk or managed disk.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Disk name"
+                },
+                "resource_group": {
+                    "type": "string",
+                    "description": "Resource group name"
+                },
+                "location": {
+                    "type": "string",
+                    "description": "Azure region (e.g., westeurope)"
+                },
+                "size_gb": {
+                    "type": "integer",
+                    "description": "Disk size in GB (default: 128)"
+                },
+                "sku": {
+                    "type": "string",
+                    "description": "Disk SKU: Premium_LRS, Standard_LRS, StandardSSD_LRS, UltraSSD_LRS (default: Premium_LRS)"
+                },
+                "tags": {
+                    "type": "object",
+                    "description": "Resource tags"
+                }
+            },
+            "required": ["name", "resource_group", "location"]
+        }
+    }
+},
+
+# 3. CREATE VIRTUAL NETWORK
+{
+    "type": "function",
+    "function": {
+        "name": "create_virtual_network",
+        "description": "Create an Azure virtual network (VNET). Use this when user asks to create a vnet or virtual network.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Virtual network name"
+                },
+                "resource_group": {
+                    "type": "string",
+                    "description": "Resource group name"
+                },
+                "location": {
+                    "type": "string",
+                    "description": "Azure region (e.g., westeurope)"
+                },
+                "address_prefix": {
+                    "type": "string",
+                    "description": "Address space (default: 10.0.0.0/16)"
+                },
+                "subnet_name": {
+                    "type": "string",
+                    "description": "Subnet name (optional)"
+                },
+                "subnet_prefix": {
+                    "type": "string",
+                    "description": "Subnet address prefix (e.g., 10.0.0.0/24)"
+                },
+                "tags": {
+                    "type": "object",
+                    "description": "Resource tags"
+                }
+            },
+            "required": ["name", "resource_group", "location"]
+        }
+    }
+}
+
+# Add these function handlers to the function_call processing:
+
+elif function_name == "create_availability_set":
+    result = await self.cli_deployment.create_availability_set(arguments)
+    
+elif function_name == "create_managed_disk":
+    result = await self.cli_deployment.create_disk(arguments)
+    
+elif function_name == "create_virtual_network":
+    result = await self.cli_deployment.create_vnet(arguments)
+
+# IMPORTANT: Make sure to set user context:
+self.cli_deployment.set_user_context(self.user_email, self.user_name)

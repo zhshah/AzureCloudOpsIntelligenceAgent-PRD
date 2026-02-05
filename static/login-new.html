@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Azure CloudOps Intelligence Agent - Login</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 23 23'%3E%3Cpath fill='%23f25022' d='M0 0h11v11H0z'/%3E%3Cpath fill='%237fba00' d='M12 0h11v11H12z'/%3E%3Cpath fill='%2300a4ef' d='M0 12h11v11H0z'/%3E%3Cpath fill='%23ffb900' d='M12 12h11v11H12z'/%3E%3C/svg%3E">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
@@ -15,55 +14,25 @@
         }
 
         :root {
-            /* Modern Light Theme - Figma Style */
-            --primary: #0078D4;
-            --primary-dark: #106EBE;
-            --primary-light: #E6F2FB;
-            --secondary: #5C2D91;
-            --accent: #00B7C3;
-            --success: #107C10;
-            --success-light: #DFF6DD;
-            --warning: #FF8C00;
-            --warning-light: #FFF4CE;
-            --danger: #D13438;
-            --danger-light: #FDE7E9;
-            
-            /* Backgrounds */
-            --background: #F5F7FA;
-            --surface: #FFFFFF;
-            --surface-secondary: #FAFBFC;
-            --surface-hover: #F0F4F8;
-            
-            /* Text */
-            --text-primary: #1A1A2E;
-            --text-secondary: #5C6B7A;
-            --text-muted: #8E99A4;
-            --text-inverse: #FFFFFF;
-            
-            /* Borders */
-            --border: #E1E5EB;
-            --border-light: #F0F2F5;
-            
-            /* Shadows - Figma Style */
-            --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
-            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.10);
-            --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12);
-            --shadow-primary: 0 4px 14px rgba(0, 120, 212, 0.25);
-            
-            /* Gradients */
-            --gradient-primary: linear-gradient(135deg, #0078D4 0%, #106EBE 100%);
-            --gradient-accent: linear-gradient(135deg, #00B7C3 0%, #0078D4 100%);
-            --gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --gradient-glow: linear-gradient(135deg, rgba(0, 120, 212, 0.2) 0%, rgba(0, 183, 195, 0.2) 100%);
-            
-            /* Border Radius */
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 24px;
-            --radius-full: 9999px;
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --background: #0f0f23;
+            --surface: #1a1a2e;
+            --surface-light: #25254d;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0c8;
+            --text-muted: #6b6b8f;
+            --border: #2a2a4a;
+            --shadow-sm: 0 2px 8px rgba(99, 102, 241, 0.1);
+            --shadow-md: 0 4px 16px rgba(99, 102, 241, 0.15);
+            --shadow-lg: 0 8px 32px rgba(99, 102, 241, 0.2);
+            --shadow-xl: 0 16px 64px rgba(99, 102, 241, 0.25);
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-accent: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+            --gradient-glow: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%);
         }
 
         body {
@@ -75,11 +44,9 @@
             justify-content: center;
             position: relative;
             overflow: hidden;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Subtle background pattern */
+        /* Animated background gradients */
         body::before {
             content: '';
             position: absolute;
@@ -87,9 +54,9 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle at 30% 50%, rgba(0, 120, 212, 0.05) 0%, transparent 50%),
-                        radial-gradient(circle at 70% 70%, rgba(0, 183, 195, 0.05) 0%, transparent 50%),
-                        radial-gradient(circle at 50% 20%, rgba(92, 45, 145, 0.03) 0%, transparent 50%);
+            background: radial-gradient(circle at 30% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 70%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 50% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
             animation: backgroundFloat 20s ease-in-out infinite;
             pointer-events: none;
         }
@@ -100,7 +67,7 @@
             66% { transform: translate(-5%, 5%) rotate(240deg); }
         }
 
-        /* Floating particles - lighter */
+        /* Floating particles */
         .particles {
             position: absolute;
             width: 100%;
@@ -115,14 +82,14 @@
             height: 4px;
             background: var(--primary);
             border-radius: 50%;
-            opacity: 0.15;
+            opacity: 0.3;
             animation: particleFloat 15s infinite ease-in-out;
         }
 
         @keyframes particleFloat {
             0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
-            10% { opacity: 0.15; }
-            90% { opacity: 0.15; }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
             100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
         }
 
@@ -159,12 +126,13 @@
 
         .login-card {
             background: var(--surface);
-            border-radius: var(--radius-xl);
+            border-radius: 24px;
             padding: 48px;
             box-shadow: var(--shadow-xl);
             border: 1px solid var(--border);
             position: relative;
             overflow: hidden;
+            backdrop-filter: blur(20px);
         }
 
         .login-card::before {
@@ -174,34 +142,29 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--gradient-primary);
-            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            background: var(--gradient-accent);
+            border-radius: 24px 24px 0 0;
         }
 
         /* Logo section */
         .logo-section {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 48px;
         }
 
         .logo {
-            width: 90px;
-            height: 90px;
+            width: 80px;
+            height: 80px;
             margin: 0 auto 24px;
             background: var(--gradient-primary);
-            border-radius: var(--radius-lg);
+            border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 18px;
-            box-shadow: var(--shadow-primary);
+            font-size: 40px;
+            box-shadow: var(--shadow-lg);
             position: relative;
             animation: logoFloat 3s ease-in-out infinite;
-        }
-
-        .logo svg {
-            width: 100%;
-            height: 100%;
         }
 
         .logo::after {
@@ -209,41 +172,40 @@
             position: absolute;
             inset: -4px;
             background: var(--gradient-glow);
-            border-radius: 20px;
+            border-radius: 22px;
             z-index: -1;
-            opacity: 0.4;
-            filter: blur(16px);
+            opacity: 0.6;
+            filter: blur(20px);
         }
 
         @keyframes logoFloat {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-6px); }
+            50% { transform: translateY(-8px); }
         }
 
         .login-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-secondary);
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
             margin-bottom: 8px;
-            letter-spacing: -0.01em;
+            letter-spacing: -0.02em;
         }
 
         .login-subtitle {
-            font-size: 26px;
-            color: var(--text-primary);
-            font-weight: 700;
-            line-height: 1.3;
-            letter-spacing: -0.02em;
+            font-size: 15px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            line-height: 1.5;
         }
 
         /* Sign in button */
         .sign-in-button {
             width: 100%;
             padding: 16px 24px;
-            background: var(--gradient-primary);
-            color: var(--text-inverse);
+            background: var(--gradient-accent);
+            color: var(--text-primary);
             border: none;
-            border-radius: var(--radius-md);
+            border-radius: 12px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
@@ -251,8 +213,8 @@
             align-items: center;
             justify-content: center;
             gap: 12px;
-            transition: all 0.2s ease;
-            box-shadow: var(--shadow-primary);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-md);
             position: relative;
             overflow: hidden;
         }
@@ -261,14 +223,14 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 100%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: opacity 0.3s;
         }
 
         .sign-in-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 120, 212, 0.35);
+            box-shadow: var(--shadow-lg);
         }
 
         .sign-in-button:hover::before {
@@ -288,13 +250,13 @@
 
         /* Features section */
         .features {
-            margin-top: 36px;
-            padding-top: 36px;
-            border-top: 1px solid var(--border-light);
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
         }
 
         .features-title {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 600;
             color: var(--text-muted);
             text-transform: uppercase;
@@ -305,21 +267,21 @@
 
         .feature-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
         }
 
         .feature-item {
-            background: var(--surface-secondary);
+            background: var(--surface-light);
             border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 16px;
+            border-radius: 12px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
             text-align: center;
-            gap: 8px;
-            transition: all 0.2s ease;
+            gap: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
         }
@@ -330,7 +292,7 @@
             inset: 0;
             background: var(--gradient-glow);
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: opacity 0.3s;
         }
 
         .feature-item:hover {
@@ -340,56 +302,28 @@
         }
 
         .feature-item:hover::before {
-            opacity: 0.05;
+            opacity: 0.1;
         }
 
         .feature-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius-sm);
+            width: 48px;
+            height: 48px;
+            background: var(--gradient-primary);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 24px;
             box-shadow: var(--shadow-sm);
             position: relative;
             z-index: 1;
-            transition: transform 0.2s;
-        }
-
-        .feature-item:hover .feature-icon {
-            transform: scale(1.1);
-        }
-
-        .feature-icon.security {
-            background: linear-gradient(135deg, #5C2D91 0%, #8B5CF6 100%);
-        }
-
-        .feature-icon.cost {
-            background: linear-gradient(135deg, #FF8C00 0%, #F59E0B 100%);
-        }
-
-        .feature-icon.ai {
-            background: linear-gradient(135deg, #00B7C3 0%, #0078D4 100%);
-        }
-
-        .feature-icon.monitoring {
-            background: linear-gradient(135deg, #107C10 0%, #10B981 100%);
-        }
-
-        .feature-icon.automation {
-            background: linear-gradient(135deg, #E74856 0%, #D13438 100%);
-        }
-
-        .feature-icon.compliance {
-            background: linear-gradient(135deg, #0078D4 0%, #106EBE 100%);
         }
 
         .feature-text {
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 500;
             color: var(--text-secondary);
-            line-height: 1.3;
+            line-height: 1.4;
             position: relative;
             z-index: 1;
         }
@@ -438,10 +372,10 @@
             display: none;
             margin-top: 24px;
             padding: 16px;
-            background: var(--danger-light);
-            border: 1px solid rgba(209, 52, 56, 0.3);
-            border-radius: var(--radius-md);
-            color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            color: #fca5a5;
             font-size: 14px;
             font-weight: 500;
             text-align: center;
@@ -460,7 +394,7 @@
 
         /* Trust indicators */
         .trust-section {
-            margin-top: 28px;
+            margin-top: 32px;
             text-align: center;
         }
 
@@ -478,9 +412,9 @@
             align-items: center;
             gap: 6px;
             padding: 4px 12px;
-            background: var(--success-light);
-            border: 1px solid rgba(16, 124, 16, 0.2);
-            border-radius: var(--radius-full);
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 20px;
             font-size: 11px;
             font-weight: 600;
             color: var(--success);
@@ -494,16 +428,11 @@
             }
 
             .login-title {
-                font-size: 16px;
-            }
-
-            .login-subtitle {
-                font-size: 22px;
+                font-size: 24px;
             }
 
             .feature-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
+                grid-template-columns: 1fr;
             }
         }
 
@@ -513,9 +442,9 @@
             }
 
             .logo {
-                width: 80px;
-                height: 80px;
-                padding: 16px;
+                width: 64px;
+                height: 64px;
+                font-size: 32px;
             }
         }
     </style>
@@ -537,17 +466,9 @@
     <div class="login-container">
         <div class="login-card">
             <div class="logo-section">
-                <div class="logo">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23">
-                        <rect width="11" height="11" fill="#F25022"/>
-                        <rect x="12" width="11" height="11" fill="#7FBA00"/>
-                        <rect y="12" width="11" height="11" fill="#00A4EF"/>
-                        <rect x="12" y="12" width="11" height="11" fill="#FFB900"/>
-                    </svg>
-                </div>
+                <div class="logo">⚡</div>
                 <h1 class="login-title">Welcome Back</h1>
                 <p class="login-subtitle">Azure CloudOps Intelligence Agent</p>
-                <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px; line-height: 1.5;">AI-powered infrastructure management, cost optimization, and operational excellence for Azure</p>
             </div>
 
             <button class="sign-in-button" onclick="signIn()">
@@ -568,31 +489,23 @@
             <div class="error-message" id="errorMessage"></div>
 
             <div class="features">
-                <p class="features-title">AI-Powered Azure InfraOps Capabilities</p>
+                <p class="features-title">Enterprise Security Features</p>
                 <div class="feature-grid">
                     <div class="feature-item">
-                        <div class="feature-icon security">🔒</div>
-                        <p class="feature-text">Security & Compliance</p>
+                        <div class="feature-icon">🔐</div>
+                        <p class="feature-text">Secure Entra ID</p>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon cost">💰</div>
-                        <p class="feature-text">Cost Optimization</p>
+                        <div class="feature-icon">⚡</div>
+                        <p class="feature-text">AI-Powered</p>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon ai">🤖</div>
-                        <p class="feature-text">AI-Powered Insights</p>
+                        <div class="feature-icon">✅</div>
+                        <p class="feature-text">Approval Workflow</p>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon monitoring">📈</div>
-                        <p class="feature-text">Real-time Monitoring</p>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feature-icon automation">⚡</div>
-                        <p class="feature-text">Smart Automation</p>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feature-icon compliance">✅</div>
-                        <p class="feature-text">Multi-Subscription</p>
+                        <div class="feature-icon">🛡️</div>
+                        <p class="feature-text">Role-Based Access</p>
                     </div>
                 </div>
             </div>

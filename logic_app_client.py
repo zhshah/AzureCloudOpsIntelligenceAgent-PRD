@@ -298,9 +298,9 @@ Please click Approve or Reject below to proceed.
                 ]
             }
 
-        subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID")
-        if not subscription_id:
-            raise ValueError("AZURE_SUBSCRIPTION_ID environment variable is required")
+        subscription_id = os.getenv(
+            "AZURE_SUBSCRIPTION_ID", "b28cc86b-8f84-47e5-a38a-b814b44d047e"
+        )
         subnet_id = (
             f"/subscriptions/{subscription_id}/resourceGroups/{vnet_rg}"
             f"/providers/Microsoft.Network/virtualNetworks/{vnet}/subnets/{subnet}"
@@ -328,7 +328,7 @@ Please click Approve or Reject below to proceed.
     ) -> str:
         """Generate Azure CLI command for the deployment"""
         
-        subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID", "")
+        subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID", "b28cc86b-8f84-47e5-a38a-b814b44d047e")
         
         # Extract SKU if available
         resources = deployment_template.get("resources", [])

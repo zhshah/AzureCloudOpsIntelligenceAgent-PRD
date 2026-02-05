@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure CloudOps AI Agent - Enterprise Dashboard</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --background: #0f0f23;
+            --surface: #1a1a2e;
+            --surface-light: #25254d;
+            --surface-hover: #2d2d55;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0c8;
+            --text-muted: #6b6b8f;
+            --border: #2a2a4a;
+            --shadow-sm: 0 2px 8px rgba(99, 102, 241, 0.1);
+            --shadow-md: 0 4px 16px rgba(99, 102, 241, 0.15);
+            --shadow-lg: 0 8px 32px rgba(99, 102, 241, 0.2);
+            --shadow-xl: 0 16px 64px rgba(99, 102, 241, 0.25);
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-accent: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--background);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 100;
+            box-shadow: var(--shadow-md);
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-accent);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: var(--gradient-primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .brand-text h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .brand-text p {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .header-stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .header-stat-icon {
+            font-size: 20px;
+        }
+
+        .header-stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .header-stat-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .header-stat.success .header-stat-value {
+            color: var(--success);
+        }
+
+        .header-stat.warning .header-stat-value {
+            color: var(--warning);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .user-profile:hover {
+            background: var(--surface-hover);
+            border-color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .user-email {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--surface-light);
+            border-radius: 3px;
+        }
+
+        .sidebar-section {
+            padding: 24px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Insight Cards */
+        .insight-card {
+            background: linear-gradient(135deg, var(--surface-light) 0%, var(--surface-hover) 100%);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .insight-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .insight-card.success::before {
+            background: var(--success);
+        }
+
+        .insight-card.warning::before {
+            background: var(--warning);
+        }
+
+        .insight-card.danger::before {
+            background: var(--danger);
+        }
+
+        .insight-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .insight-icon {
+            font-size: 24px;
+        }
+
+        .insight-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .insight-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .insight-card.success .insight-value {
+            color: var(--success);
+        }
+
+        .insight-card.warning .insight-value {
+            color: var(--warning);
+        }
+
+        .insight-card.danger .insight-value {
+            color: var(--danger);
+        }
+
+        .insight-subtitle {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .insight-footer {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Category Section */
+        .category-section {
+            margin-bottom: 8px;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 8px;
+        }
+
+        .category-header:hover {
+            background: var(--surface-hover);
+            border-color: var(--primary);
+        }
+
+        .category-header.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .category-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .category-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--gradient-primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .category-header.active .category-icon {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .category-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .category-toggle {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+
+        .category-header.active .category-toggle {
+            transform: rotate(180deg);
+        }
+
+        .category-prompts {
+            display: none;
+            padding: 8px 0;
+        }
+
+        .category-prompts.active {
+            display: block;
+        }
+
+        .prompt-item {
+            padding: 12px 16px;
+            margin: 4px 0;
+            background: var(--surface-light);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .prompt-item:hover {
+            background: var(--surface-hover);
+            border-color: var(--primary);
+            color: var(--text-primary);
+            transform: translateX(4px);
+        }
+
+        .prompt-icon {
+            font-size: 16px;
+        }
+
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #0f0f23 100%);
+            position: relative;
+        }
+
+        .chat-messages::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--surface-light);
+            border-radius: 4px;
+        }
+
+        /* Welcome State */
+        .welcome-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 48px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .welcome-icon {
+            width: 120px;
+            height: 120px;
+            background: var(--gradient-primary);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow-xl);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+
+        .welcome-state h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .welcome-state p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 48px;
+            max-width: 600px;
+        }
+
+        .welcome-categories {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .welcome-category-card {
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .welcome-category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-accent);
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+
+        .welcome-category-card:hover {
+            background: var(--surface-hover);
+            border-color: var(--primary);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .welcome-category-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .welcome-category-icon {
+            font-size: 36px;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        .welcome-category-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .welcome-category-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .welcome-category-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Messages */
+        .message {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: var(--gradient-primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .message.assistant .message-avatar {
+            background: var(--surface-light);
+            border: 2px solid var(--border);
+        }
+
+        .message-content {
+            flex: 1;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 20px;
+            color: var(--text-primary);
+            line-height: 1.6;
+            max-width: 85%;
+        }
+
+        .message.user .message-content {
+            background: var(--gradient-primary);
+            border: none;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Input Area */
+        .input-area {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 24px 32px;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        #userInput {
+            flex: 1;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 20px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            transition: all 0.3s;
+        }
+
+        #userInput:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        #userInput::placeholder {
+            color: var(--text-muted);
+        }
+
+        #sendBtn {
+            padding: 14px 32px;
+            background: var(--gradient-accent);
+            border: none;
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: var(--shadow-sm);
+        }
+
+        #sendBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        #sendBtn:active {
+            transform: translateY(0);
+        }
+
+        #sendBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .header-stats {
+                display: none;
+            }
+
+            .welcome-categories {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 280px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+
+            .header {
+                padding: 0 20px;
+            }
+
+            .chat-messages {
+                padding: 20px;
+            }
+
+            .input-area {
+                padding: 16px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="brand">
+            <div class="logo">⚡</div>
+            <div class="brand-text">
+                <h1>Azure CloudOps AI Agent</h1>
+                <p>Enterprise Edition</p>
+            </div>
+        </div>
+        
+        <div class="header-stats">
+            <div class="header-stat success">
+                <div>
+                    <div class="header-stat-value">92%</div>
+                    <div class="header-stat-label">Health Score</div>
+                </div>
+                <div class="header-stat-icon">💚</div>
+            </div>
+            <div class="header-stat warning">
+                <div>
+                    <div class="header-stat-value">$2,450</div>
+                    <div class="header-stat-label">Monthly Cost</div>
+                </div>
+                <div class="header-stat-icon">💰</div>
+            </div>
+            <div class="header-stat">
+                <div>
+                    <div class="header-stat-value">87</div>
+                    <div class="header-stat-label">Resources</div>
+                </div>
+                <div class="header-stat-icon">📦</div>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <div class="user-profile" id="userProfile" style="display: none;">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-info">
+                    <span class="user-name" id="userName">Loading...</span>
+                    <span class="user-email" id="userEmail"></span>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Insights Section -->
+            <div class="sidebar-section">
+                <h3 class="section-title">
+                    <span>📊</span> Azure Insights
+                </h3>
+                
+                <div class="insight-card success">
+                    <div class="insight-header">
+                        <div class="insight-icon">🛡️</div>
+                        <div class="insight-title">Security Score</div>
+                    </div>
+                    <div class="insight-value">85/100</div>
+                    <div class="insight-subtitle">Excellent security posture</div>
+                    <div class="insight-footer">
+                        ✓ 3 recommendations applied this week
+                    </div>
+                </div>
+
+                <div class="insight-card warning">
+                    <div class="insight-header">
+                        <div class="insight-icon">💡</div>
+                        <div class="insight-title">Cost Optimization</div>
+                    </div>
+                    <div class="insight-value">$890</div>
+                    <div class="insight-subtitle">Potential monthly savings</div>
+                    <div class="insight-footer">
+                        ⚠️ 5 underutilized resources detected
+                    </div>
+                </div>
+
+                <div class="insight-card success">
+                    <div class="insight-header">
+                        <div class="insight-icon">⚡</div>
+                        <div class="insight-title">Performance</div>
+                    </div>
+                    <div class="insight-value">98.7%</div>
+                    <div class="insight-subtitle">Average uptime (30 days)</div>
+                    <div class="insight-footer">
+                        ✓ All systems operational
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Section -->
+            <div class="sidebar-section">
+                <h3 class="section-title">
+                    <span>🎯</span> Quick Actions
+                </h3>
+
+                <!-- Resource Management Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('resources')">
+                        <div class="category-info">
+                            <div class="category-icon">📦</div>
+                            <div class="category-name">Resource Management</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-resources">
+                        <div class="prompt-item" onclick="quickPrompt('List all my Azure resources with their current status')">
+                            <span class="prompt-icon">📋</span>
+                            <span>List all resources</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Create a new resource group in East US region')">
+                            <span class="prompt-icon">➕</span>
+                            <span>Create resource group</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show me resource health and availability')">
+                            <span class="prompt-icon">💚</span>
+                            <span>Check resource health</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Deploy a new virtual machine')">
+                            <span class="prompt-icon">🖥️</span>
+                            <span>Deploy VM</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cost Optimization Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('cost')">
+                        <div class="category-info">
+                            <div class="category-icon">💰</div>
+                            <div class="category-name">Cost Optimization</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-cost">
+                        <div class="prompt-item" onclick="quickPrompt('Show me detailed cost breakdown for this month')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Cost breakdown</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Identify underutilized resources for cost savings')">
+                            <span class="prompt-icon">🔍</span>
+                            <span>Find savings opportunities</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show reserved instance recommendations')">
+                            <span class="prompt-icon">💡</span>
+                            <span>RI recommendations</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Compare costs across resource groups')">
+                            <span class="prompt-icon">📈</span>
+                            <span>Cost comparison</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security & Compliance Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('security')">
+                        <div class="category-info">
+                            <div class="category-icon">🔒</div>
+                            <div class="category-name">Security & Compliance</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-security">
+                        <div class="prompt-item" onclick="quickPrompt('Run security assessment on all resources')">
+                            <span class="prompt-icon">🛡️</span>
+                            <span>Security assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show compliance status and recommendations')">
+                            <span class="prompt-icon">✅</span>
+                            <span>Compliance check</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review network security groups configuration')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>NSG configuration</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Identify resources with public access')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>Public exposure check</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monitoring & Alerts Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('monitoring')">
+                        <div class="category-info">
+                            <div class="category-icon">📈</div>
+                            <div class="category-name">Monitoring & Alerts</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-monitoring">
+                        <div class="prompt-item" onclick="quickPrompt('Show current performance metrics across all resources')">
+                            <span class="prompt-icon">⚡</span>
+                            <span>Performance metrics</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('List active alerts and warnings')">
+                            <span class="prompt-icon">🔔</span>
+                            <span>Active alerts</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Create alert rule for high CPU usage')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Create alert rule</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show application insights and logs')">
+                            <span class="prompt-icon">📝</span>
+                            <span>Application insights</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI & Automation Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('automation')">
+                        <div class="category-info">
+                            <div class="category-icon">🤖</div>
+                            <div class="category-name">AI & Automation</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-automation">
+                        <div class="prompt-item" onclick="quickPrompt('Suggest automation opportunities for my infrastructure')">
+                            <span class="prompt-icon">💡</span>
+                            <span>Automation suggestions</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Create auto-scaling rule for web apps')">
+                            <span class="prompt-icon">📈</span>
+                            <span>Auto-scaling rules</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Generate infrastructure as code template')">
+                            <span class="prompt-icon">📄</span>
+                            <span>Generate IaC template</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Optimize resource allocation using AI')">
+                            <span class="prompt-icon">🎯</span>
+                            <span>AI optimization</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Chat Area -->
+        <div class="chat-area">
+            <div class="chat-messages" id="chatContainer">
+                <div class="welcome-state">
+                    <div class="welcome-icon">⚡</div>
+                    <h2>Welcome to Azure CloudOps AI Agent</h2>
+                    <p>Your intelligent assistant for comprehensive Azure infrastructure management, cost optimization, security compliance, and operational excellence. Select a category to get started.</p>
+                    
+                    <div class="welcome-categories">
+                        <div class="welcome-category-card" onclick="showCategory('resources')">
+                            <span class="welcome-category-icon">📦</span>
+                            <div class="welcome-category-title">Resource Management</div>
+                            <div class="welcome-category-desc">Deploy, manage, and monitor your Azure resources efficiently</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('cost')">
+                            <span class="welcome-category-icon">💰</span>
+                            <div class="welcome-category-title">Cost Optimization</div>
+                            <div class="welcome-category-desc">Identify savings and optimize your Azure spending</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('security')">
+                            <span class="welcome-category-icon">🔒</span>
+                            <div class="welcome-category-title">Security & Compliance</div>
+                            <div class="welcome-category-desc">Ensure security best practices and compliance</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('monitoring')">
+                            <span class="welcome-category-icon">📈</span>
+                            <div class="welcome-category-title">Monitoring & Alerts</div>
+                            <div class="welcome-category-desc">Track performance and configure intelligent alerts</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('automation')">
+                            <span class="welcome-category-icon">🤖</span>
+                            <div class="welcome-category-title">AI & Automation</div>
+                            <div class="welcome-category-desc">Leverage AI for intelligent infrastructure automation</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="quickPrompt('What are the latest Azure best practices for my infrastructure?')">
+                            <span class="welcome-category-icon">💡</span>
+                            <div class="welcome-category-title">Best Practices</div>
+                            <div class="welcome-category-desc">Get personalized recommendations and insights</div>
+                            <div class="welcome-category-count">Ask me anything</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea id="userInput" placeholder="Ask me anything about Azure infrastructure, costs, security, or optimization..." rows="1"></textarea>
+                    <button id="sendBtn" onclick="sendMessage()">Send ✈️</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let conversationHistory = [];
+
+        // Load user profile
+        function loadUserProfile() {
+            console.log('🔍 Loading user profile...');
+            
+            let userInfo = sessionStorage.getItem('userInfo');
+            if (!userInfo) {
+                userInfo = localStorage.getItem('userInfo');
+                if (userInfo) {
+                    sessionStorage.setItem('userInfo', userInfo);
+                }
+            }
+            
+            if (userInfo) {
+                try {
+                    const user = JSON.parse(userInfo);
+                    document.getElementById('userProfile').style.display = 'flex';
+                    document.getElementById('userName').textContent = user.name || 'User';
+                    document.getElementById('userEmail').textContent = user.email || '';
+                    const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
+                    document.getElementById('userAvatar').textContent = initials;
+                } catch (error) {
+                    console.error('Error parsing user info:', error);
+                }
+            } else {
+                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                if (isLocal) {
+                    const demoUser = { name: 'Demo User', email: 'demo@localhost', id: 'demo' };
+                    sessionStorage.setItem('userInfo', JSON.stringify(demoUser));
+                    document.getElementById('userProfile').style.display = 'flex';
+                    document.getElementById('userName').textContent = demoUser.name;
+                    document.getElementById('userEmail').textContent = demoUser.email;
+                    document.getElementById('userAvatar').textContent = 'DU';
+                } else {
+                    window.location.replace('/login.html');
+                }
+            }
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            localStorage.clear();
+            window.location.replace('/login.html');
+        }
+
+        // Category Management
+        function toggleCategory(categoryId) {
+            const header = event.currentTarget;
+            const prompts = document.getElementById(`category-${categoryId}`);
+            
+            header.classList.toggle('active');
+            prompts.classList.toggle('active');
+        }
+
+        function showCategory(categoryId) {
+            // Scroll to sidebar and open category
+            const categoryHeader = document.querySelector(`#category-${categoryId}`).previousElementSibling;
+            if (!categoryHeader.classList.contains('active')) {
+                categoryHeader.click();
+            }
+            
+            // Remove welcome state
+            const welcomeState = document.querySelector('.welcome-state');
+            if (welcomeState) {
+                welcomeState.remove();
+            }
+        }
+
+        function quickPrompt(prompt) {
+            const welcomeState = document.querySelector('.welcome-state');
+            if (welcomeState) {
+                welcomeState.remove();
+            }
+            
+            document.getElementById('userInput').value = prompt;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const welcomeState = document.querySelector('.welcome-state');
+            if (welcomeState) {
+                welcomeState.remove();
+            }
+
+            addMessage(message, 'user');
+            input.value = '';
+            input.disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('sendBtn').textContent = 'Thinking...';
+
+            try {
+                const userInfo = sessionStorage.getItem('userInfo');
+                const user = userInfo ? JSON.parse(userInfo) : null;
+                const accessToken = sessionStorage.getItem('accessToken');
+
+                const headers = { 'Content-Type': 'application/json' };
+                if (accessToken) {
+                    headers['Authorization'] = `Bearer ${accessToken}`;
+                }
+
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        message: message,
+                        conversation_history: conversationHistory,
+                        user_email: user?.email,
+                        user_name: user?.name
+                    })
+                });
+
+                const data = await response.json();
+                addMessage(data.response, 'assistant');
+                conversationHistory = data.conversation_history || [];
+
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+            } finally {
+                input.disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('sendBtn').textContent = 'Send ✈️';
+                input.focus();
+            }
+        }
+
+        function addMessage(text, role) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = role === 'user' ? document.getElementById('userAvatar').textContent : '🤖';
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            content.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(content);
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Event listeners
+        document.getElementById('userInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Auto-resize textarea
+        document.getElementById('userInput').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Initialize
+        window.addEventListener('load', () => {
+            loadUserProfile();
+            document.getElementById('userInput').focus();
+        });
+    </script>
+</body>
+</html>

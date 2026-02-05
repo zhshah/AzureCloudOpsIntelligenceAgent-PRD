@@ -10,9 +10,7 @@
     - Azure Container App with System-Assigned Managed Identity
     - All RBAC role assignments (Least-Privilege, READ-ONLY)
     
-    PREREQUISITE: You must create an Entra ID App Registration BEFORE running this script.
-    See the "ENTRA ID APP REGISTRATION PREREQUISITE" section below.
-    
+    NO manual configuration required - everything is 100% automated!
     When the script completes, the application is fully running.
 
 .PARAMETER ResourceGroupName
@@ -30,53 +28,8 @@
 .PARAMETER ContainerAppName
     Name for the Container App (default: cloudops-agent)
 
-.PARAMETER EntraAppClientId
-    The Application (client) ID from your Entra ID App Registration (REQUIRED for user login)
-
-.PARAMETER EntraTenantId
-    Your Azure AD Tenant ID (REQUIRED for user login)
-
 .EXAMPLE
-    .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" `
-                           -Location "westeurope" `
-                           -ContainerRegistryName "mycrname" `
-                           -EntraAppClientId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" `
-                           -EntraTenantId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-
-# ==============================================================================
-# ⚠️  PREREQUISITE: ENTRA ID APP REGISTRATION (DO THIS FIRST!)
-# ==============================================================================
-#
-# Before running this script, you MUST create an App Registration in Entra ID
-# for user authentication (login page). This cannot be automated because it
-# requires tenant admin consent.
-#
-# STEP 1: Create App Registration
-#   1. Go to Azure Portal → Microsoft Entra ID → App registrations
-#   2. Click "New registration"
-#   3. Name: "CloudOps Intelligence Agent" (or your preferred name)
-#   4. Supported account types: "Accounts in this organizational directory only"
-#   5. Redirect URI: Select "Single-page application (SPA)"
-#      - URI: https://<your-app-url>/login.html 
-#      - (You can add this AFTER deployment when you know the URL)
-#   6. Click "Register"
-#
-# STEP 2: Note the following values (needed for this script)
-#   - Application (client) ID  → Use for -EntraAppClientId parameter
-#   - Directory (tenant) ID    → Use for -EntraTenantId parameter
-#
-# STEP 3: Configure API Permissions (optional but recommended)
-#   1. Go to "API permissions"
-#   2. Add permission → Microsoft Graph → Delegated permissions
-#   3. Select: openid, profile, email, User.Read
-#   4. Click "Grant admin consent" (requires admin)
-#
-# STEP 4: After Deployment - Add Redirect URI
-#   1. After deployment, get the application URL from the script output
-#   2. Go back to App Registration → Authentication
-#   3. Add the redirect URI: https://<app-url>/login.html
-#
-# ==============================================================================
+    .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname"
 
 # ==============================================================================
 # ⚠️  IMPORTANT: TWO TYPES OF PERMISSIONS (READ CAREFULLY!)
@@ -255,14 +208,7 @@ param(
     [string]$ContainerAppName = "cloudops-agent",
     
     [Parameter(Mandatory=$false)]
-    [string]$ContainerAppEnvName = "cloudops-env",
-    
-    # Entra ID (Azure AD) App Registration for user login
-    [Parameter(Mandatory=$true)]
-    [string]$EntraAppClientId,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$EntraTenantId
+    [string]$ContainerAppEnvName = "cloudops-env"
 )
 
 # ============================================
@@ -562,8 +508,6 @@ if ($LASTEXITCODE -eq 0) {
             "AZURE_OPENAI_DEPLOYMENT_NAME=$OpenAIDeploymentName" `
             "AZURE_OPENAI_API_VERSION=$OpenAIApiVersion" `
             "AZURE_SUBSCRIPTION_ID=$subscriptionId" `
-            "AZURE_TENANT_ID=$EntraTenantId" `
-            "AZURE_AUTH_CLIENT_ID=$EntraAppClientId" `
             "USE_MANAGED_IDENTITY=true" `
             "ENABLE_APPROVAL_WORKFLOW=false" `
         --output none

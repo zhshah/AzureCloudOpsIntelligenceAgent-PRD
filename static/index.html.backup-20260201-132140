@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure CloudOps Intelligence Agent | Enterprise Edition</title>
+    <style>
+        /* ==================== DESIGN SYSTEM ==================== */
+        :root {
+            /* Microsoft Azure Color Palette */
+            --primary-blue: #0078D4;
+            --primary-dark: #005A9E;
+            --primary-light: #E1F5FE;
+            
+            /* Neutral Palette */
+            --neutral-0: #FFFFFF;
+            --neutral-10: #FAF9F8;
+            --neutral-20: #F3F2F1;
+            --neutral-30: #EDEBE9;
+            --neutral-50: #D2D0CE;
+            --neutral-70: #605E5C;
+            --neutral-90: #323130;
+            
+            /* Status Colors */
+            --success: #107C10;
+            --warning: #FFB900;
+            --error: #D13438;
+            --info: #0078D4;
+            
+            /* Environment Colors */
+            --env-production: #D13438;
+            --env-staging: #FFB900;
+            --env-development: #107C10;
+            
+            /* Typography */
+            --font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            --font-size-hero: 42px;
+            --font-size-title: 28px;
+            --font-size-subtitle: 20px;
+            --font-size-body: 14px;
+            --font-size-caption: 12px;
+            
+            /* Spacing */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            
+            /* Border Radius */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+        }
+        
+        /* ==================== RESET & BASE ==================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            font-size: var(--font-size-body);
+            color: var(--neutral-90);
+            background: var(--neutral-10);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* ==================== LAYOUT ==================== */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        /* Header */
+        .app-header {
+            background: var(--neutral-0);
+            border-bottom: 1px solid var(--neutral-30);
+            padding: 0 var(--spacing-xl);
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-sm);
+            z-index: 100;
+        }
+        
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+        
+        .brand-logo {
+            font-size: 24px;
+        }
+        
+        .brand-text h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--neutral-90);
+            line-height: 1.2;
+        }
+        
+        .brand-text p {
+            font-size: var(--font-size-caption);
+            color: var(--neutral-70);
+            font-weight: 400;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: var(--font-size-caption);
+            font-weight: 600;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+        
+        .badge.demo {
+            background: var(--env-development);
+            color: var(--neutral-0);
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: 6px 12px;
+            background: var(--neutral-10);
+            border-radius: 20px;
+            font-size: var(--font-size-caption);
+        }
+        
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--neutral-0);
+            font-weight: 600;
+            font-size: 12px;
+        }
+        
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            color: var(--neutral-90);
+            line-height: 1;
+        }
+        
+        .user-email {
+            color: var(--neutral-70);
+            font-size: 10px;
+            line-height: 1;
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 8px;
+            margin-left: 12px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .logout-btn:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* Chat Section */
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--neutral-10);
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-xl);
+        }
+        
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-track {
+            background: var(--neutral-20);
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--neutral-50);
+            border-radius: 4px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: var(--neutral-70);
+        }
+        
+        /* Welcome State */
+        .welcome-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: var(--spacing-xl);
+        }
+        
+        .welcome-icon {
+            font-size: 64px;
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .welcome-state h2 {
+            font-size: var(--font-size-title);
+            font-weight: 600;
+            color: var(--neutral-90);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .welcome-state p {
+            font-size: var(--font-size-body);
+            color: var(--neutral-70);
+            max-width: 600px;
+            line-height: 1.6;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-xl);
+            max-width: 800px;
+        }
+        
+        .feature-card {
+            background: var(--neutral-0);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--neutral-30);
+            text-align: left;
+        }
+        
+        .feature-card-icon {
+            font-size: 32px;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .feature-card h3 {
+            font-size: var(--font-size-body);
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .feature-card p {
+            font-size: var(--font-size-caption);
+            color: var(--neutral-70);
+        }
+        
+        /* Messages */
+        .message {
+            display: flex;
+            margin-bottom: var(--spacing-lg);
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message-content {
+            max-width: 75%;
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            line-height: 1.6;
+        }
+        
+        .message.user .message-content {
+            background: var(--primary-blue);
+            color: var(--neutral-0);
+            border-bottom-right-radius: var(--radius-sm);
+        }
+        
+        .message.assistant .message-content {
+            background: var(--neutral-0);
+            color: var(--neutral-90);
+            border: 1px solid var(--neutral-30);
+            border-bottom-left-radius: var(--radius-sm);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        /* Restriction Banner */
+        .restriction-banner {
+            background: linear-gradient(135deg, #FFF4CE 0%, #FFE8A3 100%);
+            border: 2px solid var(--warning);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-md) 0;
+        }
+        
+        .restriction-banner-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .restriction-banner-header h4 {
+            font-size: var(--font-size-body);
+            font-weight: 600;
+            color: #8B6914;
+        }
+        
+        .restriction-banner p {
+            color: #8B6914;
+            margin-bottom: var(--spacing-md);
+            line-height: 1.5;
+        }
+        
+        .alternatives-grid {
+            display: grid;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+        }
+        
+        .alternative-option {
+            background: var(--neutral-0);
+            border: 1px solid var(--neutral-30);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .alternative-option:hover {
+            border-color: var(--primary-blue);
+            box-shadow: var(--shadow-sm);
+            transform: translateX(-2px);
+        }
+        
+        .alternative-option-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .alternative-option h5 {
+            font-size: var(--font-size-body);
+            font-weight: 600;
+            color: var(--neutral-90);
+        }
+        
+        .alternative-option .risk-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        
+        .alternative-option .risk-badge.low {
+            background: var(--success);
+            color: var(--neutral-0);
+        }
+        
+        .alternative-option .risk-badge.none {
+            background: var(--neutral-50);
+            color: var(--neutral-0);
+        }
+        
+        .alternative-option p {
+            font-size: var(--font-size-caption);
+            color: var(--neutral-70);
+        }
+        
+        /* Tables */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: var(--spacing-md) 0;
+            border: 1px solid var(--neutral-30);
+            border-radius: var(--radius-sm);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--font-size-caption);
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--neutral-30);
+        }
+        
+        th {
+            background: var(--neutral-20);
+            font-weight: 600;
+            color: var(--neutral-90);
+            position: sticky;
+            top: 0;
+        }
+        
+        tr:hover {
+            background: var(--neutral-10);
+        }
+        
+        /* Chat Input */
+        .chat-input {
+            background: var(--neutral-0);
+            border-top: 1px solid var(--neutral-30);
+            padding: var(--spacing-lg) var(--spacing-xl);
+        }
+        
+        .input-wrapper {
+            display: flex;
+            gap: var(--spacing-sm);
+            align-items: center;
+            background: var(--neutral-10);
+            border: 2px solid var(--neutral-30);
+            border-radius: 24px;
+            padding: var(--spacing-xs);
+            transition: all 0.2s ease;
+        }
+        
+        .input-wrapper:focus-within {
+            border-color: var(--primary-blue);
+            background: var(--neutral-0);
+            box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.1);
+        }
+        
+        #userInput {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 12px var(--spacing-md);
+            font-size: var(--font-size-body);
+            font-family: var(--font-family);
+            background: transparent;
+        }
+        
+        #sendBtn {
+            padding: 12px 24px;
+            background: var(--primary-blue);
+            color: var(--neutral-0);
+            border: none;
+            border-radius: 20px;
+            font-size: var(--font-size-body);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        #sendBtn:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        #sendBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background: var(--neutral-0);
+            border-left: 1px solid var(--neutral-30);
+            overflow-y: auto;
+            padding: var(--spacing-lg);
+        }
+        
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .sidebar::-webkit-scrollbar-track {
+            background: var(--neutral-20);
+        }
+        
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--neutral-50);
+            border-radius: 3px;
+        }
+        
+        .sidebar-section {
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .sidebar-section h3 {
+            font-size: var(--font-size-body);
+            font-weight: 600;
+            color: var(--neutral-90);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .prompt-item {
+            background: var(--neutral-10);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            font-size: var(--font-size-caption);
+            color: var(--neutral-70);
+        }
+        
+        .prompt-item:hover {
+            background: var(--primary-light);
+            border-color: var(--primary-blue);
+            color: var(--primary-dark);
+            transform: translateX(-4px);
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+            color: var(--neutral-0);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .stat-label {
+            font-size: var(--font-size-caption);
+            opacity: 0.9;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .sidebar {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .app-header {
+                padding: 0 var(--spacing-md);
+            }
+            
+            .brand-text h1 {
+                font-size: 16px;
+            }
+            
+            .chat-messages {
+                padding: var(--spacing-md);
+            }
+            
+            .message-content {
+                max-width: 90%;
+            }
+        }
+        
+        /* Context Widget Styles */
+        .context-widget {
+            position: fixed;
+            top: 80px;
+            right: 340px;  /* Adjusted for better spacing from sidebar */
+            background: var(--neutral-0);
+            border: 1px solid var(--neutral-20);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            box-shadow: var(--shadow-md);
+            width: 300px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            z-index: 1000;
+            font-size: 13px;
+        }
+        
+        .context-widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--primary-blue);
+        }
+        
+        .context-widget-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--neutral-90);
+            margin: 0;
+        }
+        
+        .context-widget-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--neutral-60);
+            padding: 0;
+        }
+        
+        .context-section {
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .context-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--neutral-60);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .context-value {
+            color: var(--neutral-90);
+            font-weight: 500;
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .context-subtext {
+            color: var(--neutral-60);
+            font-size: 11px;
+        }
+        
+        .permission-grid {
+            display: grid;
+            gap: var(--spacing-xs);
+        }
+        
+        .permission-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-xs);
+            background: var(--neutral-5);
+            border-radius: var(--radius-sm);
+        }
+        
+        .permission-label {
+            font-weight: 500;
+            color: var(--neutral-80);
+        }
+        
+        .permission-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .permission-status.allowed {
+            color: var(--success);
+        }
+        
+        .permission-status.denied {
+            color: var(--error);
+        }
+        
+        .permission-status.admin-disabled {
+            color: var(--warning);
+        }
+        
+        .context-widget.collapsed .context-widget-body {
+            display: none;
+        }
+        
+        .refresh-indicator {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <script src="/static/logout.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <span class="brand-logo">⚡</span>
+                <div class="brand-text">
+                    <h1>Azure CloudOps Intelligence Agent</h1>
+                    <p>Enterprise Edition</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <span class="badge demo">🧪 DEMO MODE</span>
+                <span class="badge">🔒 Safe Actions Only</span>
+                <div class="user-profile" id="userProfile" style="display: none;">
+                    <div class="user-avatar" id="userAvatar"></div>
+                    <div class="user-info">
+                        <div class="user-name" id="userName"></div>
+                        <div class="user-email" id="userEmail"></div>
+                    </div>
+                    <button class="logout-btn" id="logoutBtn" onclick="logout()" title="Logout">
+                        🚪
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Context Widget -->
+        <div class="context-widget" id="contextWidget">
+            <div class="context-widget-header">
+                <h3>🔐 Context & Permissions</h3>
+                <button class="context-widget-toggle" onclick="toggleContextWidget()">−</button>
+            </div>
+            <div class="context-widget-body">
+                <!-- Subscription -->
+                <div class="context-section">
+                    <div class="context-section-title">Subscription</div>
+                    <div class="context-value" id="contextSubscription">Loading...</div>
+                    <div class="context-subtext" id="contextSubscriptionId"></div>
+                </div>
+                
+                <!-- Identity -->
+                <div class="context-section">
+                    <div class="context-section-title">Identity</div>
+                    <div class="context-value" id="contextIdentity">Loading...</div>
+                    <div class="context-subtext" id="contextPrincipalId"></div>
+                </div>
+                
+                <!-- Permissions -->
+                <div class="context-section">
+                    <div class="context-section-title">RBAC Permissions</div>
+                    <div class="permission-grid">
+                        <div class="permission-item">
+                            <span class="permission-label">Read</span>
+                            <span class="permission-status allowed" id="permRead">✓ Allowed</span>
+                        </div>
+                        <div class="permission-item">
+                            <span class="permission-label">Write</span>
+                            <span class="permission-status allowed" id="permWrite">✓ Allowed</span>
+                        </div>
+                        <div class="permission-item">
+                            <span class="permission-label">Modify</span>
+                            <span class="permission-status allowed" id="permModify">✓ Allowed</span>
+                        </div>
+                        <div class="permission-item">
+                            <span class="permission-label">Delete</span>
+                            <span class="permission-status admin-disabled" id="permDelete">⛔ Admin Disabled</span>
+                        </div>
+                    </div>
+                    <div class="context-subtext" style="margin-top: 8px; font-style: italic;">
+                        🛡️ Permissions update dynamically
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Chat Section -->
+            <main class="chat-section">
+                <div class="chat-messages" id="chatContainer">
+                    <div class="welcome-state">
+                        <div class="welcome-icon">🤖</div>
+                        <h2>Welcome to Azure CloudOps Intelligence</h2>
+                        <p>Your AI-powered assistant for cost management, infrastructure operations, and resource optimization. Ask anything in natural language.</p>
+                        
+                        <div class="feature-grid">
+                            <div class="feature-card">
+                                <div class="feature-card-icon">💰</div>
+                                <h3>Cost Analytics</h3>
+                                <p>Real-time cost insights and trends</p>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-card-icon">🔍</div>
+                                <h3>Resource Discovery</h3>
+                                <p>Multi-subscription inventory</p>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-card-icon">🛡️</div>
+                                <h3>Security Controls</h3>
+                                <p>Built-in safety restrictions</p>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-card-icon">📊</div>
+                                <h3>AI Recommendations</h3>
+                                <p>Optimization insights</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input">
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="userInput" 
+                            placeholder="Ask about costs, resources, or optimization strategies..."
+                            autocomplete="off"
+                        />
+                        <button id="sendBtn">Send ✈️</button>
+                    </div>
+                </div>
+            </main>
+            
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3>💡 Quick Prompts</h3>
+                    
+                    <div class="prompt-item" data-prompt="What is my total Azure cost for this month?">
+                        What is my total Azure cost for this month?
+                    </div>
+                    <div class="prompt-item" data-prompt="List all my virtual machines">
+                        List all my virtual machines
+                    </div>
+                    <div class="prompt-item" data-prompt="Show me costs grouped by service">
+                        Show me costs grouped by service
+                    </div>
+                    <div class="prompt-item" data-prompt="Find storage accounts with private endpoints">
+                        Find storage accounts with private endpoints
+                    </div>
+                    <div class="prompt-item" data-prompt="Give me 3 cost optimization recommendations">
+                        Give me 3 cost optimization recommendations
+                    </div>
+                    <div class="prompt-item" data-prompt="Analyze my spending patterns">
+                        Analyze my spending patterns
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <div class="stat-card">
+                        <div class="stat-number">🔒</div>
+                        <div class="stat-label">Safe Operations Only</div>
+                        <p style="margin-top: 12px; font-size: 11px; opacity: 0.9;">
+                            Delete & Destroy actions are intentionally restricted for security
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="sidebar-section" style="font-size: 10px; color: var(--neutral-70); text-align: center;">
+                    Developed by Zahir Hussain Shah<br>
+                    Version 2.0 Enterprise Edition
+                </div>
+            </aside>
+        </div>
+    </div>
+    
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        let conversationHistory = [];
+        
+        // Handle sample prompt clicks
+        document.querySelectorAll('.prompt-item').forEach(prompt => {
+            prompt.addEventListener('click', function() {
+                const promptText = this.getAttribute('data-prompt');
+                userInput.value = promptText;
+                sendMessage();
+            });
+        });
+        
+        // Send message on Enter key
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Send message on button click
+        sendBtn.addEventListener('click', sendMessage);
+        
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+            
+            // Remove welcome message if exists
+            const welcomeMsg = document.querySelector('.welcome-state');
+            if (welcomeMsg) {
+                welcomeMsg.remove();
+            }
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            userInput.value = '';
+            
+            // Disable input while processing
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Thinking...';
+            
+            try {
+                // Get user info from session
+                const userInfo = sessionStorage.getItem('userInfo');
+                const user = userInfo ? JSON.parse(userInfo) : null;
+                const accessToken = sessionStorage.getItem('accessToken');
+                
+                // Prepare headers with Authorization token if available
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                if (accessToken) {
+                    headers['Authorization'] = `Bearer ${accessToken}`;
+                }
+                
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        message: message,
+                        conversation_history: conversationHistory,
+                        user_email: user?.email,
+                        user_name: user?.name
+                    })
+                });
+                
+                const data = await response.json();
+                addMessage(data.response, 'assistant');
+                
+                // Update conversation history
+                conversationHistory = data.conversation_history || [];
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+            } finally {
+                // Re-enable input
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send ✈️';
+                userInput.focus();
+            }
+        }
+        
+        function addMessage(text, role) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            // Convert markdown-style formatting to HTML
+            let formattedText = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+            
+            // Check if there's a table in the response
+            if (formattedText.includes('|')) {
+                formattedText = convertMarkdownTableToHtml(formattedText);
+            }
+            
+            contentDiv.innerHTML = formattedText;
+            messageDiv.appendChild(contentDiv);
+            chatContainer.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        function convertMarkdownTableToHtml(text) {
+            const lines = text.split('<br>');
+            let inTable = false;
+            let tableHtml = '';
+            let result = '';
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                if (line.startsWith('|') && line.endsWith('|')) {
+                    if (!inTable) {
+                        inTable = true;
+                        tableHtml = '<div class="table-wrapper"><table>';
+                    }
+                    
+                    // Skip separator lines
+                    if (line.includes('---')) {
+                        continue;
+                    }
+                    
+                    const cells = line.split('|').filter(cell => cell.trim());
+                    const isHeader = i === 0 || (result === '' && tableHtml === '<div class="table-wrapper"><table>');
+                    const tag = isHeader ? 'th' : 'td';
+                    
+                    tableHtml += '<tr>';
+                    cells.forEach(cell => {
+                        tableHtml += `<${tag}>${cell.trim()}</${tag}>`;
+                    });
+                    tableHtml += '</tr>';
+                } else {
+                    if (inTable) {
+                        tableHtml += '</table></div>';
+                        result += tableHtml + '<br>';
+                        tableHtml = '';
+                        inTable = false;
+                    }
+                    result += line + '<br>';
+                }
+            }
+            
+            if (inTable) {
+                tableHtml += '</table></div>';
+                result += tableHtml;
+            }
+            
+            return result;
+        }
+        
+        // Auto-focus input on load
+        window.addEventListener('load', () => {
+            userInput.focus();
+            // Load context on page load
+            loadContext();
+            // Refresh context every 30 seconds
+            setInterval(loadContext, 30000);
+            // Load user profile
+            loadUserProfile();
+        });
+        
+        // Load user profile from session storage
+        function loadUserProfile() {
+            console.log('🔍 Loading user profile...');
+            
+            // Check if we just completed login
+            const loginComplete = sessionStorage.getItem('loginComplete');
+            
+            // Try sessionStorage first, fallback to localStorage
+            let userInfo = sessionStorage.getItem('userInfo');
+            if (!userInfo) {
+                console.log('📦 No sessionStorage, trying localStorage...');
+                userInfo = localStorage.getItem('userInfo');
+                if (userInfo) {
+                    // Copy from localStorage to sessionStorage
+                    sessionStorage.setItem('userInfo', userInfo);
+                    console.log('✅ Restored from localStorage');
+                }
+            }
+            
+            console.log('📦 User info:', userInfo ? 'Found' : 'Not found');
+            console.log('🔑 Login complete flag:', loginComplete);
+            
+            if (userInfo) {
+                try {
+                    const user = JSON.parse(userInfo);
+                    console.log('👤 Parsed user:', user);
+                    
+                    // Clear the login complete flag
+                    sessionStorage.removeItem('loginComplete');
+                    
+                    document.getElementById('userProfile').style.display = 'flex';
+                    document.getElementById('userName').textContent = user.name || 'User';
+                    document.getElementById('userEmail').textContent = user.email || '';
+
+                    // Set avatar initials
+                    const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
+                    document.getElementById('userAvatar').textContent = initials;
+                    
+                    console.log('✅ User profile loaded:', user.name);
+                } catch (error) {
+                    console.error('❌ Error parsing user info:', error);
+                }
+            } else {
+                // Check if running locally - use demo mode ONLY if no login
+                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                
+                if (isLocal) {
+                    console.log('🏠 Local mode + No login - using demo user');
+                    const demoUser = {
+                        name: 'Demo User (Local)',
+                        email: 'demo@localhost',
+                        id: 'demo-local'
+                    };
+                    sessionStorage.setItem('userInfo', JSON.stringify(demoUser));
+                    
+                    document.getElementById('userProfile').style.display = 'flex';
+                    document.getElementById('userName').textContent = demoUser.name;
+                    document.getElementById('userEmail').textContent = demoUser.email;
+                    document.getElementById('userAvatar').textContent = 'DU';
+                    
+                    console.log('✅ Demo user profile loaded');
+                } else if (loginComplete === 'true') {
+                    // Just completed login but no userInfo - wait and retry
+                    console.warn('⚠️ Login just completed, retrying in 500ms...');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                } else {
+                    // No user info and not just logged in - redirect to login
+                    console.warn('⚠️ No user info - redirecting to login');
+                    window.location.replace('/login.html');
+                }
+            }
+        }
+        
+        // Context Widget Functions
+        function toggleContextWidget() {
+            const widget = document.getElementById('contextWidget');
+            widget.classList.toggle('collapsed');
+            const toggleBtn = widget.querySelector('.context-widget-toggle');
+            toggleBtn.textContent = widget.classList.contains('collapsed') ? '+' : '−';
+        }
+        
+        async function loadContext() {
+            try {
+                const response = await fetch('/api/context');
+                if (!response.ok) throw new Error('Failed to load context');
+                
+                const context = await response.json();
+                
+                // Update Subscription
+                document.getElementById('contextSubscription').textContent = 
+                    context.subscription.name || 'Unknown';
+                document.getElementById('contextSubscriptionId').textContent = 
+                    context.subscription.id || '';
+                
+                // Update Identity
+                document.getElementById('contextIdentity').textContent = 
+                    context.identity.type || 'Unknown';
+                document.getElementById('contextPrincipalId').textContent = 
+                    context.identity.principal_id || '';
+                
+                // Update Permissions
+                updatePermission('permRead', context.permissions.read);
+                updatePermission('permWrite', context.permissions.write);
+                updatePermission('permModify', context.permissions.modify);
+                updatePermission('permDelete', context.permissions.delete);
+                
+            } catch (error) {
+                console.error('Error loading context:', error);
+                document.getElementById('contextSubscription').textContent = 'Error loading';
+                document.getElementById('contextIdentity').textContent = 'Error loading';
+            }
+        }
+        
+        function updatePermission(elementId, allowed) {
+            const element = document.getElementById(elementId);
+            if (elementId === 'permDelete') {
+                // Delete is always admin disabled
+                element.className = 'permission-status admin-disabled';
+                element.textContent = '⛔ Admin Disabled';
+            } else if (allowed) {
+                element.className = 'permission-status allowed';
+                element.textContent = '✓ Allowed';
+            } else {
+                element.className = 'permission-status denied';
+                element.textContent = '✗ Denied';
+            }
+        }
+    </script>
+</body>
+</html>

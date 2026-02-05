@@ -39,10 +39,8 @@ class UniversalCLIDeployment:
             import requests
             import os
             
-            # Get Office365 connection details from environment
-            subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID", "")
-            resource_group_name = os.getenv("AZURE_RESOURCE_GROUP", "")
-            connection_id = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group_name}/providers/Microsoft.Web/connections/office365"
+            # Get Office365 connection details
+            connection_id = "/subscriptions/b28cc86b-8f84-47e5-a38a-b814b44d047e/resourceGroups/Az-AICost-Agent-RG/providers/Microsoft.Web/connections/office365"
             
             if status == "success":
                 subject = f"✅ Deployment Successful: {resource_name}"

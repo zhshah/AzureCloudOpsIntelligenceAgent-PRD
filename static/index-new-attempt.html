@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Azure CloudOps Intelligence Agent - Enterprise Edition</title>
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            background: #f3f2f1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Navigation Bar */
+        .top-nav {
+            background: white;
+            border-bottom: 1px solid #e1dfdd;
+            padding: 0 24px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 0.3px 0.9px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            font-size: 24px;
+        }
+
+        .app-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #201f1e;
+        }
+
+        .edition-badge {
+            font-size: 11px;
+            color: #605e5c;
+            font-weight: 400;
+        }
+
+        .top-badges {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-demo {
+            background: #d4f1d4;
+            color: #107c10;
+        }
+
+        .badge-safe {
+            background: #fff4ce;
+            color: #ff8c00;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-name {
+            font-size: 14px;
+            color: #201f1e;
+            font-weight: 500;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid #e1dfdd;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #605e5c;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: #f3f2f1;
+            border-color: #d1d0ce;
+        }
+
+        /* Main Content Area */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Chat Section */
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            margin: 16px;
+            margin-right: 0;
+            border-radius: 8px;
+            box-shadow: 0 1.6px 3.6px 0 rgba(0,0,0,0.132);
+            overflow: hidden;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background: #faf9f8;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background: #e1dfdd;
+            color: #323130;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .message.user .message-content {
+            background: #0078d4;
+            color: white;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            border: 1px solid #e1dfdd;
+            color: #323130;
+        }
+
+        .deployment-card {
+            background: #f3f9ff;
+            border-left: 3px solid #0078d4;
+            padding: 16px;
+            margin-top: 8px;
+            border-radius: 4px;
+        }
+
+        .deployment-card h4 {
+            color: #0078d4;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .deployment-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+
+        .deployment-detail strong {
+            color: #323130;
+        }
+
+        .status-badge {
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #fff4ce;
+            color: #8a8400;
+        }
+
+        .status-success {
+            background: #d4f1d4;
+            color: #107c10;
+        }
+
+        .status-error {
+            background: #fde7e9;
+            color: #a80000;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 16px 24px;
+            background: white;
+            border-top: 1px solid #e1dfdd;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        #userInput {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #605e5c;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'Segoe UI', sans-serif;
+            outline: none;
+            resize: none;
+            min-height: 40px;
+            max-height: 120px;
+        }
+
+        #userInput:focus {
+            border-color: #0078d4;
+            border-width: 2px;
+            padding: 11px 15px;
+        }
+
+        #sendButton {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            height: 40px;
+        }
+
+        #sendButton:hover {
+            background: #106ebe;
+        }
+
+        #sendButton:active {
+            background: #005a9e;
+        }
+
+        #sendButton:disabled {
+            background: #f3f2f1;
+            color: #a19f9d;
+            cursor: not-allowed;
+        }
+
+        /* Right Sidebar */
+        .right-sidebar {
+            width: 340px;
+            background: white;
+            margin: 16px;
+            margin-left: 0;
+            border-radius: 8px;
+            box-shadow: 0 1.6px 3.6px 0 rgba(0,0,0,0.132);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid #e1dfdd;
+        }
+
+        .sidebar-section:last-child {
+            border-bottom: none;
+        }
+
+        .sidebar-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #323130;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .context-item {
+            margin-bottom: 16px;
+        }
+
+        .context-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #605e5c;
+            font-weight: 600;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .context-value {
+            font-size: 13px;
+            color: #323130;
+            word-break: break-all;
+        }
+
+        .permission-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            font-size: 13px;
+        }
+
+        .permission-name {
+            color: #323130;
+        }
+
+        .permission-status {
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .allowed {
+            color: #107c10;
+        }
+
+        .disabled {
+            color: #a19f9d;
+        }
+
+        .dynamic-note {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px;
+            background: #f3f9ff;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #0078d4;
+            margin-top: 12px;
+        }
+
+        .quick-prompt-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .quick-prompt-item {
+            padding: 10px 14px;
+            background: #faf9f8;
+            border: 1px solid #e1dfdd;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #323130;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .quick-prompt-item:hover {
+            background: #0078d4;
+            color: white;
+            border-color: #0078d4;
+        }
+
+        .safe-operations-box {
+            background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .safe-operations-box .icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .safe-operations-box h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .safe-operations-box p {
+            font-size: 12px;
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+
+        .loading {
+            display: none;
+            padding: 12px;
+            text-align: center;
+            color: #0078d4;
+            font-size: 13px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #605e5c;
+        }
+
+        .welcome-message h2 {
+            color: #323130;
+            font-size: 20px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .welcome-message p {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .welcome-features {
+            background: white;
+            border: 1px solid #e1dfdd;
+            border-radius: 8px;
+            padding: 24px;
+            margin: 24px auto;
+            max-width: 600px;
+            text-align: left;
+        }
+
+        .welcome-features h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: #323130;
+        }
+
+        .welcome-features ul {
+            list-style: none;
+        }
+
+        .welcome-features li {
+            padding: 8px 0;
+            padding-left: 28px;
+            position: relative;
+            font-size: 14px;
+            color: #323130;
+        }
+
+        .welcome-features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #107c10;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        code {
+            background: #f3f2f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+            color: #0078d4;
+        }
+
+        @media (max-width: 1200px) {
+            .right-sidebar {
+                width: 280px;
+            }
+        }
+
+        @media (max-width: 968px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .right-sidebar {
+                width: 100%;
+                margin: 0 16px 16px 16px;
+            }
+
+            .chat-section {
+                margin: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="logo-section">
+            <div class="logo-icon">⚡</div>
+            <div>
+                <div class="app-title">Azure CloudOps Intelligence Agent</div>
+                <div class="edition-badge">Enterprise Edition</div>
+            </div>
+        </div>
+
+        <div class="top-badges">
+            <span class="badge badge-demo">🟢 DEMO MODE</span>
+            <span class="badge badge-safe">🟠 Safe Actions Only</span>
+        </div>
+
+        <div class="user-profile">
+            <div class="user-avatar" id="userAvatar">ZH</div>
+            <div class="user-name" id="userName">Zahir Hussain Shah</div>
+            <button class="logout-btn" onclick="handleLogout()">🚪 Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <!-- Chat Section -->
+        <div class="chat-section">
+            <div class="messages-container" id="messages">
+                <div class="welcome-message">
+                    <h2>👋 Welcome to Azure CloudOps Intelligence Agent</h2>
+                    <p>Your AI-powered Azure cost management and resource deployment assistant</p>
+                    
+                    <div class="welcome-features">
+                        <h3>✨ Enterprise Capabilities</h3>
+                        <ul>
+                            <li>Deploy Azure resources with approval workflow</li>
+                            <li>Analyze Azure costs and provide optimization recommendations</li>
+                            <li>List and query Azure resources across subscriptions</li>
+                            <li>Create resource groups at subscription level</li>
+                            <li>Deploy VMs, Storage Accounts, and SQL Databases</li>
+                            <li>Intelligent cost forecasting and anomaly detection</li>
+                            <li>Role-based access control with dynamic permissions</li>
+                        </ul>
+                    </div>
+
+                    <p><strong>Start by asking a question or use the Quick Prompts on the right →</strong></p>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">⏳ Processing your request...</div>
+
+            <div class="input-area">
+                <div class="input-group">
+                    <textarea 
+                        id="userInput" 
+                        placeholder="Ask about costs, resources, or deploy infrastructure..."
+                        onkeydown="handleKeyPress(event)"
+                        rows="1"
+                    ></textarea>
+                    <button id="sendButton" onclick="sendMessage()">Send 🚀</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <aside class="right-sidebar">
+            <!-- Context & Permissions -->
+            <div class="sidebar-section">
+                <h3>🔒 Context & Permissions</h3>
+                
+                <div class="context-item">
+                    <div class="context-label">SUBSCRIPTION</div>
+                    <div class="context-value" id="subscriptionInfo">Loading...</div>
+                </div>
+
+                <div class="context-item">
+                    <div class="context-label">IDENTITY</div>
+                    <div class="context-value">System Managed Identity<br><span style="color:#605e5c; font-size:11px;">In use</span></div>
+                </div>
+
+                <div class="context-item">
+                    <div class="context-label">RBAC PERMISSIONS</div>
+                    <div>
+                        <div class="permission-item">
+                            <span class="permission-name">Read</span>
+                            <span class="permission-status allowed">✓ Allowed</span>
+                        </div>
+                        <div class="permission-item">
+                            <span class="permission-name">Write</span>
+                            <span class="permission-status allowed">✓ Allowed</span>
+                        </div>
+                        <div class="permission-item">
+                            <span class="permission-name">Modify</span>
+                            <span class="permission-status allowed">✓ Allowed</span>
+                        </div>
+                        <div class="permission-item">
+                            <span class="permission-name">Delete</span>
+                            <span class="permission-status disabled">⊘ Disabled</span>
+                        </div>
+                    </div>
+                    
+                    <div class="dynamic-note">
+                        🔵 Permissions update dynamically
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Prompts -->
+            <div class="sidebar-section">
+                <h3>🚀 Quick Prompts</h3>
+                <div class="quick-prompt-list">
+                    <div class="quick-prompt-item" onclick="setPrompt('What is my total Azure cost for this month?')">
+                        💰 What is my total Azure cost for this month?
+                    </div>
+                    <div class="quick-prompt-item" onclick="setPrompt('List all my virtual machines')">
+                        🖥️ List all my virtual machines
+                    </div>
+                    <div class="quick-prompt-item" onclick="setPrompt('Show me cost grouped by service')">
+                        📊 Show me cost grouped by service
+                    </div>
+                    <div class="quick-prompt-item" onclick="setPrompt('Find storage accounts with private endpoints')">
+                        💾 Find storage accounts with private endpoints
+                    </div>
+                    <div class="quick-prompt-item" onclick="setPrompt('Give me 3 cost optimization recommendations')">
+                        ⚡ Give me 3 cost optimization recommendations
+                    </div>
+                    <div class="quick-prompt-item" onclick="setPrompt('Analyze my spending patterns')">
+                        📈 Analyze my spending patterns
+                    </div>
+                    <div class="quick-prompt-item" onclick="setPrompt('Create a resource group named test-rg-demo in west europe')">
+                        📦 Create a resource group
+                    </div>
+                </div>
+            </div>
+
+            <!-- Safe Operations -->
+            <div class="sidebar-section">
+                <div class="safe-operations-box">
+                    <div class="icon">🔒</div>
+                    <h4>Safe Operations Only</h4>
+                    <p>Delete & Destroy actions are intentionally restricted for security</p>
+                </div>
+                <div style="margin-top:16px; font-size:11px; color:#605e5c; text-align:center;">
+                    Developed by Zahir Hussain Shah<br>
+                    Version 2.5 Enterprise Edition
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // MSAL Configuration
+        const msalConfig = {
+            auth: {
+                clientId: '4e95cf8f-6d52-49e2-8e86-7c4833fcb1d3', // Your Entra ID App Registration
+                authority: 'https://login.microsoftonline.com/5c4f29e9-cd82-461e-a0c3-5c4833fcb1d3',
+                redirectUri: window.location.origin
+            }
+        };
+
+        let msalInstance;
+        let currentAccount = null;
+
+        // Initialize MSAL
+        async function initMsal() {
+            try {
+                msalInstance = new msal.PublicClientApplication(msalConfig);
+                await msalInstance.initialize();
+
+                // Check if user is already logged in
+                const accounts = msalInstance.getAllAccounts();
+                if (accounts.length > 0) {
+                    currentAccount = accounts[0];
+                    updateUserProfile(currentAccount);
+                    await loadSubscriptionInfo();
+                } else {
+                    // Redirect to login
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                console.error('MSAL initialization error:', error);
+                // Fallback to guest mode
+                updateUserProfile({ name: 'Azure Admin', username: 'AA' });
+            }
+        }
+
+        function updateUserProfile(account) {
+            const userName = account.name || 'Azure User';
+            const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+            
+            document.getElementById('userName').textContent = userName;
+            document.getElementById('userAvatar').textContent = initials;
+        }
+
+        async function loadSubscriptionInfo() {
+            try {
+                const response = await fetch('/api/subscription-info');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('subscriptionInfo').innerHTML = 
+                        `${data.displayName || 'Azure Subscription'}<br>
+                        <span style="color:#605e5c; font-size:11px;">${data.subscriptionId || 'Loading...'}</span>`;
+                }
+            } catch (error) {
+                document.getElementById('subscriptionInfo').textContent = 'Azure Subscription - Zahir Shah';
+            }
+        }
+
+        function handleLogout() {
+            if (msalInstance && currentAccount) {
+                msalInstance.logoutRedirect({ account: currentAccount });
+            } else {
+                window.location.href = '/login.html';
+            }
+        }
+
+        // Chat Functions
+        const messagesDiv = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const loading = document.getElementById('loading');
+
+        function setPrompt(text) {
+            userInput.value = text;
+            userInput.focus();
+            autoResize();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function autoResize() {
+            userInput.style.height = 'auto';
+            userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+        }
+
+        userInput.addEventListener('input', autoResize);
+
+        function addMessage(content, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = sender === 'user' ? document.getElementById('userAvatar').textContent : '🤖';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (typeof content === 'object' && content.requestId) {
+                contentDiv.appendChild(formatDeploymentResponse(content));
+            } else {
+                contentDiv.innerHTML = formatMessage(content);
+            }
+            
+            if (sender === 'user') {
+                messageDiv.appendChild(contentDiv);
+                messageDiv.appendChild(avatar);
+            } else {
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(contentDiv);
+            }
+            
+            // Remove welcome message if exists
+            const welcomeMsg = messagesDiv.querySelector('.welcome-message');
+            if (welcomeMsg) {
+                welcomeMsg.remove();
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function formatMessage(text) {
+            text = String(text);
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/`(.*?)`/g, '<code>$1</code>');
+            text = text.replace(/\n/g, '<br>');
+            return text;
+        }
+
+        function formatDeploymentResponse(data) {
+            const card = document.createElement('div');
+            card.className = 'deployment-card';
+            
+            let statusClass = 'status-pending';
+            let statusText = data.status || 'Unknown';
+            
+            if (statusText.includes('pending')) statusClass = 'status-pending';
+            else if (statusText.includes('success') || statusText.includes('approved')) statusClass = 'status-success';
+            else if (statusText.includes('error') || statusText.includes('failed')) statusClass = 'status-error';
+            
+            card.innerHTML = `
+                <h4>🚀 Deployment Request Submitted</h4>
+                <div class="deployment-detail">
+                    <strong>Request ID:</strong>
+                    <code>${data.requestId || 'N/A'}</code>
+                </div>
+                <div class="deployment-detail">
+                    <strong>Status:</strong>
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                </div>
+                ${data.estimatedCost ? `
+                <div class="deployment-detail">
+                    <strong>Estimated Cost:</strong>
+                    <span>${data.estimatedCost}</span>
+                </div>
+                ` : ''}
+                <div class="deployment-detail">
+                    <strong>Message:</strong>
+                    <span>${data.message || 'Processing...'}</span>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+            
+            addMessage(message, 'user');
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            
+            sendButton.disabled = true;
+            userInput.disabled = true;
+            loading.classList.add('active');
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.requestId && data.status) {
+                    addMessage(data, 'assistant');
+                } else {
+                    addMessage(data.response || 'No response from server', 'assistant');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage(`❌ Error: ${error.message}. Please check if the server is running.`, 'assistant');
+            } finally {
+                sendButton.disabled = false;
+                userInput.disabled = false;
+                loading.classList.remove('active');
+                userInput.focus();
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initMsal();
+            userInput.focus();
+        });
+    </script>
+</body>
+</html>
