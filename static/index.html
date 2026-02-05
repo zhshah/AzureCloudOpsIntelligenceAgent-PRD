@@ -181,12 +181,19 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 12px 18px;
+            padding: 10px 16px;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
             box-shadow: var(--shadow-xs);
             transition: all 0.2s ease;
+            min-width: 110px;
+        }
+
+        .header-stat > div:first-child {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
         }
 
         .header-stat:hover {
@@ -202,6 +209,8 @@
             font-size: 18px;
             font-weight: 700;
             color: var(--text-primary);
+            line-height: 1.2;
+            min-height: 22px;
         }
 
         .header-stat-label {
@@ -209,6 +218,8 @@
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            line-height: 1.2;
+            margin-top: 2px;
         }
 
         .header-stat.success .header-stat-value {
@@ -2381,10 +2392,86 @@
             }
         }
 
-        function updateInsightsForSubscription(subscriptionId) {
-            // Header stats now show placeholder values - real data comes from queries
-            // This function is kept for future enhancement where we could load real data
-            console.log(`Subscription context changed to: ${subscriptionId}`);
+        async function updateInsightsForSubscription(subscriptionId) {
+            console.log(`Loading stats for subscription: ${subscriptionId}`);
+            const isAllSubs = subscriptionId === 'all' || subscriptionId === 'loading';
+            
+            try {
+                const accessToken = sessionStorage.getItem('accessToken');
+                const headers = { 'Content-Type': 'application/json' };
+                if (accessToken) {
+                    headers['Authorization'] = `Bearer ${accessToken}`;
+                }
+
+                // Update health score - default healthy
+                document.getElementById('healthScore').textContent = '95%';
+                
+                // Fetch resource count - works for both single and all subscriptions
+                try {
+                    const resourcePrompt = isAllSubs 
+                        ? 'How many total resources are across ALL my subscriptions? Just give me the total number.'
+                        : 'How many total resources are in my current subscription? Just give me the number.';
+                    
+                    const resourceResponse = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            message: resourcePrompt,
+                            subscription_context: isAllSubs ? 'all' : subscriptionId,
+                            all_subscriptions: isAllSubs
+                        })
+                    });
+                    
+                    if (resourceResponse.ok) {
+                        const resourceData = await resourceResponse.json();
+                        const countMatch = resourceData.response?.match(/\b(\d+)\b/);
+                        if (countMatch) {
+                            document.getElementById('resourceCount').textContent = countMatch[1];
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching resource count:', err);
+                }
+
+                // Fetch monthly cost - works for both single and all subscriptions
+                try {
+                    const costPrompt = isAllSubs
+                        ? 'What is my total Azure cost for the current month across ALL subscriptions? Just give me the total amount in USD, format as $X,XXX.XX'
+                        : 'What is my total Azure cost for the current month? Just give me the total amount in USD, format as $X,XXX.XX';
+                    
+                    const costResponse = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            message: costPrompt,
+                            subscription_context: isAllSubs ? 'all' : subscriptionId,
+                            all_subscriptions: isAllSubs
+                        })
+                    });
+                    
+                    if (costResponse.ok) {
+                        const costData = await costResponse.json();
+                        // Extract dollar amount from response
+                        const costMatch = costData.response?.match(/\$[\d,]+\.?\d*/);
+                        if (costMatch) {
+                            document.getElementById('monthlyCost').textContent = costMatch[0];
+                        } else {
+                            // Try to extract just a number if no $ sign
+                            const numMatch = costData.response?.match(/[\d,]+\.?\d*\s*(USD|dollars?)?/i);
+                            if (numMatch) {
+                                document.getElementById('monthlyCost').textContent = '$' + numMatch[0].replace(/\s*(USD|dollars?)/i, '');
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching cost:', err);
+                    document.getElementById('monthlyCost').textContent = '$--';
+                }
+                
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                // Keep default values on error
+            }
         }
 
         function showNotification(message) {
@@ -2479,8 +2566,8 @@
                                     message.toLowerCase().includes('across all') ||
                                     message.toLowerCase().includes('every subscription');
                 
-                // Determine actual context to use
-                const contextToUse = askingForAll ? 'all' : selectedSubscription;
+                // Determine if we're querying all subscriptions
+                const isAllSubscriptions = selectedSubscription === 'all' || askingForAll;
                 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -2490,9 +2577,9 @@
                         conversation_history: conversationHistory,
                         user_email: user?.email,
                         user_name: user?.name,
-                        subscription_context: contextToUse,
-                        subscription_name: subscriptionName,
-                        prompt_override_context: askingForAll
+                        subscription_context: isAllSubscriptions ? 'all' : selectedSubscription,
+                        subscription_name: isAllSubscriptions ? 'All Subscriptions' : subscriptionName,
+                        all_subscriptions: isAllSubscriptions
                     })
                 });
 

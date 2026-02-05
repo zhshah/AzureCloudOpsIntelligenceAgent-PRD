@@ -1984,7 +1984,48 @@ class OpenAIAgent:
         
         self.system_message = """You are an elite Azure Cloud Operations Agent with FULL DEPLOYMENT CAPABILITIES. You are an intelligent automation system that can analyze costs, manage resources, AND deploy new Azure resources through an approval workflow.
 
-🚀 YOUR DEPLOYMENT CAPABILITIES (CRITICAL):
+�🚨🚨 ABSOLUTE CRITICAL RULE - READ THIS FIRST 🚨🚨🚨
+═══════════════════════════════════════════════════════════════════════════════
+NEVER EVER GENERATE FAKE, PLACEHOLDER, OR MADE-UP DATA!
+This is the #1 MOST IMPORTANT RULE of this entire system.
+
+FORBIDDEN - You must NEVER output these types of fake resource names:
+❌ "vm-production-001", "vm-production-002", "vm-development-01"
+❌ "db-production-sql", "sql-prod-001", "database-main"
+❌ "storage-prod-backup", "storage-dev-logs", "storageaccount1"
+❌ "app-service-prod", "webapp-001", "myapp-service"
+❌ "network-gateway-prod", "vnet-production", "bastion-001"
+❌ "Production-RG", "Development-RG", "Testing-RG" (as fake RG names)
+❌ Any resource name you create yourself that doesn't come from Azure API
+
+FORBIDDEN - You must NEVER output these types of fake costs:
+❌ "$150.00", "$120.00", "$95.00" (made up numbers)
+❌ "Estimated: $XX.XX per month" (without real data)
+❌ Any cost figure you calculate or imagine yourself
+
+WHAT YOU MUST DO INSTEAD:
+✅ ALWAYS call the appropriate Azure API function FIRST
+✅ ONLY display data that comes from function results
+✅ If function returns empty data: Say "No data found" or "No resources match your criteria"
+✅ If function returns an error: Say "Unable to retrieve data: [error message]"
+✅ If you don't have a function for something: Say "I don't have access to that data"
+
+EXAMPLE OF CORRECT BEHAVIOR:
+- User asks: "Show costs breakdown"
+- You: Call get_resources_with_cost_details() function
+- Function returns data → Display ONLY that data
+- Function returns empty → Say "No cost data found for this subscription/period"
+- Function returns error → Say "Error retrieving costs: [error message]"
+
+EXAMPLE OF FORBIDDEN BEHAVIOR:
+- User asks: "Show costs breakdown"
+- You: Generate a table with fake names like "vm-production-001" with fake costs "$150.00"
+- THIS IS ABSOLUTELY FORBIDDEN AND WILL DESTROY THE TOOL'S CREDIBILITY!
+
+If you EVER generate fake data, this tool becomes useless and cannot be used in production.
+═══════════════════════════════════════════════════════════════════════════════
+
+�🚀 YOUR DEPLOYMENT CAPABILITIES (CRITICAL):
 You CAN and SHOULD deploy Azure resources when users request them! You have these deployment functions:
 - **deploy_resource_group**: Create Resource Groups ONLY
 - **deploy_virtual_machine**: Create VMs ONLY (Windows or Linux)
@@ -2354,11 +2395,73 @@ When function results include "query_id" and "total_rows" fields, this means dat
 - The frontend will parse this tag to enable "Download Full Report" button
 - Example: If result has query_id="abc123" and total_rows=454, add: [EXPORT:abc123:ROWS:454] after the table
 
+📋 **MANDATORY OUTPUT COLUMNS (CRITICAL - ALWAYS INCLUDE THESE)**:
+When displaying data in tables, ALWAYS include these standard columns based on query type:
+
+**FOR ALL RESOURCE QUERIES (VMs, Storage, SQL, Disks, Networks, etc.):**
+| Column | Description | Required |
+|--------|-------------|----------|
+| SubscriptionName/Id | Subscription the resource belongs to | **ALWAYS** when All Subscriptions selected |
+| ResourceName | Actual name from Azure (NEVER fake names!) | ALWAYS |
+| ResourceType | Type of resource (e.g., Microsoft.Compute/virtualMachines) | ALWAYS |
+| ResourceGroup | Resource group name | ALWAYS |
+| Location | Azure region | ALWAYS |
+| Status | Provisioning state or power state | ALWAYS |
+| SKU/Size | Size or tier (e.g., Standard_D2s_v3, Premium_LRS) | When applicable |
+| Tags | Key tags like Environment, CostCenter | When applicable |
+
+**FOR COST QUERIES:**
+| Column | Description | Required |
+|--------|-------------|----------|
+| SubscriptionName | **ALWAYS include** | **ALWAYS** |
+| ResourceName | Actual resource name (NEVER fake!) | ALWAYS |
+| ResourceType | Type of resource | ALWAYS |
+| ResourceGroup | Resource group name | ALWAYS |
+| Location | Azure region | ALWAYS |
+| Cost (USD) | Actual cost from Azure Cost Management | ALWAYS |
+| ServiceName | Azure service category | When available |
+
+**⚠️ CRITICAL RULES FOR DATA QUALITY:**
+1. **NEVER NEVER NEVER generate fake/placeholder resource names** like:
+   - ❌ "vm-production-001", "db-production-sql", "storage-prod-backup"
+   - ❌ "myvm1", "testvnet", "bastion1", "production-vm"
+   - These are FORBIDDEN - they mislead users!
+   
+2. **ALWAYS use ACTUAL data from Azure API function calls**
+   - If function returns no data, say "No data found" - don't make up data
+   - If function returns error, explain the error - don't generate fake results
+   
+3. **SUBSCRIPTION COLUMN IS MANDATORY** when:
+   - User selects "All Subscriptions" from dropdown
+   - System context mentions "All Subscriptions"
+   - Query spans multiple subscriptions
+   - Always show which subscription each resource belongs to!
+
+4. **If you don't have real data, SAY SO:**
+   - ✅ "The cost API returned no data for this period"
+   - ✅ "No resources found matching your criteria"
+   - ❌ NOT "Here are the estimated costs..." with fake numbers
+
 Formatting Guidelines:
 - **Use Markdown Tables**: For lists of resources, VMs, costs, or structured data
 - **Clear Headers**: Include comprehensive field coverage
 - **Summary Statistics**: Totals, distributions, key metrics
 - **Professional Presentation**: Executive-ready format
+
+🚨 FINAL REMINDER - MOST CRITICAL RULE 🚨
+═══════════════════════════════════════════════
+BEFORE RESPONDING, ASK YOURSELF:
+"Did this data come from an Azure API function call, or am I making it up?"
+
+If you made it up → DELETE IT and say "No data available"
+If it's from a function → You may display it
+
+NEVER output resource names like: vm-production-001, storage-prod, sql-01, bastion-1
+NEVER output costs like: $150.00, $120/month, $95.00/day
+These patterns indicate FABRICATED DATA and are ABSOLUTELY FORBIDDEN.
+
+If function returns empty/error: Say "No resources found" or "Unable to retrieve data"
+═══════════════════════════════════════════════
 
 Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something deployed, DEPLOY IT through your functions!"""
     
@@ -2564,58 +2667,68 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
             
             # Cost Management functions
             if function_name == "get_current_month_costs":
-                return self.cost_manager.get_current_month_costs(
+                result = self.cost_manager.get_current_month_costs(
                     scope=arguments.get("scope")
                 )
+                return self._cache_query_results(result, "current_month_costs")
             
             elif function_name == "get_costs_by_service":
-                return self.cost_manager.get_costs_by_service(
+                result = self.cost_manager.get_costs_by_service(
                     scope=arguments.get("scope"),
                     days=arguments.get("days", 30)
                 )
+                return self._cache_query_results(result, "costs_by_service")
             
             elif function_name == "get_daily_costs":
-                return self.cost_manager.get_daily_costs(
+                result = self.cost_manager.get_daily_costs(
                     scope=arguments.get("scope"),
                     days=arguments.get("days", 30)
                 )
+                return self._cache_query_results(result, "daily_costs")
             
             elif function_name == "get_costs_by_resource_group":
-                return self.cost_manager.get_costs_by_resource_group(
+                result = self.cost_manager.get_costs_by_resource_group(
                     scope=arguments.get("scope"),
                     days=arguments.get("days", 30)
                 )
+                return self._cache_query_results(result, "costs_by_resource_group")
             
             elif function_name == "get_resource_costs":
-                return self.cost_manager.get_resource_costs(
+                result = self.cost_manager.get_resource_costs(
                     scope=arguments.get("scope"),
                     days=arguments.get("days", 30),
                     top=arguments.get("top", 10)
                 )
+                return self._cache_query_results(result, "resource_costs")
             
             elif function_name == "get_resources_with_cost_details":
-                return self.resource_manager.get_resources_with_cost_details(
+                result = self.resource_manager.get_resources_with_cost_details(
                     subscriptions=arguments.get("subscriptions"),
                     resource_type=arguments.get("resource_type"),
                     resource_group=arguments.get("resource_group"),
                     tag_name=arguments.get("tag_name"),
                     tag_value=arguments.get("tag_value")
                 )
+                return self._cache_query_results(result, "resources_with_cost")
             
             elif function_name == "get_cost_savings_opportunities":
-                return self.resource_manager.get_cost_savings_opportunities(
+                result = self.resource_manager.get_cost_savings_opportunities(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "cost_savings")
             
             # Resource Management functions
             elif function_name == "get_storage_accounts_with_private_endpoints":
-                return self.resource_manager.get_storage_accounts_with_private_endpoints()
+                result = self.resource_manager.get_storage_accounts_with_private_endpoints()
+                return self._cache_query_results(result, "storage_accounts_private_endpoints")
             
             elif function_name == "get_all_vnets":
-                return self.resource_manager.get_all_vnets()
+                result = self.resource_manager.get_all_vnets()
+                return self._cache_query_results(result, "all_vnets")
             
             elif function_name == "get_vms_without_backup":
-                return self.resource_manager.get_vms_without_backup()
+                result = self.resource_manager.get_vms_without_backup()
+                return self._cache_query_results(result, "vms_without_backup")
             
             elif function_name == "get_resources_by_type":
                 result = self.resource_manager.get_resources_by_type(
@@ -2624,7 +2737,8 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                 return self._cache_query_results(result, f"resources_{arguments.get('resource_type', 'by_type')}")
             
             elif function_name == "get_resource_count_by_type":
-                return self.resource_manager.get_resource_count_by_type()
+                result = self.resource_manager.get_resource_count_by_type()
+                return self._cache_query_results(result, "resource_count_by_type")
             
             elif function_name == "get_all_resources_detailed":
                 result = self.resource_manager.get_all_resources_detailed(
@@ -2718,13 +2832,16 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                 return self._cache_query_results(result, "untagged_resources")
             
             elif function_name == "get_unused_resources":
-                return self.resource_manager.get_unused_resources()
+                result = self.resource_manager.get_unused_resources()
+                return self._cache_query_results(result, "unused_resources")
             
             elif function_name == "get_tag_compliance_summary":
-                return self.resource_manager.get_tag_compliance_summary()
+                result = self.resource_manager.get_tag_compliance_summary()
+                return self._cache_query_results(result, "tag_compliance")
             
             elif function_name == "get_multi_region_distribution":
-                return self.resource_manager.get_multi_region_distribution()
+                result = self.resource_manager.get_multi_region_distribution()
+                return self._cache_query_results(result, "multi_region_distribution")
             
             # AZURE POLICY FUNCTIONS
             elif function_name == "get_policy_compliance_status":
@@ -2736,101 +2853,82 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                 return self._cache_query_results(result, "policy_compliance_status")
             
             elif function_name == "get_non_compliant_resources":
-                return self.resource_manager.get_non_compliant_resources(
+                result = self.resource_manager.get_non_compliant_resources(
                     severity=arguments.get("severity", "All"),
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "non_compliant_resources")
             
             elif function_name == "get_policy_recommendations":
-                return self.resource_manager.get_policy_recommendations(
+                result = self.resource_manager.get_policy_recommendations(
                     focus_area=arguments.get("focus_area", "All"),
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "policy_recommendations")
             
             elif function_name == "get_policy_exemptions":
-                return self.resource_manager.get_policy_exemptions(
+                result = self.resource_manager.get_policy_exemptions(
                     show_expired=arguments.get("show_expired", True),
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "policy_exemptions")
             
             # UPDATE MANAGEMENT FUNCTIONS
             elif function_name == "get_vm_pending_updates":
-                return self.resource_manager.get_vm_pending_updates(
+                result = self.resource_manager.get_vm_pending_updates(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "vm_pending_updates")
             
             elif function_name == "get_arc_pending_updates":
-                return self.resource_manager.get_arc_pending_updates(
+                result = self.resource_manager.get_arc_pending_updates(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "arc_pending_updates")
             
             elif function_name == "get_vm_pending_reboot":
-                return self.resource_manager.get_vm_pending_reboot(
+                result = self.resource_manager.get_vm_pending_reboot(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "vm_pending_reboot")
             
             elif function_name == "get_arc_pending_reboot":
-                return self.resource_manager.get_arc_pending_reboot(
+                result = self.resource_manager.get_arc_pending_reboot(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "arc_pending_reboot")
             
             elif function_name == "get_update_compliance_summary":
-                return self.resource_manager.get_update_compliance_summary(
+                result = self.resource_manager.get_update_compliance_summary(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "update_compliance_summary")
             
             elif function_name == "get_failed_updates":
-                return self.resource_manager.get_failed_updates(
+                result = self.resource_manager.get_failed_updates(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "failed_updates")
             
             # AZURE ARC MANAGEMENT FUNCTIONS
             elif function_name == "get_arc_machines":
-                return self.resource_manager.get_arc_machines(
+                result = self.resource_manager.get_arc_machines(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "arc_machines")
             
             elif function_name == "get_arc_sql_servers":
-                return self.resource_manager.get_arc_sql_servers(
+                result = self.resource_manager.get_arc_sql_servers(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "arc_sql_servers")
             
             elif function_name == "get_arc_agents_not_reporting":
-                return self.resource_manager.get_arc_agents_not_reporting(
+                result = self.resource_manager.get_arc_agents_not_reporting(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "arc_agents_not_reporting")
             
-            elif function_name == "get_vm_pending_reboot":
-                return self.resource_manager.get_vm_pending_reboot(
-                    subscriptions=arguments.get("subscriptions")
-                )
-            
-            elif function_name == "get_arc_pending_reboot":
-                return self.resource_manager.get_arc_pending_reboot(
-                    subscriptions=arguments.get("subscriptions")
-                )
-            
-            elif function_name == "get_update_compliance_summary":
-                return self.resource_manager.get_update_compliance_summary(
-                    subscriptions=arguments.get("subscriptions")
-                )
-            
-            elif function_name == "get_failed_updates":
-                return self.resource_manager.get_failed_updates(
-                    subscriptions=arguments.get("subscriptions")
-                )
-            
-            elif function_name == "get_policy_recommendations":
-                return self.resource_manager.get_policy_recommendations(
-                    focus_area=arguments.get("focus_area", "All"),
-                    subscriptions=arguments.get("subscriptions")
-                )
-            
-            elif function_name == "get_policy_exemptions":
-                return self.resource_manager.get_policy_exemptions(
-                    show_expired=arguments.get("show_expired", True),
-                    subscriptions=arguments.get("subscriptions")
-                )
             
             # ALL DEPLOYMENT FUNCTIONS NOW USE CLI METHOD
             elif function_name == "deploy_virtual_machine":
@@ -2863,118 +2961,139 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
             
             # APP SERVICES
             elif function_name == "get_app_services_detailed":
-                return self.resource_manager.get_app_services_detailed(
+                result = self.resource_manager.get_app_services_detailed(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "app_services_detailed")
             
             elif function_name == "get_app_services_without_appinsights":
-                return self.resource_manager.get_app_services_without_appinsights(
+                result = self.resource_manager.get_app_services_without_appinsights(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "app_services_without_appinsights")
             
             elif function_name == "get_app_services_public_access":
-                return self.resource_manager.get_app_services_public_access(
+                result = self.resource_manager.get_app_services_public_access(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "app_services_public_access")
             
             # AKS CLUSTERS
             elif function_name == "get_aks_clusters":
-                return self.resource_manager.get_aks_clusters(
+                result = self.resource_manager.get_aks_clusters(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "aks_clusters")
             
             elif function_name == "get_aks_public_access":
-                return self.resource_manager.get_aks_public_access(
+                result = self.resource_manager.get_aks_public_access(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "aks_public_access")
             
             elif function_name == "get_aks_private_access":
-                return self.resource_manager.get_aks_private_access(
+                result = self.resource_manager.get_aks_private_access(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "aks_private_access")
             
             elif function_name == "get_aks_without_monitoring":
-                return self.resource_manager.get_aks_without_monitoring(
+                result = self.resource_manager.get_aks_without_monitoring(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "aks_without_monitoring")
             
             # SQL DATABASES AND MANAGED INSTANCES
             elif function_name == "get_sql_databases_detailed":
-                return self.resource_manager.get_sql_databases_detailed(
+                result = self.resource_manager.get_sql_databases_detailed(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "sql_databases_detailed")
             
             elif function_name == "get_sql_managed_instances":
-                return self.resource_manager.get_sql_managed_instances(
+                result = self.resource_manager.get_sql_managed_instances(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "sql_managed_instances")
             
             elif function_name == "get_sql_public_access":
-                return self.resource_manager.get_sql_public_access(
+                result = self.resource_manager.get_sql_public_access(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "sql_public_access")
             
             # VIRTUAL MACHINE SCALE SETS
             elif function_name == "get_vmss":
-                return self.resource_manager.get_vmss(
+                result = self.resource_manager.get_vmss(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "vmss")
             
             # POSTGRESQL
             elif function_name == "get_postgresql_servers":
-                return self.resource_manager.get_postgresql_servers(
+                result = self.resource_manager.get_postgresql_servers(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "postgresql_servers")
             
             elif function_name == "get_postgresql_public_access":
-                return self.resource_manager.get_postgresql_public_access(
+                result = self.resource_manager.get_postgresql_public_access(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "postgresql_public_access")
             
             # MYSQL
             elif function_name == "get_mysql_servers":
-                return self.resource_manager.get_mysql_servers(
+                result = self.resource_manager.get_mysql_servers(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "mysql_servers")
             
             elif function_name == "get_mysql_public_access":
-                return self.resource_manager.get_mysql_public_access(
+                result = self.resource_manager.get_mysql_public_access(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "mysql_public_access")
             
             # COSMOS DB
             elif function_name == "get_cosmosdb_accounts":
-                return self.resource_manager.get_cosmosdb_accounts(
+                result = self.resource_manager.get_cosmosdb_accounts(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "cosmosdb_accounts")
             
             elif function_name == "get_cosmosdb_public_access":
-                return self.resource_manager.get_cosmosdb_public_access(
+                result = self.resource_manager.get_cosmosdb_public_access(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "cosmosdb_public_access")
             
             # API MANAGEMENT
             elif function_name == "get_apim_instances":
-                return self.resource_manager.get_apim_instances(
+                result = self.resource_manager.get_apim_instances(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "apim_instances")
             
             # TAG INVENTORY
             elif function_name == "get_tag_inventory":
-                return self.resource_manager.get_tag_inventory(
+                result = self.resource_manager.get_tag_inventory(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "tag_inventory")
             
             # MONITORING GAPS
             elif function_name == "get_vms_without_azure_monitor":
-                return self.resource_manager.get_vms_without_azure_monitor(
+                result = self.resource_manager.get_vms_without_azure_monitor(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "vms_without_azure_monitor")
             
             elif function_name == "get_arc_machines_without_azure_monitor":
-                return self.resource_manager.get_arc_machines_without_azure_monitor(
+                result = self.resource_manager.get_arc_machines_without_azure_monitor(
                     subscriptions=arguments.get("subscriptions")
                 )
+                return self._cache_query_results(result, "arc_machines_without_azure_monitor")
             
             # STORAGE ACCOUNTS
             elif function_name == "get_storage_accounts_detailed":

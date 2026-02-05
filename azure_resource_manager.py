@@ -28,6 +28,17 @@ class AzureResourceManager:
         self.rg_client = ResourceGraphClient(self.credential)
         self.sub_client = SubscriptionClient(self.credential)
         self.cost_manager = AzureCostManager()  # Initialize Cost Management client
+        self._subscription_cache = {}  # Cache for subscription name lookups
+    
+    def _get_subscription_names(self) -> Dict[str, str]:
+        """Get mapping of subscription ID to display name"""
+        if not self._subscription_cache:
+            try:
+                for sub in self.sub_client.subscriptions.list():
+                    self._subscription_cache[sub.subscription_id] = sub.display_name
+            except Exception as e:
+                print(f"Warning: Could not fetch subscription names: {e}")
+        return self._subscription_cache
     
     async def get_subscriptions(self) -> List[Dict[str, Any]]:
         """Get all accessible subscriptions"""
@@ -186,7 +197,7 @@ class AzureResourceManager:
         return self.query_resources(query)
     
     def get_all_resources_detailed(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Get all resources with detailed information (name, type, RG, location, tags)"""
+        """Get all resources with detailed information (name, type, RG, location, tags) including subscription name"""
         query = """
         Resources
         | project 
@@ -199,7 +210,16 @@ class AzureResourceManager:
             Status = tostring(properties.provisioningState)
         | order by ResourceType asc, ResourceName asc
         """
-        return self.query_resources(query, subscriptions)
+        result = self.query_resources(query, subscriptions)
+        
+        # Add subscription names to results
+        if result and 'data' in result and isinstance(result['data'], list):
+            sub_names = self._get_subscription_names()
+            for resource in result['data']:
+                sub_id = resource.get('SubscriptionId', '')
+                resource['SubscriptionName'] = sub_names.get(sub_id, sub_id[:8] + '...' if sub_id else 'Unknown')
+        
+        return result
     
     def get_resources_by_resource_group(self, resource_group: str, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
         """Get all resources in a specific resource group"""
@@ -216,7 +236,16 @@ class AzureResourceManager:
             Status = tostring(properties.provisioningState)
         | order by ResourceType asc, ResourceName asc
         """
-        return self.query_resources(query, subscriptions)
+        result = self.query_resources(query, subscriptions)
+        
+        # Add subscription names to results
+        if result and 'data' in result and isinstance(result['data'], list):
+            sub_names = self._get_subscription_names()
+            for resource in result['data']:
+                sub_id = resource.get('SubscriptionId', '')
+                resource['SubscriptionName'] = sub_names.get(sub_id, sub_id[:8] + '...' if sub_id else 'Unknown')
+        
+        return result
     
     def get_resource_count_by_type(self) -> Dict[str, Any]:
         """Get count of resources grouped by type"""
@@ -1211,10 +1240,17 @@ class AzureResourceManager:
         
         result = self.query_resources(query, subscriptions)
         
+        # Get subscription name mapping for user-friendly display
+        sub_names = self._get_subscription_names()
+        
         # Step 4: Merge actual costs with resource metadata
         if result and 'data' in result and isinstance(result['data'], list):
             for resource in result['data']:
                 resource_name_lower = resource.get('ResourceNameLower', resource.get('ResourceName', '')).lower()
+                
+                # Add subscription name for user-friendly display
+                sub_id = resource.get('SubscriptionId', '')
+                resource['SubscriptionName'] = sub_names.get(sub_id, sub_id[:8] + '...' if sub_id else 'Unknown')
                 
                 # Add the searched tag value as a dynamic column (if tag filtering was used)
                 if tag_name:
@@ -1325,6 +1361,8 @@ class AzureResourceManager:
             ResourceNameLower = tolower(name),
             Type = type,
             ResourceGroup = resourceGroup,
+            Location = location,
+            SubscriptionId = subscriptionId,
             SKU = resourceSku,
             UtilizationPercent = utilizationPercent,
             RecommendedAction = recommendedAction,
@@ -1335,10 +1373,17 @@ class AzureResourceManager:
         
         result = self.query_resources(query, subscriptions)
         
+        # Get subscription name mapping
+        sub_names = self._get_subscription_names()
+        
         # Step 3: Merge actual costs and calculate savings
         if result and 'data' in result and isinstance(result['data'], list):
             for resource in result['data']:
                 resource_name_lower = resource.get('ResourceNameLower', resource.get('ResourceName', '')).lower()
+                
+                # Add subscription name
+                sub_id = resource.get('SubscriptionId', '')
+                resource['SubscriptionName'] = sub_names.get(sub_id, sub_id[:8] + '...' if sub_id else 'Unknown')
                 
                 # Look up actual cost
                 current_cost = 0.0

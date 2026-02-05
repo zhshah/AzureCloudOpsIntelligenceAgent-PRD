@@ -50,8 +50,9 @@ class ChatMessage(BaseModel):
     conversation_history: Optional[List[Dict[str, str]]] = []
     user_email: Optional[str] = None
     user_name: Optional[str] = None
-    subscription_context: Optional[str] = None  # Selected subscription ID
+    subscription_context: Optional[str] = None  # Selected subscription ID or 'all'
     subscription_name: Optional[str] = None  # Selected subscription name
+    all_subscriptions: Optional[bool] = False  # Flag to query all subscriptions
 
 
 class ChatResponse(BaseModel):
@@ -106,9 +107,13 @@ async def chat(request: ChatMessage, authorization: Optional[str] = Header(None)
         
         # Enhance user message with subscription context if provided
         enhanced_message = request.message
-        if request.subscription_context:
-            # Add subscription context to the message for AI to use
-            context_info = f"\n\n[SYSTEM CONTEXT: User has selected subscription '{request.subscription_name}' (ID: {request.subscription_context}) in the UI. Use this subscription automatically for queries unless user explicitly requests a different one.]"
+        if request.subscription_context and request.subscription_context.lower() not in ['all', 'none', 'loading']:
+            # Single subscription selected - add context for AI to use
+            context_info = f"\n\n[SYSTEM CONTEXT: User has selected subscription '{request.subscription_name}' (ID: {request.subscription_context}) in the UI. Use this subscription ID automatically for all queries. Pass this ID in the subscriptions parameter when calling functions.]"
+            enhanced_message = request.message + context_info
+        elif request.all_subscriptions or (request.subscription_context and request.subscription_context.lower() == 'all'):
+            # All subscriptions selected - tell AI to query all accessible subscriptions
+            context_info = "\n\n[SYSTEM CONTEXT: User has selected 'All Subscriptions' context. Query across ALL accessible Azure subscriptions. Do NOT pass any specific subscription IDs to functions - leave the subscriptions parameter empty or omit it to query all. Include subscription name/ID in the output columns for multi-subscription results.]"
             enhanced_message = request.message + context_info
         
         response, updated_history = await ai_agent.process_message(
