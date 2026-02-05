@@ -8,7 +8,7 @@
     - Azure Container Registry
     - Azure Container Apps Environment
     - Azure Container App with System-Assigned Managed Identity
-    - All RBAC role assignments (Least-Privilege)
+    - All RBAC role assignments (Least-Privilege, READ-ONLY)
     
     NO manual configuration required - everything is 100% automated!
     When the script completes, the application is fully running.
@@ -32,11 +32,25 @@
     .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname"
 
 # ==============================================================================
-# PREREQUISITES
+# ⚠️  IMPORTANT: TWO TYPES OF PERMISSIONS (READ CAREFULLY!)
+# ==============================================================================
+#
+# There are TWO separate sets of permissions:
+#
+#   1. DEPLOYER PERMISSIONS - What YOU (the person running this script) need
+#      - Required ONLY during deployment
+#      - After deployment, your elevated access is NOT used by the application
+#
+#   2. APPLICATION PERMISSIONS - What the RUNNING APP needs to query Azure
+#      - Assigned to a System-Assigned Managed Identity (created by this script)
+#      - These are READ-ONLY permissions
+#      - The app CANNOT create, modify, or delete any Azure resources
+#
+# ==============================================================================
+# 1. DEPLOYER PERMISSIONS (Person running this script)
 # ==============================================================================
 # 
-# 1. DEPLOYMENT USER PERMISSIONS
-#    The user running this script needs these permissions:
+# The user running this script needs these permissions:
 #
 #    At SUBSCRIPTION level:
 #    - Microsoft.Resources/subscriptions/resourceGroups/write     (Create Resource Group)
@@ -49,30 +63,67 @@
 #    RECOMMENDED: Assign "Contributor" + "User Access Administrator" to deployer
 #    OR use "Owner" role (includes all above)
 #
+#    NOTE: These permissions are ONLY used during deployment. After the script
+#    completes, your elevated access is not required for the application to run.
+#
+# ==============================================================================
+# 2. APPLICATION PERMISSIONS (How Chat Queries Azure Resources)
+# ==============================================================================
+#
+# When users chat with the agent (e.g., "Show me all VMs", "What's my cost?"),
+# the application needs to authenticate to Azure APIs to fetch data.
+#
+# This script creates a SYSTEM-ASSIGNED MANAGED IDENTITY and assigns these roles:
+#
+# ┌────────────────────────────────────┬─────────────────┬─────────────────────────────┐
+# │ Role                               │ Scope           │ Purpose                     │
+# ├────────────────────────────────────┼─────────────────┼─────────────────────────────┤
+# │ Reader                             │ Subscription    │ Query VMs, networks, etc.   │
+# │ Cost Management Reader             │ Subscription    │ Read cost/billing data      │
+# │ Cognitive Services OpenAI User     │ OpenAI Resource │ Use GPT-4o for chat         │
+# └────────────────────────────────────┴─────────────────┴─────────────────────────────┘
+#
+# 🔒 SECURITY: All application permissions are READ-ONLY!
+#    ✅ Can read resource metadata (VMs, storage, networks, etc.)
+#    ✅ Can read cost data and spending trends
+#    ✅ Can send prompts to Azure OpenAI GPT-4o
+#    ❌ CANNOT create any resources
+#    ❌ CANNOT modify any resources
+#    ❌ CANNOT delete any resources
+#    ❌ CANNOT access Key Vault secrets
+#    ❌ CANNOT modify budgets or billing
+#
+# ==============================================================================
+# WHY SYSTEM-ASSIGNED MANAGED IDENTITY (Not App Registration)?
+# ==============================================================================
+#
+# This script uses a SYSTEM-ASSIGNED MANAGED IDENTITY instead of App Registration:
+#   - Automatically created and tied to the Container App lifecycle
+#   - Automatically deleted when the Container App is deleted
+#   - NO credentials/secrets to manage (more secure)
+#   - Authenticates seamlessly to Azure services via Azure AD
+#   - No secret rotation required
+#
+# If you prefer App Registration, see README.md for manual deployment steps.
+#
+# ==============================================================================
+# PREREQUISITES
+# ==============================================================================
+#
+# 1. AZURE CLI
+#    - Azure CLI must be installed: https://docs.microsoft.com/cli/azure/install-azure-cli
+#    - Run 'az login' before executing this script
+#
 # 2. AZURE OPENAI ACCESS
 #    - Your subscription must have Azure OpenAI approved
 #    - Apply at: https://aka.ms/oai/access (if not already approved)
 #
-# 3. AZURE CLI
-#    - Azure CLI must be installed: https://docs.microsoft.com/cli/azure/install-azure-cli
-#    - Run 'az login' before executing this script
-#
-# 4. DOCKER (Optional - for local testing only)
+# 3. DOCKER (Optional - for local testing only)
 #    - Not required for cloud deployment (ACR Tasks builds the image)
 #
 # ==============================================================================
-# MANAGED IDENTITY & RBAC (LEAST-PRIVILEGE PRINCIPLE)
+# APPLICATION RBAC ROLES (READ-ONLY) - Detailed Breakdown
 # ==============================================================================
-#
-# This script uses a SYSTEM-ASSIGNED MANAGED IDENTITY for the Container App.
-# Unlike App Registrations, System-Assigned Managed Identities:
-#   - Are automatically created and tied to the Container App lifecycle
-#   - Are automatically deleted when the Container App is deleted
-#   - Have no credentials/secrets to manage (more secure)
-#   - Authenticate seamlessly to Azure services using Azure AD
-#
-# RBAC ROLES ASSIGNED (Following Least-Privilege Principle):
-# ─────────────────────────────────────────────────────────────────────────────
 #
 # 1. READER (Subscription Scope)
 #    - Role ID: acdd72a7-3385-48ef-bd42-f606fba81ae7

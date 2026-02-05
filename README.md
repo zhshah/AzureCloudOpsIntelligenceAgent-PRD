@@ -134,7 +134,124 @@ The person running the deployment script needs these Azure RBAC roles:
 
 ---
 
-## 🚀 Deployment Guide
+## � Application Identity & Permissions (How Chat Queries Azure)
+
+> ⚠️ **IMPORTANT**: This section explains what permissions the **running application** needs to query your Azure resources. This is **separate** from the deployer permissions above (which are only needed during deployment).
+
+### How the Application Accesses Azure Resources
+
+When you chat with the agent (e.g., "Show me all VMs" or "What's my cost this month?"), the application needs to authenticate to Azure APIs. There are **two options**:
+
+| Method | Used By | Secrets Required | Recommended For |
+|--------|---------|------------------|-----------------|
+| **System-Assigned Managed Identity** | Automated Deployment | ❌ None | Azure deployment (most secure) |
+| **App Registration (Service Principal)** | Manual Deployment | ✅ Client ID + Secret | Local dev / custom scenarios |
+
+---
+
+### Option A: System-Assigned Managed Identity (Automated Deployment)
+
+The **automated deployment script** creates a **System-Assigned Managed Identity** and assigns these roles:
+
+#### Application Runtime Permissions (READ-ONLY)
+
+| Role | Scope | Purpose | What It CAN Do | What It CANNOT Do |
+|------|-------|---------|----------------|-------------------|
+| **Reader** | Subscription | Query Azure resources via Resource Graph API | Read VMs, networks, storage, disks, all resource metadata | ❌ Create, modify, or delete ANY resource |
+| **Cost Management Reader** | Subscription | Read billing and cost data | Read costs, spending trends, budgets (read-only) | ❌ Modify budgets, billing, or make financial changes |
+| **Cognitive Services OpenAI User** | OpenAI Resource ONLY | Use GPT-4o for chat | Send prompts and receive responses | ❌ Create/delete models, modify OpenAI settings |
+
+#### Key Security Points:
+- ✅ **100% Read-Only** - Application cannot create, modify, or delete any Azure resources
+- ✅ **No Secrets Stored** - Managed Identity handles authentication automatically
+- ✅ **Principle of Least Privilege** - Minimum permissions required for functionality
+- ✅ **Scoped OpenAI Access** - OpenAI role is limited to the specific resource, not subscription-wide
+
+---
+
+### Option B: App Registration (Manual Deployment / Local Development)
+
+If you prefer to use an **App Registration (Service Principal)** instead of Managed Identity, follow these steps:
+
+#### Step 1: Create App Registration in Azure Portal
+
+1. Go to **Azure Portal** → **Microsoft Entra ID** → **App registrations**
+2. Click **New registration**
+3. Enter a name: `CloudOps-Intelligence-Agent`
+4. Select **Accounts in this organizational directory only**
+5. Click **Register**
+6. Note the **Application (client) ID** and **Directory (tenant) ID**
+
+#### Step 2: Create Client Secret
+
+1. In the App Registration, go to **Certificates & secrets**
+2. Click **New client secret**
+3. Add description: `CloudOps Agent Secret`
+4. Select expiration (recommended: 12 months)
+5. Click **Add**
+6. **COPY THE SECRET VALUE IMMEDIATELY** (it won't be shown again)
+
+#### Step 3: Assign RBAC Roles (Least-Privilege)
+
+Assign these roles to the App Registration's Service Principal:
+
+```bash
+# Get the App Registration's Object ID (Service Principal)
+APP_ID="<your-application-client-id>"
+SP_OBJECT_ID=$(az ad sp show --id $APP_ID --query "id" -o tsv)
+
+# Assign READ-ONLY roles at subscription scope
+az role assignment create --assignee $SP_OBJECT_ID --role "Reader" --scope /subscriptions/<subscription-id>
+az role assignment create --assignee $SP_OBJECT_ID --role "Cost Management Reader" --scope /subscriptions/<subscription-id>
+
+# Assign OpenAI access (scoped to specific resource for least-privilege)
+az role assignment create --assignee $SP_OBJECT_ID --role "Cognitive Services OpenAI User" \
+    --scope /subscriptions/<subscription-id>/resourceGroups/<rg-name>/providers/Microsoft.CognitiveServices/accounts/<openai-name>
+```
+
+#### Step 4: Configure Environment Variables
+
+Set these environment variables in your Container App or `.env` file:
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `AZURE_CLIENT_ID` | `<application-client-id>` | From App Registration |
+| `AZURE_TENANT_ID` | `<directory-tenant-id>` | From App Registration |
+| `AZURE_CLIENT_SECRET` | `<client-secret-value>` | From Step 2 |
+| `USE_MANAGED_IDENTITY` | `false` | Use Service Principal instead |
+
+#### Example `.env` file for App Registration:
+
+```env
+# Azure OpenAI Configuration
+AZURE_OPENAI_ENDPOINT=https://your-openai-resource.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+AZURE_OPENAI_API_VERSION=2024-02-15-preview
+
+# App Registration (Service Principal) Authentication
+AZURE_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+AZURE_TENANT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+AZURE_CLIENT_SECRET=your-client-secret-value
+USE_MANAGED_IDENTITY=false
+
+# Subscription
+AZURE_SUBSCRIPTION_ID=your-subscription-id
+```
+
+---
+
+### Summary: Deployer vs Application Permissions
+
+| Permission Type | Who/What | When Needed | Permissions |
+|-----------------|----------|-------------|-------------|
+| **Deployer Permissions** | Person running deployment script | During deployment ONLY | Contributor + User Access Administrator |
+| **Application Permissions** | Managed Identity or App Registration | Runtime (when app is running) | Reader + Cost Management Reader + OpenAI User |
+
+> 📝 **The application permissions are READ-ONLY**. The chat agent cannot create, modify, or delete any Azure resources. It can only read resource information and cost data.
+
+---
+
+## �🚀 Deployment Guide
 
 ### Option 1: Fully Automated Deployment (Recommended) ⭐
 
