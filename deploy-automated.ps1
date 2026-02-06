@@ -502,11 +502,13 @@ if ($LASTEXITCODE -eq 0) {
 } else {
     Write-Info "Deploying GPT-4o model..."
     Write-Info "This may take 3-5 minutes..."
-    Write-Info "Strategy: Prioritize GlobalStandard (best latency), start high and decrease"
+    Write-Info "Strategy: Prioritize GlobalStandard (best latency), start at 80K and decrease by 2K"
     
     $deploymentSuccess = $false
-    # Start at 40K, decrease by 3K increments for fine-grained quota discovery
-    $capacityLevels = @(40, 37, 34, 31, 28, 25, 22, 19, 16, 13, 10)
+    # Start at 80K (tested optimal), decrease by 2K increments for fine-grained quota discovery
+    # Generates: 80, 78, 76, 74, 72, 70, 68, 66, 64, 62, 60, 58, 56, 54, 52, 50, 48, 46, 44, 42, 40, 38, 36, 34, 32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10
+    $capacityLevels = @()
+    for ($i = 80; $i -ge 10; $i -= 2) { $capacityLevels += $i }
     
     # PRIORITY 1: Try GPT-4o with GlobalStandard SKU (BEST LATENCY - global routing)
     Write-Info "Trying GlobalStandard SKU (recommended for best latency)..."
@@ -633,31 +635,25 @@ if ($LASTEXITCODE -eq 0) {
     }
 }
 
-# Scale up TPM if deployed with lower capacity (target: at least 25K for good performance)
-$minimumTargetCapacity = 25
-if ($deployedCapacity -gt 0 -and $deployedCapacity -lt 50) {
+# Scale up TPM if deployed with lower capacity (target: 80K for optimal performance)
+$targetCapacityMax = 80
+if ($deployedCapacity -gt 0 -and $deployedCapacity -lt $targetCapacityMax) {
     Write-Info "Attempting to scale up deployment for optimal performance..."
     Write-Info "Current: ${deployedCapacity}K TPM with $deployedSku SKU"
-    Write-Info "Target: Maximize TPM (minimum ${minimumTargetCapacity}K for large prompts)"
+    Write-Info "Target: Maximize TPM (up to ${targetCapacityMax}K - tested optimal)"
     
     # Wait for deployment to stabilize
     Start-Sleep -Seconds 15
     
-    # Try scale-up: start from 50K, decrease by 2K until we find available quota
+    # Try scale-up: start from 80K, decrease by 2K until we find available quota
     # Stop trying if we reach current capacity (no point going lower)
     $scaleUpSuccess = $false
     $finalCapacity = $deployedCapacity
     
-    # Generate scale-up targets: 50, 48, 46, 44, 42, 40, 38, 36, 34, 32, 30, 28, 26, 25
+    # Generate scale-up targets: 80, 78, 76, ... down to current+2
     $scaleUpTargets = @()
-    for ($i = 50; $i -ge $minimumTargetCapacity; $i -= 2) {
-        if ($i -gt $deployedCapacity) {
-            $scaleUpTargets += $i
-        }
-    }
-    # Add 25 explicitly if not in list
-    if ($scaleUpTargets -notcontains $minimumTargetCapacity -and $minimumTargetCapacity -gt $deployedCapacity) {
-        $scaleUpTargets += $minimumTargetCapacity
+    for ($i = $targetCapacityMax; $i -gt $deployedCapacity; $i -= 2) {
+        $scaleUpTargets += $i
     }
     
     if ($scaleUpTargets.Count -gt 0) {
@@ -688,9 +684,9 @@ if ($deployedCapacity -gt 0 -and $deployedCapacity -lt 50) {
     
     if (-not $scaleUpSuccess) {
         Write-Info "Could not scale up (quota limit). Staying at: ${deployedCapacity}K TPM"
-        if ($deployedCapacity -lt $minimumTargetCapacity) {
+        if ($deployedCapacity -lt 30) {
             Write-Host ""
-            Write-Host "  ⚠️  WARNING: Current capacity (${deployedCapacity}K TPM) is below recommended minimum (${minimumTargetCapacity}K)" -ForegroundColor Yellow
+            Write-Host "  ⚠️  WARNING: Current capacity (${deployedCapacity}K TPM) is below recommended (30K+)" -ForegroundColor Yellow
             Write-Host "  Large prompts may experience slower response times or rate limiting." -ForegroundColor Yellow
             Write-Host "  Request quota increase at: https://aka.ms/oai/quotaincrease" -ForegroundColor Yellow
         }
@@ -703,7 +699,7 @@ if ($deployedCapacity -gt 0 -and $deployedCapacity -lt 50) {
         Write-Host "      --model-name $deployedModel ``" -ForegroundColor DarkGray
         Write-Host "      --model-version '$deployedModelVersion' ``" -ForegroundColor DarkGray
         Write-Host "      --model-format 'OpenAI' ``" -ForegroundColor DarkGray
-        Write-Host "      --sku-capacity 40 ``" -ForegroundColor DarkGray
+        Write-Host "      --sku-capacity 80 ``" -ForegroundColor DarkGray
         Write-Host "      --sku-name '$deployedSku'" -ForegroundColor DarkGray
     } else {
         $deployedCapacity = $finalCapacity
