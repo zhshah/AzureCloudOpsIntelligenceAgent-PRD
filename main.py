@@ -86,8 +86,9 @@ async def get_auth_config():
     Return authentication configuration for the frontend.
     This allows dynamic configuration without hardcoding values in the UI.
     """
-    client_id = os.getenv("ENTRA_APP_CLIENT_ID", "")
-    tenant_id = os.getenv("ENTRA_TENANT_ID", "")
+    # Default values for local development (override with environment variables in production)
+    client_id = os.getenv("ENTRA_APP_CLIENT_ID", "d2cb3ded-b2d0-44c8-a91f-fdc73a2cd303")
+    tenant_id = os.getenv("ENTRA_TENANT_ID", "8d7622f8-d815-4120-b5b8-bee841c23a1c")
     
     if not client_id or not tenant_id:
         raise HTTPException(

@@ -2104,6 +2104,66 @@
                     </div>
                 </div>
 
+                <!-- Well-Architected Framework (WAF) Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('waf')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF"></div>
+                            <div class="category-name">Well-Architected Framework</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-waf">
+                        <!-- WAF Overview -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform a comprehensive Azure Well-Architected Framework (WAF) review for the current subscription context. Analyze all resources against the 5 pillars: Reliability, Security, Cost Optimization, Operational Excellence, and Performance Efficiency. Provide a summary score for each pillar with top 3 recommendations per pillar. Include: Resource counts by type, identified risks, quick wins, and prioritized action items.')">
+                            <span class="prompt-icon"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF" style="width:18px;height:18px;"></span>
+                            <span>Full WAF Assessment</span>
+                        </div>
+                        
+                        <!-- Reliability Pillar -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF Reliability pillar assessment for the current context. Check: 1) VMs without Availability Sets/Zones, 2) Single-instance VMs, 3) Disks without backup, 4) Resources without redundancy (LRS vs ZRS/GRS), 5) Databases without geo-replication, 6) Load balancers and failover configurations, 7) Recovery Services Vault coverage. For each finding, provide the WAF recommendation and remediation steps.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10004-icon-service-Service-Health.svg" alt="Reliability" style="width:18px;height:18px;"></span>
+                            <span>Reliability Assessment</span>
+                        </div>
+                        
+                        <!-- Security Pillar -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF Security pillar assessment for the current context. Check: 1) VMs without endpoint protection, 2) Storage accounts with public access, 3) Key Vaults without soft delete, 4) SQL without TDE/encryption, 5) NSGs allowing all inbound, 6) Resources without Private Endpoints, 7) Privileged RBAC assignments (Owner/Contributor), 8) Guest user access, 9) Service principals with excessive permissions. For each finding, provide the WAF security recommendation.')">
+                            <span class="prompt-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security" style="width:18px;height:18px;"></span>
+                            <span>Security Assessment</span>
+                        </div>
+                        
+                        <!-- Cost Optimization Pillar -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF Cost Optimization pillar assessment for the current context. Check: 1) Deallocated/stopped VMs still incurring costs, 2) Orphaned disks not attached to VMs, 3) Unattached public IPs, 4) Over-provisioned VM sizes vs actual usage, 5) Resources without Reserved Instance coverage, 6) Storage accounts with expensive tiers (Premium for cold data), 7) Idle/unused resources by tag or last activity. Provide cost savings estimates and optimization recommendations.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Cost" style="width:18px;height:18px;"></span>
+                            <span>Cost Optimization Assessment</span>
+                        </div>
+                        
+                        <!-- Operational Excellence Pillar -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF Operational Excellence pillar assessment for the current context. Check: 1) Resources without consistent tagging (Environment, Owner, CostCenter), 2) VMs without monitoring/diagnostics enabled, 3) Resources without Activity Log alerts, 4) Automation accounts and runbook coverage, 5) Update management compliance, 6) Naming convention violations, 7) Policy compliance status, 8) Resource locks on critical resources. Provide governance and automation recommendations.')">
+                            <span class="prompt-icon"><img src="/Icons/management + governance/00001-icon-service-Monitor.svg" alt="OpEx" style="width:18px;height:18px;"></span>
+                            <span>Operational Excellence Assessment</span>
+                        </div>
+                        
+                        <!-- Performance Efficiency Pillar -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF Performance Efficiency pillar assessment for the current context. Check: 1) VM sizes appropriate for workload (burstable vs dedicated), 2) Disk types matching performance needs (Standard vs Premium SSD), 3) SQL DTU/vCore utilization, 4) App Service plans with auto-scaling configured, 5) CDN and caching implementations, 6) Network latency considerations (regional placement), 7) Storage tier optimization. Provide right-sizing and performance tuning recommendations.')">
+                            <span class="prompt-icon"><img src="/Icons/devops/02423-icon-service-Load-Testing.svg" alt="Perf" style="width:18px;height:18px;"></span>
+                            <span>Performance Efficiency Assessment</span>
+                        </div>
+                        
+                        <!-- WAF by Resource Group -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform a targeted WAF review for a specific resource group. Ask me which resource group to analyze, then check all 5 pillars (Reliability, Security, Cost, Operations, Performance) for resources in that group. Provide findings and recommendations specific to the workload in that resource group.')">
+                            <span class="prompt-icon">📁</span>
+                            <span>WAF Review by Resource Group</span>
+                        </div>
+                        
+                        <!-- WAF by Tag -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF review for resources filtered by tag. Ask me which tag (name and value) to filter by, then analyze those resources against all 5 WAF pillars. This is useful for reviewing specific applications or workloads identified by Environment, Application, or Owner tags.')">
+                            <span class="prompt-icon">🏷️</span>
+                            <span>WAF Review by Tag</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Azure Backup Category -->
                 <div class="category-section">
                     <div class="category-header" onclick="toggleCategory('backup')">
@@ -2333,6 +2393,13 @@
                             <div class="welcome-category-title">Access Control (IAM)</div>
                             <div class="welcome-category-desc">RBAC role assignments, privileged access audit</div>
                             <div class="welcome-category-count">6 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('waf')">
+                            <span class="welcome-category-icon"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF"></span>
+                            <div class="welcome-category-title">Well-Architected Framework</div>
+                            <div class="welcome-category-desc">Reliability, Security, Cost, Operations, Performance</div>
+                            <div class="welcome-category-count">8 Quick Actions</div>
                         </div>
                         
                         <div class="welcome-category-card" onclick="showCategory('backup')">
