@@ -1390,13 +1390,13 @@
                 
                 <div class="insight-card" id="securityCard" onclick="quickPrompt('Show Microsoft Defender for Cloud security recommendations for my subscription. Include severity counts and top issues.')" style="cursor: pointer;">
                     <div class="insight-header">
-                        <div class="insight-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security" style="width: 24px; height: 24px;"></div>
+                        <div class="insight-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security" style="width: 24px; height: 24px;" onerror="this.style.display='none'"></div>
                         <div class="insight-title">Security Score</div>
                     </div>
                     <div class="insight-value" id="sidebarSecurityScore" style="font-size: 20px; font-weight: 700;">
-                        <span class="loading-dots">Loading</span>
+                        --
                     </div>
-                    <div class="insight-subtitle" id="sidebarSecuritySubtitle">Fetching security posture...</div>
+                    <div class="insight-subtitle" id="sidebarSecuritySubtitle">Click to review security</div>
                     <div class="insight-footer" style="color: var(--primary); font-size: 11px;">
                         Click for full assessment →
                     </div>
@@ -1404,13 +1404,13 @@
 
                 <div class="insight-card" id="savingsCard" onclick="quickPrompt('Find all cost savings opportunities in my subscription. Show ACTUAL resource names with potential savings amounts.')" style="cursor: pointer;">
                     <div class="insight-header">
-                        <div class="insight-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Savings" style="width: 24px; height: 24px;"></div>
+                        <div class="insight-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Savings" style="width: 24px; height: 24px;" onerror="this.style.display='none'"></div>
                         <div class="insight-title">Potential Savings</div>
                     </div>
                     <div class="insight-value" id="sidebarSavings" style="font-size: 20px; font-weight: 700;">
-                        <span class="loading-dots">Loading</span>
+                        --
                     </div>
-                    <div class="insight-subtitle" id="sidebarSavingsSubtitle">Scanning for opportunities...</div>
+                    <div class="insight-subtitle" id="sidebarSavingsSubtitle">Click to check savings</div>
                     <div class="insight-footer" style="color: var(--primary); font-size: 11px;">
                         Click for detailed breakdown →
                     </div>
@@ -1418,13 +1418,13 @@
 
                 <div class="insight-card" id="resourcesCard" onclick="quickPrompt('List ALL resources in my current subscription grouped by type with counts.')" style="cursor: pointer;">
                     <div class="insight-header">
-                        <div class="insight-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Resources" style="width: 24px; height: 24px;"></div>
+                        <div class="insight-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Resources" style="width: 24px; height: 24px;" onerror="this.style.display='none'"></div>
                         <div class="insight-title">Total Resources</div>
                     </div>
                     <div class="insight-value" id="sidebarResources" style="font-size: 20px; font-weight: 700;">
-                        <span class="loading-dots">Loading</span>
+                        --
                     </div>
-                    <div class="insight-subtitle" id="sidebarResourcesSubtitle">Counting resources...</div>
+                    <div class="insight-subtitle" id="sidebarResourcesSubtitle">Click to view resources</div>
                     <div class="insight-footer" style="color: var(--primary); font-size: 11px;">
                         Click for full inventory →
                     </div>
@@ -3053,140 +3053,171 @@
             }
         }
 
-        // Load sidebar live insights (Security Score, Savings, Resources)
+        // Load sidebar live insights (Security Score, Savings, Resources) - with timeouts and graceful fallbacks
         async function loadSidebarLiveInsights(subscriptionId) {
-            console.log('Loading sidebar live insights...');
-            const isAllSubs = subscriptionId === 'all' || subscriptionId === 'loading';
+            console.log('Loading sidebar live insights for:', subscriptionId);
             
+            // Skip if no valid subscription
+            if (!subscriptionId || subscriptionId === 'loading' || subscriptionId === 'none') {
+                console.log('Skipping insights - no valid subscription');
+                setInsightsFallback();
+                return;
+            }
+            
+            const isAllSubs = subscriptionId === 'all';
             const accessToken = sessionStorage.getItem('accessToken');
             const headers = { 'Content-Type': 'application/json' };
             if (accessToken) {
                 headers['Authorization'] = `Bearer ${accessToken}`;
             }
 
-            // Fetch resource count
-            try {
-                const resourcePrompt = isAllSubs 
-                    ? 'How many total resources are across ALL my subscriptions? Just the number.'
-                    : 'How many total resources in my current subscription? Just the number.';
-                
-                const resourceResponse = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({
-                        message: resourcePrompt,
-                        subscription_context: isAllSubs ? 'all' : subscriptionId,
-                        all_subscriptions: isAllSubs
-                    })
-                });
-                
-                if (resourceResponse.ok) {
-                    const resourceData = await resourceResponse.json();
-                    const countMatch = resourceData.response?.match(/\b(\d+)\b/);
-                    const resourcesEl = document.getElementById('sidebarResources');
-                    const subtitleEl = document.getElementById('sidebarResourcesSubtitle');
-                    const cardEl = document.getElementById('resourcesCard');
-                    
-                    if (countMatch && resourcesEl) {
-                        resourcesEl.innerHTML = countMatch[1];
-                        subtitleEl.textContent = `Across ${isAllSubs ? 'all subscriptions' : 'this subscription'}`;
-                        cardEl.classList.add('success-dynamic');
-                    }
+            // Helper function to fetch with timeout
+            async function fetchWithTimeout(url, options, timeoutMs = 30000) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+                try {
+                    const response = await fetch(url, { ...options, signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    return response;
+                } catch (err) {
+                    clearTimeout(timeoutId);
+                    throw err;
                 }
-            } catch (err) {
-                console.error('Error fetching resource count:', err);
-                const el = document.getElementById('sidebarResources');
-                if (el) el.innerHTML = '--';
             }
 
-            // Fetch potential savings
-            try {
-                const savingsPrompt = isAllSubs
-                    ? 'What is the total potential monthly savings from Azure Advisor recommendations across ALL subscriptions? Just give me the dollar amount like $X,XXX.'
-                    : 'What is the total potential monthly savings from Azure Advisor recommendations? Just give me the dollar amount like $X,XXX.';
+            // Set fallback values
+            function setInsightsFallback() {
+                const resourcesEl = document.getElementById('sidebarResources');
+                const savingsEl = document.getElementById('sidebarSavings');
+                const securityEl = document.getElementById('sidebarSecurityScore');
+                const resourcesSubEl = document.getElementById('sidebarResourcesSubtitle');
+                const savingsSubEl = document.getElementById('sidebarSavingsSubtitle');
+                const securitySubEl = document.getElementById('sidebarSecuritySubtitle');
                 
-                const savingsResponse = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({
-                        message: savingsPrompt,
-                        subscription_context: isAllSubs ? 'all' : subscriptionId,
-                        all_subscriptions: isAllSubs
-                    })
-                });
-                
-                if (savingsResponse.ok) {
-                    const savingsData = await savingsResponse.json();
-                    const savingsMatch = savingsData.response?.match(/\$[\d,]+\.?\d*/);
-                    const savingsEl = document.getElementById('sidebarSavings');
-                    const subtitleEl = document.getElementById('sidebarSavingsSubtitle');
-                    const cardEl = document.getElementById('savingsCard');
-                    
-                    if (savingsEl) {
-                        if (savingsMatch) {
-                            savingsEl.innerHTML = savingsMatch[0] + '/mo';
-                            subtitleEl.textContent = 'Optimization opportunities found';
-                            cardEl.classList.add('warning-dynamic');
-                        } else if (savingsData.response?.toLowerCase().includes('no') || savingsData.response?.toLowerCase().includes('0')) {
-                            savingsEl.innerHTML = '$0';
-                            subtitleEl.textContent = 'No immediate savings found';
-                            cardEl.classList.add('success-dynamic');
-                        } else {
-                            savingsEl.innerHTML = 'Check';
-                            subtitleEl.textContent = 'Click to analyze savings';
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error('Error fetching savings:', err);
-                const el = document.getElementById('sidebarSavings');
-                if (el) el.innerHTML = '--';
+                if (resourcesEl) { resourcesEl.innerHTML = '--'; resourcesSubEl.textContent = 'Click to view resources'; }
+                if (savingsEl) { savingsEl.innerHTML = '--'; savingsSubEl.textContent = 'Click to check savings'; }
+                if (securityEl) { securityEl.innerHTML = '--'; securitySubEl.textContent = 'Click to view security'; }
             }
 
-            // Fetch security score/issues count
-            try {
-                const securityPrompt = isAllSubs
-                    ? 'What is my Microsoft Defender for Cloud secure score percentage OR how many security recommendations do I have across ALL subscriptions? Just give me a number or percentage.'
-                    : 'What is my Microsoft Defender for Cloud secure score percentage OR how many security recommendations do I have? Just give me a number or percentage.';
-                
-                const securityResponse = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({
-                        message: securityPrompt,
-                        subscription_context: isAllSubs ? 'all' : subscriptionId,
-                        all_subscriptions: isAllSubs
-                    })
-                });
-                
-                if (securityResponse.ok) {
-                    const securityData = await securityResponse.json();
-                    const percentMatch = securityData.response?.match(/(\d+)\s*%/);
-                    const countMatch = securityData.response?.match(/\b(\d+)\s*(recommendation|issue|finding)/i);
-                    const securityEl = document.getElementById('sidebarSecurityScore');
-                    const subtitleEl = document.getElementById('sidebarSecuritySubtitle');
-                    const cardEl = document.getElementById('securityCard');
+            // Fetch all in parallel with individual error handling
+            const resourcePromise = (async () => {
+                try {
+                    const response = await fetchWithTimeout('/api/chat', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            message: 'How many total resources in my subscription? Just the number.',
+                            subscription_context: subscriptionId,
+                            conversation_history: []
+                        })
+                    }, 25000);
                     
-                    if (securityEl) {
-                        if (percentMatch) {
-                            const score = parseInt(percentMatch[1]);
-                            securityEl.innerHTML = score + '%';
-                            subtitleEl.textContent = score >= 80 ? 'Good security posture' : score >= 50 ? 'Needs attention' : 'Critical improvements needed';
-                            cardEl.classList.add(score >= 80 ? 'success-dynamic' : score >= 50 ? 'warning-dynamic' : 'danger-dynamic');
-                        } else if (countMatch) {
-                            securityEl.innerHTML = countMatch[1] + ' issues';
-                            subtitleEl.textContent = 'Security recommendations';
-                            cardEl.classList.add(parseInt(countMatch[1]) > 10 ? 'warning-dynamic' : 'success-dynamic');
+                    if (response.ok) {
+                        const data = await response.json();
+                        const countMatch = data.response?.match(/\b(\d+)\b/);
+                        const el = document.getElementById('sidebarResources');
+                        const subEl = document.getElementById('sidebarResourcesSubtitle');
+                        const card = document.getElementById('resourcesCard');
+                        
+                        if (countMatch && el) {
+                            el.innerHTML = countMatch[1];
+                            subEl.textContent = 'In current subscription';
+                            card.classList.add('success-dynamic');
                         } else {
-                            securityEl.innerHTML = 'Check';
-                            subtitleEl.textContent = 'Click to review security';
+                            el.innerHTML = '--';
+                            subEl.textContent = 'Click to view resources';
                         }
                     }
+                } catch (err) {
+                    console.warn('Resource count fetch error:', err.message);
+                    const el = document.getElementById('sidebarResources');
+                    const subEl = document.getElementById('sidebarResourcesSubtitle');
+                    if (el) { el.innerHTML = '--'; subEl.textContent = 'Click to view'; }
                 }
+            })();
+
+            const savingsPromise = (async () => {
+                try {
+                    const response = await fetchWithTimeout('/api/chat', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            message: 'What is the total potential monthly savings from Azure Advisor? Just the dollar amount.',
+                            subscription_context: subscriptionId,
+                            conversation_history: []
+                        })
+                    }, 25000);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const savingsMatch = data.response?.match(/\$[\d,]+\.?\d*/);
+                        const el = document.getElementById('sidebarSavings');
+                        const subEl = document.getElementById('sidebarSavingsSubtitle');
+                        const card = document.getElementById('savingsCard');
+                        
+                        if (savingsMatch && el) {
+                            el.innerHTML = savingsMatch[0] + '/mo';
+                            subEl.textContent = 'Potential savings found';
+                            card.classList.add('warning-dynamic');
+                        } else {
+                            el.innerHTML = '$0';
+                            subEl.textContent = 'No immediate savings';
+                            card.classList.add('success-dynamic');
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Savings fetch error:', err.message);
+                    const el = document.getElementById('sidebarSavings');
+                    const subEl = document.getElementById('sidebarSavingsSubtitle');
+                    if (el) { el.innerHTML = '--'; subEl.textContent = 'Click to check'; }
+                }
+            })();
+
+            const securityPromise = (async () => {
+                try {
+                    const response = await fetchWithTimeout('/api/chat', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            message: 'How many security recommendations do I have? Just the number.',
+                            subscription_context: subscriptionId,
+                            conversation_history: []
+                        })
+                    }, 25000);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const countMatch = data.response?.match(/\b(\d+)\b/);
+                        const el = document.getElementById('sidebarSecurityScore');
+                        const subEl = document.getElementById('sidebarSecuritySubtitle');
+                        const card = document.getElementById('securityCard');
+                        
+                        if (countMatch && el) {
+                            const count = parseInt(countMatch[1]);
+                            el.innerHTML = count + ' items';
+                            subEl.textContent = count > 10 ? 'Needs attention' : 'Good posture';
+                            card.classList.add(count > 10 ? 'warning-dynamic' : 'success-dynamic');
+                        } else {
+                            el.innerHTML = '--';
+                            subEl.textContent = 'Click to review';
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Security fetch error:', err.message);
+                    const el = document.getElementById('sidebarSecurityScore');
+                    const subEl = document.getElementById('sidebarSecuritySubtitle');
+                    if (el) { el.innerHTML = '--'; subEl.textContent = 'Click to review'; }
+                }
+            })();
+
+            // Wait for all with timeout - don't block UI
+            try {
+                await Promise.race([
+                    Promise.all([resourcePromise, savingsPromise, securityPromise]),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Overall timeout')), 60000))
+                ]);
             } catch (err) {
-                console.error('Error fetching security score:', err);
-                const el = document.getElementById('sidebarSecurityScore');
-                if (el) el.innerHTML = '--';
+                console.warn('Live insights timeout or error:', err.message);
             }
         }
 

@@ -333,6 +333,11 @@ async def execute_approved_command(request: ExecuteApprovedRequest):
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Mount Icons folder for Azure service icons
+import os.path
+if os.path.exists("Icons"):
+    app.mount("/Icons", StaticFiles(directory="Icons"), name="icons")
+
 
 if __name__ == "__main__":
     import uvicorn
