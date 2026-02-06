@@ -3482,54 +3482,107 @@ class AzureResourceManager:
     def get_all_orphaned_resources_summary(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Get a summary count of all orphaned resource types.
-        Returns counts for quick overview across all categories.
+        Returns counts for quick overview across all categories with subscription details.
         """
+        # Get subscription name mapping
+        sub_names = self._get_subscription_names()
+        
         # Query each type and return summary
         summary = {
             "success": True,
-            "categories": {}
+            "categories": {},
+            "details": []  # Detailed breakdown per category
         }
         
+        # Define cost impact categories
+        cost_impact_categories = [
+            "App Service Plans", "Managed Disks", "SQL Elastic Pools", "Public IPs", 
+            "Load Balancers", "Application Gateways", "NAT Gateways", "Private DNS Zones",
+            "Private Endpoints", "VNet Gateways", "DDoS Protection Plans"
+        ]
+        
         orphan_checks = [
-            ("App Service Plans", self.get_orphaned_app_service_plans),
-            ("Availability Sets", self.get_orphaned_availability_sets),
-            ("Managed Disks", self.get_orphaned_managed_disks),
-            ("SQL Elastic Pools", self.get_orphaned_sql_elastic_pools),
-            ("Public IPs", self.get_orphaned_public_ips),
-            ("Network Interfaces", self.get_orphaned_nics),
-            ("Network Security Groups", self.get_orphaned_nsgs),
-            ("Route Tables", self.get_orphaned_route_tables),
-            ("Load Balancers", self.get_orphaned_load_balancers),
-            ("Application Gateways", self.get_orphaned_application_gateways),
-            ("NAT Gateways", self.get_orphaned_nat_gateways),
-            ("Private DNS Zones", self.get_orphaned_private_dns_zones),
-            ("Private Endpoints", self.get_orphaned_private_endpoints),
-            ("VNet Gateways", self.get_orphaned_vnet_gateways),
-            ("DDoS Protection Plans", self.get_orphaned_ddos_plans),
-            ("Resource Groups", self.get_orphaned_resource_groups)
+            ("App Service Plans", self.get_orphaned_app_service_plans, "no apps"),
+            ("Availability Sets", self.get_orphaned_availability_sets, "no VMs"),
+            ("Managed Disks", self.get_orphaned_managed_disks, "unattached"),
+            ("SQL Elastic Pools", self.get_orphaned_sql_elastic_pools, "no databases"),
+            ("Public IPs", self.get_orphaned_public_ips, "unattached"),
+            ("Network Interfaces", self.get_orphaned_nics, "not attached"),
+            ("Network Security Groups", self.get_orphaned_nsgs, "not attached"),
+            ("Route Tables", self.get_orphaned_route_tables, "not attached"),
+            ("Load Balancers", self.get_orphaned_load_balancers, "no backends"),
+            ("Application Gateways", self.get_orphaned_application_gateways, "no targets"),
+            ("NAT Gateways", self.get_orphaned_nat_gateways, "not attached"),
+            ("Private DNS Zones", self.get_orphaned_private_dns_zones, "no VNet links"),
+            ("Private Endpoints", self.get_orphaned_private_endpoints, "disconnected"),
+            ("VNet Gateways", self.get_orphaned_vnet_gateways, "no connections"),
+            ("DDoS Protection Plans", self.get_orphaned_ddos_plans, "no VNets"),
+            ("Resource Groups", self.get_orphaned_resource_groups, "empty")
         ]
         
         total_orphaned = 0
         cost_impact_resources = 0
         
-        for name, func in orphan_checks:
+        for name, func, reason in orphan_checks:
             try:
                 result = func(subscriptions)
-                # query_resources returns "count" or "total_records", not "total_rows"
                 count = result.get("count", 0) or result.get("total_records", 0) or 0
+                data = result.get("data", [])
+                
+                # Get unique subscriptions from results
+                subscriptions_found = {}
+                for item in data:
+                    sub_id = item.get("subscriptionId", "unknown")
+                    sub_name = sub_names.get(sub_id, sub_id)
+                    if sub_id not in subscriptions_found:
+                        subscriptions_found[sub_id] = {
+                            "name": sub_name,
+                            "count": 0,
+                            "resources": []
+                        }
+                    subscriptions_found[sub_id]["count"] += 1
+                    # Add resource name for details
+                    res_name = item.get("ResourceName") or item.get("name") or item.get("ResourceId", "")
+                    if res_name:
+                        subscriptions_found[sub_id]["resources"].append(res_name)
+                
+                has_cost_impact = name in cost_impact_categories
+                
+                # Build detail entry
+                detail = {
+                    "category": name,
+                    "reason": reason,
+                    "count": count,
+                    "has_cost_impact": has_cost_impact,
+                    "subscriptions": []
+                }
+                
+                for sub_id, sub_info in subscriptions_found.items():
+                    detail["subscriptions"].append({
+                        "subscription_id": sub_id,
+                        "subscription_name": sub_info["name"],
+                        "count": sub_info["count"],
+                        "resources": sub_info["resources"][:5]  # Limit to first 5 for brevity
+                    })
+                
                 summary["categories"][name] = count
+                summary["details"].append(detail)
                 total_orphaned += count
-                # Track resources that have cost impact
-                if name in ["App Service Plans", "Managed Disks", "SQL Elastic Pools", "Public IPs", 
-                           "Load Balancers", "Application Gateways", "NAT Gateways", "Private DNS Zones",
-                           "Private Endpoints", "VNet Gateways", "DDoS Protection Plans"]:
+                
+                if has_cost_impact:
                     cost_impact_resources += count
+                    
             except Exception as e:
                 summary["categories"][name] = f"Error: {str(e)}"
+                summary["details"].append({
+                    "category": name,
+                    "count": 0,
+                    "error": str(e)
+                })
         
         summary["total_orphaned_resources"] = total_orphaned
         summary["cost_impact_resources"] = cost_impact_resources
-        summary["message"] = f"Found {total_orphaned} orphaned resources, {cost_impact_resources} with cost impact"
+        summary["message"] = f"Found {total_orphaned} orphaned resources across all categories. {cost_impact_resources} resources have direct cost impact (marked with cost_impact=true)."
         
         return summary
 

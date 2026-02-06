@@ -2162,6 +2162,19 @@ WORKFLOW FOR ANY ASSESSMENT:
 3. ONLY THEN provide assessment output
 4. Report ONLY what was found - no placeholders
 
+ORPHANED RESOURCES SUMMARY OUTPUT:
+When showing orphaned resources summary (resource_type=ALL), use this table format:
+| Resource Type | Count | Cost Impact | Subscription |
+|---------------|-------|-------------|--------------|
+| [category name] ([reason]) | [count] | Yes 💲 / No | [subscription_name from details] |
+
+IMPORTANT for orphaned resources:
+- Extract subscription_name from the "details" array in the response
+- Each category in "details" has "subscriptions" array with "subscription_name" 
+- Show "N/A" only if count is 0
+- Mark cost impact resources with "Yes 💲"
+- List ALL 16 categories even if count is 0
+
 OUTPUT FORMAT:
 | Finding | Severity | Resources Count | WAF Principle |
 |---------|----------|-----------------|---------------|
