@@ -1979,6 +1979,110 @@ class OpenAIAgent:
                         }
                     }
                 }
+            },
+            # ============================================
+            # IAM / RBAC ROLE ASSIGNMENT TOOLS
+            # ============================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_role_assignments_management_group",
+                    "description": "Get role assignments at Management Group level. Use when user asks about management group role assignments, privileged access at management group level, RBAC at MG level.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "management_group_id": {
+                                "type": "string",
+                                "description": "Optional management group ID to filter."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_role_assignments_subscription",
+                    "description": "Get role assignments at Subscription level. Use when user asks about subscription role assignments, who has access to subscription, RBAC at subscription level, permanent role assignments.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_role_assignments_resource_group",
+                    "description": "Get role assignments at Resource Group level. Use when user asks about resource group permissions, who has access to resource groups, RBAC at RG level.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_role_assignments_service_principals",
+                    "description": "Get role assignments for Service Principals and Managed Identities. Use when user asks about service principal permissions, managed identity roles, app registrations with privileged access.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_role_assignments_summary",
+                    "description": "Get comprehensive RBAC role assignment summary. Use when user asks about RBAC summary, role assignment overview, access control summary, IAM dashboard.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_privileged_role_assignments",
+                    "description": "Get all privileged role assignments (Owner, Contributor, User Access Administrator). Use when user asks about privileged access audit, security audit, who has Owner/Contributor roles, high-risk permissions.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
             }
         ]
         
@@ -2908,6 +3012,45 @@ Always provide actionable insights with real Azure data. Be concise and professi
                     subscriptions=arguments.get("subscriptions")
                 )
                 return self._cache_query_results(result, "backup_jobs_failed")
+            
+            # ============================================================
+            # IAM / RBAC ROLE ASSIGNMENT FUNCTIONS
+            # ============================================================
+            elif function_name == "get_role_assignments_management_group":
+                result = self.resource_manager.get_role_assignments_management_group(
+                    management_group_id=arguments.get("management_group_id")
+                )
+                return self._cache_query_results(result, "rbac_management_group")
+            
+            elif function_name == "get_role_assignments_subscription":
+                result = self.resource_manager.get_role_assignments_subscription(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "rbac_subscription")
+            
+            elif function_name == "get_role_assignments_resource_group":
+                result = self.resource_manager.get_role_assignments_resource_group(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "rbac_resource_group")
+            
+            elif function_name == "get_role_assignments_service_principals":
+                result = self.resource_manager.get_role_assignments_service_principals(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "rbac_service_principals")
+            
+            elif function_name == "get_role_assignments_summary":
+                result = self.resource_manager.get_role_assignments_summary(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "rbac_summary")
+            
+            elif function_name == "get_privileged_role_assignments":
+                result = self.resource_manager.get_privileged_role_assignments(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "rbac_privileged")
             
             else:
                 return {"error": f"Unknown function: {function_name}"}

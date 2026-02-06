@@ -2547,3 +2547,274 @@ class AzureResourceManager:
         | take 100
         """
         return self.query_resources(query, subscriptions)
+
+    # ========== IAM / RBAC ROLE ASSIGNMENT FUNCTIONS ==========
+    
+    def get_role_assignments_management_group(self, management_group_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get role assignments at Management Group level.
+        Uses authorizationresources table for RBAC data.
+        """
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | where id contains '/providers/Microsoft.Management/managementGroups/'
+        | extend roleDefinitionId = tostring(properties.roleDefinitionId)
+        | extend principalId = tostring(properties.principalId)
+        | extend principalType = tostring(properties.principalType)
+        | extend scope = tostring(properties.scope)
+        | extend createdOn = tostring(properties.createdOn)
+        | extend createdBy = tostring(properties.createdBy)
+        | extend managementGroupName = tostring(split(scope, '/')[4])
+        | extend roleDefinitionName = case(
+            roleDefinitionId contains '8e3af657-a8ff-443c-a75c-2fe8c4bcb635', 'Owner',
+            roleDefinitionId contains 'b24988ac-6180-42a0-ab88-20f7382dd24c', 'Contributor',
+            roleDefinitionId contains '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9', 'User Access Administrator',
+            roleDefinitionId contains 'acdd72a7-3385-48ef-bd42-f606fba81ae7', 'Reader',
+            roleDefinitionId contains 'f58310d9-a9f6-439a-9e8d-f62e7b41a168', 'Role Based Access Control Administrator',
+            'Custom/Other')
+        | extend riskLevel = case(
+            roleDefinitionName == 'Owner', 'CRITICAL',
+            roleDefinitionName == 'User Access Administrator', 'HIGH',
+            roleDefinitionName == 'Contributor', 'MEDIUM',
+            'LOW')
+        | project 
+            AssignmentId = name,
+            PrincipalId = principalId,
+            PrincipalType = principalType,
+            RoleName = roleDefinitionName,
+            RoleDefinitionId = roleDefinitionId,
+            Scope = scope,
+            ManagementGroup = managementGroupName,
+            CreatedOn = createdOn,
+            CreatedBy = createdBy,
+            RiskLevel = riskLevel
+        | order by RiskLevel asc, RoleName asc
+        """
+        return self.query_resources(query)
+    
+    def get_role_assignments_subscription(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Get role assignments at Subscription level.
+        Shows permanent (active) role assignments that are always-on.
+        """
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | extend scope = tostring(properties.scope)
+        | where scope matches regex @'^/subscriptions/[^/]+$'
+        | extend roleDefinitionId = tostring(properties.roleDefinitionId)
+        | extend principalId = tostring(properties.principalId)
+        | extend principalType = tostring(properties.principalType)
+        | extend createdOn = tostring(properties.createdOn)
+        | extend createdBy = tostring(properties.createdBy)
+        | extend subscriptionId = tostring(split(scope, '/')[2])
+        | extend roleDefinitionName = case(
+            roleDefinitionId contains '8e3af657-a8ff-443c-a75c-2fe8c4bcb635', 'Owner',
+            roleDefinitionId contains 'b24988ac-6180-42a0-ab88-20f7382dd24c', 'Contributor',
+            roleDefinitionId contains '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9', 'User Access Administrator',
+            roleDefinitionId contains 'acdd72a7-3385-48ef-bd42-f606fba81ae7', 'Reader',
+            roleDefinitionId contains 'f58310d9-a9f6-439a-9e8d-f62e7b41a168', 'RBAC Administrator',
+            roleDefinitionId contains 'fb1c8493-542b-48eb-b624-b4c8fea62acd', 'Security Admin',
+            roleDefinitionId contains '17d1049b-9a84-46fb-8f53-869881c3d3ab', 'Storage Account Contributor',
+            'Custom/Other')
+        | extend riskLevel = case(
+            roleDefinitionName == 'Owner', 'CRITICAL',
+            roleDefinitionName == 'User Access Administrator', 'CRITICAL',
+            roleDefinitionName == 'RBAC Administrator', 'HIGH',
+            roleDefinitionName == 'Contributor', 'HIGH',
+            roleDefinitionName == 'Security Admin', 'MEDIUM',
+            'LOW')
+        | project 
+            AssignmentId = name,
+            PrincipalId = principalId,
+            PrincipalType = principalType,
+            RoleName = roleDefinitionName,
+            RoleDefinitionId = roleDefinitionId,
+            Scope = scope,
+            SubscriptionId = subscriptionId,
+            CreatedOn = createdOn,
+            CreatedBy = createdBy,
+            RiskLevel = riskLevel,
+            AssignmentType = 'Active (Permanent)'
+        | order by RiskLevel asc, PrincipalType asc, RoleName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_role_assignments_resource_group(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Get role assignments at Resource Group level.
+        Shows permanent privileged access assignments.
+        """
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | extend scope = tostring(properties.scope)
+        | where scope matches regex @'^/subscriptions/[^/]+/resourceGroups/[^/]+$'
+        | extend roleDefinitionId = tostring(properties.roleDefinitionId)
+        | extend principalId = tostring(properties.principalId)
+        | extend principalType = tostring(properties.principalType)
+        | extend createdOn = tostring(properties.createdOn)
+        | extend subscriptionId = tostring(split(scope, '/')[2])
+        | extend resourceGroup = tostring(split(scope, '/')[4])
+        | extend roleDefinitionName = case(
+            roleDefinitionId contains '8e3af657-a8ff-443c-a75c-2fe8c4bcb635', 'Owner',
+            roleDefinitionId contains 'b24988ac-6180-42a0-ab88-20f7382dd24c', 'Contributor',
+            roleDefinitionId contains '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9', 'User Access Administrator',
+            roleDefinitionId contains 'acdd72a7-3385-48ef-bd42-f606fba81ae7', 'Reader',
+            'Custom/Other')
+        | extend riskLevel = case(
+            roleDefinitionName == 'Owner', 'CRITICAL',
+            roleDefinitionName == 'User Access Administrator', 'HIGH',
+            roleDefinitionName == 'Contributor', 'MEDIUM',
+            'LOW')
+        | project 
+            AssignmentId = name,
+            PrincipalId = principalId,
+            PrincipalType = principalType,
+            RoleName = roleDefinitionName,
+            ResourceGroup = resourceGroup,
+            SubscriptionId = subscriptionId,
+            Scope = scope,
+            CreatedOn = createdOn,
+            RiskLevel = riskLevel,
+            AssignmentType = 'Active (Permanent)'
+        | order by RiskLevel asc, ResourceGroup asc, RoleName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_role_assignments_service_principals(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Get role assignments for Service Principals and Managed Identities.
+        Focus on privileged roles (Owner, Contributor).
+        """
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | extend principalType = tostring(properties.principalType)
+        | where principalType == 'ServicePrincipal'
+        | extend roleDefinitionId = tostring(properties.roleDefinitionId)
+        | extend principalId = tostring(properties.principalId)
+        | extend scope = tostring(properties.scope)
+        | extend createdOn = tostring(properties.createdOn)
+        | extend roleDefinitionName = case(
+            roleDefinitionId contains '8e3af657-a8ff-443c-a75c-2fe8c4bcb635', 'Owner',
+            roleDefinitionId contains 'b24988ac-6180-42a0-ab88-20f7382dd24c', 'Contributor',
+            roleDefinitionId contains '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9', 'User Access Administrator',
+            roleDefinitionId contains 'acdd72a7-3385-48ef-bd42-f606fba81ae7', 'Reader',
+            'Custom/Other')
+        | extend scopeLevel = case(
+            scope contains '/providers/Microsoft.Management/managementGroups/', 'ManagementGroup',
+            scope matches regex @'^/subscriptions/[^/]+$', 'Subscription',
+            scope contains '/resourceGroups/', 'ResourceGroup',
+            'Resource')
+        | extend riskLevel = case(
+            roleDefinitionName == 'Owner', 'CRITICAL',
+            roleDefinitionName == 'User Access Administrator', 'HIGH',
+            roleDefinitionName == 'Contributor', 'MEDIUM',
+            'LOW')
+        | project 
+            AssignmentId = name,
+            PrincipalId = principalId,
+            PrincipalType = principalType,
+            RoleName = roleDefinitionName,
+            ScopeLevel = scopeLevel,
+            Scope = scope,
+            CreatedOn = createdOn,
+            RiskLevel = riskLevel
+        | order by RiskLevel asc, ScopeLevel asc, RoleName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_role_assignments_summary(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Get comprehensive RBAC role assignment summary across all scopes.
+        Provides breakdown by scope, principal type, and role type.
+        """
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | extend roleDefinitionId = tostring(properties.roleDefinitionId)
+        | extend principalId = tostring(properties.principalId)
+        | extend principalType = tostring(properties.principalType)
+        | extend scope = tostring(properties.scope)
+        | extend roleDefinitionName = case(
+            roleDefinitionId contains '8e3af657-a8ff-443c-a75c-2fe8c4bcb635', 'Owner',
+            roleDefinitionId contains 'b24988ac-6180-42a0-ab88-20f7382dd24c', 'Contributor',
+            roleDefinitionId contains '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9', 'User Access Administrator',
+            roleDefinitionId contains 'acdd72a7-3385-48ef-bd42-f606fba81ae7', 'Reader',
+            roleDefinitionId contains 'f58310d9-a9f6-439a-9e8d-f62e7b41a168', 'RBAC Administrator',
+            'Custom/Other')
+        | extend scopeLevel = case(
+            scope contains '/providers/Microsoft.Management/managementGroups/', 'ManagementGroup',
+            scope matches regex @'^/subscriptions/[^/]+$', 'Subscription',
+            scope matches regex @'^/subscriptions/[^/]+/resourceGroups/[^/]+$', 'ResourceGroup',
+            'Resource')
+        | extend riskLevel = case(
+            roleDefinitionName == 'Owner', 'CRITICAL',
+            roleDefinitionName == 'User Access Administrator', 'CRITICAL',
+            roleDefinitionName == 'Contributor' and scopeLevel in ('ManagementGroup', 'Subscription'), 'HIGH',
+            roleDefinitionName == 'Contributor', 'MEDIUM',
+            'LOW')
+        | project 
+            AssignmentId = name,
+            PrincipalId = principalId,
+            PrincipalType = principalType,
+            RoleName = roleDefinitionName,
+            ScopeLevel = scopeLevel,
+            Scope = scope,
+            RiskLevel = riskLevel
+        | order by RiskLevel asc, ScopeLevel asc, RoleName asc
+        """
+        return self.query_resources(query, subscriptions)
+    
+    def get_privileged_role_assignments(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Get all privileged role assignments (Owner, Contributor, User Access Administrator).
+        Critical security audit function.
+        """
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | extend roleDefinitionId = tostring(properties.roleDefinitionId)
+        | where roleDefinitionId contains '8e3af657-a8ff-443c-a75c-2fe8c4bcb635'  // Owner
+            or roleDefinitionId contains 'b24988ac-6180-42a0-ab88-20f7382dd24c'   // Contributor
+            or roleDefinitionId contains '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9'   // User Access Administrator
+            or roleDefinitionId contains 'f58310d9-a9f6-439a-9e8d-f62e7b41a168'   // RBAC Administrator
+        | extend principalId = tostring(properties.principalId)
+        | extend principalType = tostring(properties.principalType)
+        | extend scope = tostring(properties.scope)
+        | extend createdOn = tostring(properties.createdOn)
+        | extend createdBy = tostring(properties.createdBy)
+        | extend roleDefinitionName = case(
+            roleDefinitionId contains '8e3af657-a8ff-443c-a75c-2fe8c4bcb635', 'Owner',
+            roleDefinitionId contains 'b24988ac-6180-42a0-ab88-20f7382dd24c', 'Contributor',
+            roleDefinitionId contains '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9', 'User Access Administrator',
+            roleDefinitionId contains 'f58310d9-a9f6-439a-9e8d-f62e7b41a168', 'RBAC Administrator',
+            'Unknown')
+        | extend scopeLevel = case(
+            scope contains '/providers/Microsoft.Management/managementGroups/', 'ManagementGroup',
+            scope matches regex @'^/subscriptions/[^/]+$', 'Subscription',
+            scope matches regex @'^/subscriptions/[^/]+/resourceGroups/[^/]+$', 'ResourceGroup',
+            'Resource')
+        | extend riskLevel = case(
+            roleDefinitionName == 'Owner' and scopeLevel == 'ManagementGroup', 'CRITICAL-EXTREME',
+            roleDefinitionName == 'Owner' and scopeLevel == 'Subscription', 'CRITICAL',
+            roleDefinitionName == 'User Access Administrator', 'CRITICAL',
+            roleDefinitionName == 'Contributor' and scopeLevel in ('ManagementGroup', 'Subscription'), 'HIGH',
+            'MEDIUM')
+        | project 
+            AssignmentId = name,
+            PrincipalId = principalId,
+            PrincipalType = principalType,
+            RoleName = roleDefinitionName,
+            ScopeLevel = scopeLevel,
+            Scope = scope,
+            CreatedOn = createdOn,
+            CreatedBy = createdBy,
+            RiskLevel = riskLevel,
+            AssignmentType = 'Active (Permanent)'
+        | order by RiskLevel asc, ScopeLevel asc, RoleName asc, PrincipalType asc
+        """
+        return self.query_resources(query, subscriptions)
+
