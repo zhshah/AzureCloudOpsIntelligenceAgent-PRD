@@ -2954,10 +2954,10 @@ class AzureResourceManager:
             ResourceName = name,
             ResourceGroup = resourceGroup,
             Location = location,
-            DiskType = sku.name,
-            DiskSizeGB = properties.diskSizeGB,
+            DiskType = tostring(sku.name),
+            DiskSizeGB = tolong(properties.diskSizeGB),
             DiskState = diskState,
-            TimeCreated = properties.timeCreated,
+            TimeCreated = tostring(properties.timeCreated),
             Tags = tags,
             OrphanReason = 'Unattached disk'
         | order by DiskSizeGB desc, subscriptionId, ResourceGroup
@@ -3057,7 +3057,7 @@ class AzureResourceManager:
             ResourceName = name,
             ResourceGroup = resourceGroup,
             Location = location,
-            RuleCount = array_length(properties.securityRules),
+            RuleCount = toint(array_length(properties.securityRules)),
             Tags = tags,
             OrphanReason = 'Not attached to NIC or subnet'
         | order by subscriptionId, ResourceGroup, ResourceName
@@ -3078,8 +3078,8 @@ class AzureResourceManager:
             ResourceName = name,
             ResourceGroup = resourceGroup,
             Location = location,
-            RouteCount = array_length(properties.routes),
-            DisableBgpRoutePropagation = properties.disableBgpRoutePropagation,
+            RouteCount = toint(array_length(properties.routes)),
+            DisableBgpRoutePropagation = tobool(properties.disableBgpRoutePropagation),
             Tags = tags,
             OrphanReason = 'Not attached to any subnet'
         | order by subscriptionId, ResourceGroup, ResourceName
@@ -3123,7 +3123,7 @@ class AzureResourceManager:
             ResourceName = name,
             ResourceGroup = resourceGroup,
             Location = location,
-            Sku = sku.name,
+            Sku = tostring(sku.name),
             Tags = tags,
             OrphanReason = 'No security policy links'
         | order by subscriptionId, ResourceGroup, ResourceName
@@ -3144,8 +3144,8 @@ class AzureResourceManager:
             ResourceName = name,
             ResourceGroup = resourceGroup,
             Location = location,
-            RoutingMethod = properties.trafficRoutingMethod,
-            DnsName = properties.dnsConfig.relativeName,
+            RoutingMethod = tostring(properties.trafficRoutingMethod),
+            DnsName = tostring(properties.dnsConfig.relativeName),
             Tags = tags,
             OrphanReason = 'No endpoints configured'
         | order by subscriptionId, ResourceGroup, ResourceName
@@ -3163,7 +3163,7 @@ class AzureResourceManager:
         | extend backendPoolsCount = array_length(properties.backendAddressPools)
         | extend SKUName = tostring(properties.sku.name)
         | extend SKUTier = tostring(properties.sku.tier)
-        | extend SKUCapacity = properties.sku.capacity
+        | extend SKUCapacity = toint(properties.sku.capacity)
         | extend AppGwId = tostring(id)
         | project AppGwId, resourceGroup, location, subscriptionId, tags, name, SKUName, SKUTier, SKUCapacity
         | join kind=leftouter (
@@ -3259,7 +3259,7 @@ class AzureResourceManager:
             Location = location,
             Sku = tostring(sku.name),
             Tier = tostring(sku.tier),
-            IdleTimeoutMinutes = properties.idleTimeoutInMinutes,
+            IdleTimeoutMinutes = toint(properties.idleTimeoutInMinutes),
             Tags = tags,
             OrphanReason = 'Not attached to any subnet'
         | order by subscriptionId, ResourceGroup, ResourceName
@@ -3280,7 +3280,7 @@ class AzureResourceManager:
             ResourceName = name,
             ResourceGroup = resourceGroup,
             Location = location,
-            IpAddressCount = array_length(properties.ipAddresses),
+            IpAddressCount = toint(array_length(properties.ipAddresses)),
             Tags = tags,
             OrphanReason = 'Not attached to any firewall'
         | order by subscriptionId, ResourceGroup, ResourceName
@@ -3302,8 +3302,8 @@ class AzureResourceManager:
             ResourceName = name,
             ResourceGroup = resourceGroup,
             Location = location,
-            NumberOfRecordSets = properties.numberOfRecordSets,
-            NumberOfVNetLinks = properties.numberOfVirtualNetworkLinks,
+            NumberOfRecordSets = toint(properties.numberOfRecordSets),
+            NumberOfVNetLinks = toint(properties.numberOfVirtualNetworkLinks),
             Tags = tags,
             OrphanReason = 'No Virtual Network links'
         | order by subscriptionId, ResourceGroup, ResourceName
@@ -3471,8 +3471,8 @@ class AzureResourceManager:
             ResourceGroup = resourceGroup,
             Location = location,
             ExpirationDate = expiresOn,
-            Thumbprint = properties.thumbprint,
-            SubjectName = properties.subjectName,
+            Thumbprint = tostring(properties.thumbprint),
+            SubjectName = tostring(properties.subjectName),
             Tags = tags,
             OrphanReason = 'Certificate expired'
         | order by ExpirationDate asc, subscriptionId, ResourceGroup
@@ -3515,7 +3515,8 @@ class AzureResourceManager:
         for name, func in orphan_checks:
             try:
                 result = func(subscriptions)
-                count = result.get("total_rows", 0)
+                # query_resources returns "count" or "total_records", not "total_rows"
+                count = result.get("count", 0) or result.get("total_records", 0) or 0
                 summary["categories"][name] = count
                 total_orphaned += count
                 # Track resources that have cost impact
