@@ -765,6 +765,27 @@
             letter-spacing: 0.05em;
         }
 
+        /* Highlighted Important Card - Orphaned Resources */
+        .welcome-category-card.highlight-card {
+            background: linear-gradient(135deg, #FFF4E5 0%, var(--surface) 100%);
+            border: 2px solid var(--warning);
+            box-shadow: 0 4px 20px rgba(255, 140, 0, 0.15);
+        }
+
+        .welcome-category-card.highlight-card::before {
+            background: linear-gradient(90deg, var(--warning) 0%, #FF6B00 100%);
+            transform: scaleX(1);
+        }
+
+        .welcome-category-card.highlight-card:hover {
+            border-color: #FF6B00;
+            box-shadow: 0 8px 32px rgba(255, 140, 0, 0.25);
+        }
+
+        .welcome-category-card.highlight-card .welcome-category-title {
+            color: var(--warning);
+        }
+
         /* Messages - Modern Card Style */
         .message {
             display: flex;
@@ -2539,6 +2560,13 @@
                             <div class="welcome-category-title">Well-Architected Framework</div>
                             <div class="welcome-category-desc">Reliability, Security, Cost, Operations, Performance</div>
                             <div class="welcome-category-count">8 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card highlight-card" onclick="showCategory('orphaned')">
+                            <span class="welcome-category-icon"><img src="/Icons/general/10349-icon-service-Resource-Explorer.svg" alt="Orphaned"></span>
+                            <div class="welcome-category-title">Orphaned Resources 💲</div>
+                            <div class="welcome-category-desc">Find unused resources costing money - disks, IPs, NICs, NSGs</div>
+                            <div class="welcome-category-count">24 Resource Types</div>
                         </div>
                         
                         <div class="welcome-category-card" onclick="showCategory('backup')">
