@@ -164,6 +164,22 @@ async def get_subscriptions():
         return []
 
 
+@app.get("/api/subscriptions-hierarchy")
+async def get_subscriptions_hierarchy():
+    """Get Azure subscriptions with management group hierarchy"""
+    try:
+        result = await resource_manager.get_subscriptions_with_hierarchy()
+        return result
+    except Exception as e:
+        print(f"Error fetching subscriptions hierarchy: {e}")
+        # Return subscriptions only if hierarchy fails
+        subscriptions = await resource_manager.get_subscriptions()
+        return {
+            "subscriptions": subscriptions if isinstance(subscriptions, list) else [],
+            "managementGroups": []
+        }
+
+
 @app.get("/api/export-csv/{query_id}")
 async def export_csv(query_id: str):
     """

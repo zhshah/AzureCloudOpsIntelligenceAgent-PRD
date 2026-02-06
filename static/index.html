@@ -1293,10 +1293,10 @@
         </div>
         
         <div class="subscription-selector">
-            <label for="subscriptionSelect" style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 8px;">Subscription:</label>
+            <label for="subscriptionSelect" style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 8px;">Context:</label>
             <select id="subscriptionSelect" onchange="changeSubscription()">
                 <option value="all">All Subscriptions</option>
-                <option value="loading" selected>Loading subscriptions...</option>
+                <option value="loading" selected>Loading hierarchy...</option>
             </select>
         </div>
 
@@ -2952,7 +2952,7 @@
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
 
-        // Load Azure Subscriptions
+        // Load Azure Subscriptions with Management Group Hierarchy
         async function loadAzureSubscriptions() {
             try {
                 const accessToken = sessionStorage.getItem('accessToken');
@@ -2961,50 +2961,116 @@
                     headers['Authorization'] = `Bearer ${accessToken}`;
                 }
 
-                // Call backend to get subscriptions
-                const response = await fetch('/api/subscriptions', {
+                // Call backend to get subscriptions with hierarchy
+                const response = await fetch('/api/subscriptions-hierarchy', {
                     method: 'GET',
                     headers: headers
                 });
 
+                const select = document.getElementById('subscriptionSelect');
+                
                 if (response.ok) {
-                    const subscriptions = await response.json();
-                    const select = document.getElementById('subscriptionSelect');
+                    const data = await response.json();
+                    const subscriptions = data.subscriptions || [];
+                    const managementGroups = data.managementGroups || [];
                     
                     // Clear loading option
                     select.innerHTML = '<option value="all">All Subscriptions</option>';
                     
-                    // Add real subscriptions
+                    // Add Management Groups section if available
+                    if (managementGroups && managementGroups.length > 0) {
+                        const mgOptGroup = document.createElement('optgroup');
+                        mgOptGroup.label = '📁 Management Groups';
+                        
+                        managementGroups.forEach(mg => {
+                            const option = document.createElement('option');
+                            option.value = `mg:${mg.id}`;
+                            option.textContent = `📁 ${mg.name}`;
+                            option.style.fontWeight = 'bold';
+                            mgOptGroup.appendChild(option);
+                            
+                            // Add nested children recursively
+                            if (mg.children && mg.children.length > 0) {
+                                addHierarchyOptions(mgOptGroup, mg.children, 1);
+                            }
+                        });
+                        
+                        select.appendChild(mgOptGroup);
+                    }
+                    
+                    // Add Subscriptions section
                     if (subscriptions && subscriptions.length > 0) {
+                        const subOptGroup = document.createElement('optgroup');
+                        subOptGroup.label = '🔑 Subscriptions';
+                        
                         subscriptions.forEach((sub, index) => {
                             const option = document.createElement('option');
                             option.value = sub.id || sub.subscriptionId;
                             option.textContent = sub.displayName || sub.name;
-                            if (index === 0) option.selected = true; // Select first subscription by default
-                            select.appendChild(option);
+                            if (managementGroups.length === 0 && index === 0) {
+                                option.selected = true; // Select first subscription by default if no MGs
+                            }
+                            subOptGroup.appendChild(option);
                         });
+                        
+                        select.appendChild(subOptGroup);
                         
                         // Store subscriptions in session for later use
                         sessionStorage.setItem('azureSubscriptions', JSON.stringify(subscriptions));
+                        sessionStorage.setItem('azureManagementGroups', JSON.stringify(managementGroups));
                         
                         // Update insights for first subscription
                         if (subscriptions.length > 0) {
                             updateInsightsForSubscription(subscriptions[0].id || subscriptions[0].subscriptionId);
                         }
-                    } else {
-                        // No subscriptions found
+                    } else if (managementGroups.length === 0) {
+                        // No subscriptions or MGs found
                         select.innerHTML = '<option value="none">No subscriptions available</option>';
                     }
                 } else {
-                    console.error('Failed to load subscriptions');
-                    const select = document.getElementById('subscriptionSelect');
-                    select.innerHTML = '<option value="current">Current Subscription</option>';
+                    console.error('Failed to load subscriptions hierarchy, falling back to subscriptions only');
+                    // Fallback to regular subscriptions endpoint
+                    const fallbackResponse = await fetch('/api/subscriptions', { headers });
+                    if (fallbackResponse.ok) {
+                        const subscriptions = await fallbackResponse.json();
+                        select.innerHTML = '<option value="all">All Subscriptions</option>';
+                        subscriptions.forEach((sub, index) => {
+                            const option = document.createElement('option');
+                            option.value = sub.id || sub.subscriptionId;
+                            option.textContent = sub.displayName || sub.name;
+                            if (index === 0) option.selected = true;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        select.innerHTML = '<option value="current">Current Subscription</option>';
+                    }
                 }
             } catch (error) {
                 console.error('Error loading subscriptions:', error);
                 const select = document.getElementById('subscriptionSelect');
                 select.innerHTML = '<option value="current">Current Subscription</option>';
             }
+        }
+        
+        // Helper function to add hierarchical options
+        function addHierarchyOptions(parent, children, depth) {
+            const indent = '  '.repeat(depth);
+            children.forEach(child => {
+                const option = document.createElement('option');
+                if (child.type === 'managementGroup') {
+                    option.value = `mg:${child.id}`;
+                    option.textContent = `${indent}📁 ${child.name}`;
+                } else {
+                    option.value = child.id;
+                    option.textContent = `${indent}🔑 ${child.name}`;
+                }
+                parent.appendChild(option);
+                
+                // Recursively add children
+                if (child.children && child.children.length > 0) {
+                    addHierarchyOptions(parent, child.children, depth + 1);
+                }
+            });
         }
 
         // Initialize

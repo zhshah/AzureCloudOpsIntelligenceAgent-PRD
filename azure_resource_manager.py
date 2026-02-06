@@ -9,6 +9,7 @@ from azure.identity import DefaultAzureCredential
 from azure.mgmt.resourcegraph import ResourceGraphClient
 from azure.mgmt.resourcegraph.models import QueryRequest, QueryRequestOptions
 from azure.mgmt.resource import SubscriptionClient
+from azure.mgmt.managementgroups import ManagementGroupsAPI
 import json
 from azure_cost_manager import AzureCostManager
 
@@ -27,8 +28,10 @@ class AzureResourceManager:
         
         self.rg_client = ResourceGraphClient(self.credential)
         self.sub_client = SubscriptionClient(self.credential)
+        self.mg_client = ManagementGroupsAPI(self.credential)  # Management Groups client
         self.cost_manager = AzureCostManager()  # Initialize Cost Management client
         self._subscription_cache = {}  # Cache for subscription name lookups
+        self._management_group_cache = {}  # Cache for management group lookups
     
     def _get_subscription_names(self) -> Dict[str, str]:
         """Get mapping of subscription ID to display name"""
@@ -53,6 +56,66 @@ class AzureResourceManager:
             return subscriptions
         except Exception as e:
             return [{"error": str(e)}]
+    
+    async def get_management_groups(self) -> List[Dict[str, Any]]:
+        """Get all accessible management groups with hierarchy"""
+        try:
+            management_groups = []
+            for mg in self.mg_client.management_groups.list():
+                # Get detailed info including children
+                mg_detail = self.mg_client.management_groups.get(
+                    group_id=mg.name,
+                    expand="children",
+                    recurse=True
+                )
+                mg_data = {
+                    "id": mg.name,
+                    "name": mg_detail.display_name or mg.name,
+                    "type": "managementGroup",
+                    "tenantId": mg_detail.tenant_id if hasattr(mg_detail, 'tenant_id') else None,
+                    "children": self._extract_children(mg_detail.children) if hasattr(mg_detail, 'children') and mg_detail.children else []
+                }
+                management_groups.append(mg_data)
+            return management_groups
+        except Exception as e:
+            print(f"Error fetching management groups: {e}")
+            return []
+    
+    def _extract_children(self, children) -> List[Dict[str, Any]]:
+        """Recursively extract children from management group hierarchy"""
+        result = []
+        if not children:
+            return result
+        for child in children:
+            child_data = {
+                "id": child.name,
+                "name": child.display_name or child.name,
+                "type": "managementGroup" if "/managementGroups/" in (child.id or "") else "subscription"
+            }
+            if hasattr(child, 'children') and child.children:
+                child_data["children"] = self._extract_children(child.children)
+            result.append(child_data)
+        return result
+    
+    async def get_subscriptions_with_hierarchy(self) -> Dict[str, Any]:
+        """Get subscriptions with management group hierarchy"""
+        try:
+            # Get subscriptions
+            subscriptions = await self.get_subscriptions()
+            
+            # Get management groups
+            management_groups = await self.get_management_groups()
+            
+            return {
+                "subscriptions": subscriptions,
+                "managementGroups": management_groups
+            }
+        except Exception as e:
+            return {
+                "subscriptions": await self.get_subscriptions(),
+                "managementGroups": [],
+                "error": str(e)
+            }
     
     def query_resources(self, query: str, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
         """
