@@ -35,8 +35,22 @@
 .PARAMETER EntraTenantId
     Azure AD Tenant ID for authentication (REQUIRED)
 
+.PARAMETER SubscriptionId
+    Target Azure Subscription ID for deployment (OPTIONAL but RECOMMENDED)
+    If not provided, uses the currently active subscription in Azure CLI
+    IMPORTANT: Specify this to ensure deployment goes to the correct subscription
+
+.PARAMETER EnableLogAnalytics
+    Enable Log Analytics workspace for Container Apps Environment (OPTIONAL)
+    Default: Disabled (for simpler deployment on new subscriptions)
+    When disabled, use 'az containerapp logs show' to view container logs
+
 .EXAMPLE
-    .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname" -EntraAppClientId "your-app-client-id" -EntraTenantId "your-tenant-id"
+    .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname" -EntraAppClientId "your-app-client-id" -EntraTenantId "your-tenant-id" -SubscriptionId "your-subscription-id"
+
+.EXAMPLE
+    # Deploy with Log Analytics enabled
+    .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -ContainerRegistryName "mycrname" -EntraAppClientId "your-app-client-id" -EntraTenantId "your-tenant-id" -SubscriptionId "your-subscription-id" -EnableLogAnalytics
 
 # ==============================================================================
 # ⚠️  IMPORTANT: TWO TYPES OF PERMISSIONS (READ CAREFULLY!)
@@ -221,7 +235,13 @@ param(
     [string]$EntraAppClientId,
     
     [Parameter(Mandatory=$true)]
-    [string]$EntraTenantId
+    [string]$EntraTenantId,
+    
+    [Parameter(Mandatory=$false)]
+    [string]$SubscriptionId = "",
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$EnableLogAnalytics = $false
 )
 
 # ============================================
@@ -293,10 +313,113 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Success "Logged in to Azure"
 
-# Get subscription info
+# Set subscription explicitly if provided (IMPORTANT: prevents wrong subscription deployment)
+if (-not [string]::IsNullOrEmpty($SubscriptionId)) {
+    Write-Info "Setting subscription to: $SubscriptionId"
+    az account set --subscription $SubscriptionId
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to set subscription. Please verify the subscription ID is correct and you have access."
+        exit 1
+    }
+    Write-Success "Subscription explicitly set to: $SubscriptionId"
+} else {
+    Write-Info "No SubscriptionId provided - using currently active subscription"
+    Write-Info "TIP: Use -SubscriptionId parameter to ensure correct subscription"
+}
+
+# Get subscription info (verify we're on the right subscription)
 $subscriptionId = az account show --query "id" -o tsv
 $subscriptionName = az account show --query "name" -o tsv
-Write-Success "Using subscription: $subscriptionName ($subscriptionId)"
+Write-Host ""
+Write-Host "  ╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Yellow
+Write-Host "  ║  TARGET SUBSCRIPTION (All resources will deploy here)         ║" -ForegroundColor Yellow
+Write-Host "  ╠════════════════════════════════════════════════════════════════╣" -ForegroundColor Yellow
+Write-Host "  ║  Name: $subscriptionName" -ForegroundColor White
+Write-Host "  ║  ID:   $subscriptionId" -ForegroundColor White
+Write-Host "  ╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Yellow
+Write-Host ""
+
+# Confirm with user
+$confirmation = Read-Host "  Is this the correct subscription? (Y/N)"
+if ($confirmation -ne 'Y' -and $confirmation -ne 'y') {
+    Write-Error "Deployment cancelled. Please run 'az account set --subscription <correct-subscription-id>' or use -SubscriptionId parameter"
+    exit 1
+}
+Write-Success "Subscription confirmed: $subscriptionName ($subscriptionId)"
+
+# ============================================
+# STEP 0: REGISTER REQUIRED RESOURCE PROVIDERS
+# ============================================
+Write-Step "Step 0: Registering Required Resource Providers"
+
+Write-Info "On new subscriptions, resource providers must be registered before use."
+Write-Info "This is a one-time operation per subscription."
+Write-Host ""
+
+# Define required providers
+$requiredProviders = @(
+    @{ Namespace = "Microsoft.ContainerRegistry"; Description = "Container Registry" },
+    @{ Namespace = "Microsoft.App"; Description = "Container Apps" },
+    @{ Namespace = "Microsoft.CognitiveServices"; Description = "Azure OpenAI" },
+    @{ Namespace = "Microsoft.ManagedIdentity"; Description = "Managed Identity" }
+)
+
+# Add Log Analytics provider if enabled
+if ($EnableLogAnalytics) {
+    $requiredProviders += @{ Namespace = "Microsoft.OperationalInsights"; Description = "Log Analytics" }
+}
+
+# Check and register providers
+$providersToWait = @()
+foreach ($provider in $requiredProviders) {
+    $status = az provider show --namespace $provider.Namespace --query "registrationState" -o tsv 2>$null
+    
+    if ($status -eq "Registered") {
+        Write-Success "$($provider.Description) ($($provider.Namespace)) - Already registered"
+    } else {
+        Write-Info "Registering $($provider.Description) ($($provider.Namespace))..."
+        az provider register --namespace $provider.Namespace --output none
+        $providersToWait += $provider
+    }
+}
+
+# Wait for all providers to be registered
+if ($providersToWait.Count -gt 0) {
+    Write-Host ""
+    Write-Info "Waiting for resource providers to complete registration..."
+    Write-Info "This may take 2-5 minutes for new subscriptions..."
+    Write-Host ""
+    
+    $maxWaitSeconds = 300  # 5 minutes max per provider
+    
+    foreach ($provider in $providersToWait) {
+        $elapsed = 0
+        $registered = $false
+        
+        while ($elapsed -lt $maxWaitSeconds) {
+            $status = az provider show --namespace $provider.Namespace --query "registrationState" -o tsv 2>$null
+            
+            if ($status -eq "Registered") {
+                Write-Success "$($provider.Description) ($($provider.Namespace)) - Registered"
+                $registered = $true
+                break
+            }
+            
+            Write-Host "    Waiting for $($provider.Namespace)... ($elapsed seconds)" -ForegroundColor Gray
+            Start-Sleep -Seconds 15
+            $elapsed += 15
+        }
+        
+        if (-not $registered) {
+            Write-Error "$($provider.Description) ($($provider.Namespace)) failed to register within $maxWaitSeconds seconds"
+            Write-Info "Please run manually: az provider register --namespace $($provider.Namespace) --wait"
+            exit 1
+        }
+    }
+}
+
+Write-Host ""
+Write-Success "All required resource providers are registered"
 
 # ============================================
 # STEP 1: CREATE RESOURCE GROUP
@@ -365,43 +488,229 @@ $deploymentExists = az cognitiveservices account deployment show `
     --resource-group $ResourceGroupName `
     --deployment-name $OpenAIDeploymentName 2>&1
 
+$deployedCapacity = 0
+$deployedModel = ""
+$deployedSku = ""
+$deployedModelVersion = ""
+
 if ($LASTEXITCODE -eq 0) {
     Write-Info "Model deployment '$OpenAIDeploymentName' already exists"
+    $deployedCapacity = 30  # Assume existing deployment is fine
+    $deployedModel = "gpt-4o"
+    $deployedSku = "GlobalStandard"
+    $deployedModelVersion = "2024-08-06"
 } else {
     Write-Info "Deploying GPT-4o model..."
     Write-Info "This may take 3-5 minutes..."
+    Write-Info "Strategy: Prioritize GlobalStandard (best latency), start high and decrease"
     
-    az cognitiveservices account deployment create `
-        --name $OpenAIResourceName `
-        --resource-group $ResourceGroupName `
-        --deployment-name $OpenAIDeploymentName `
-        --model-name $OpenAIModelName `
-        --model-version "2024-08-06" `
-        --model-format "OpenAI" `
-        --sku-capacity 30 `
-        --sku-name "GlobalStandard" `
-        --output none
+    $deploymentSuccess = $false
+    # Start at 40K, decrease by 3K increments for fine-grained quota discovery
+    $capacityLevels = @(40, 37, 34, 31, 28, 25, 22, 19, 16, 13, 10)
     
-    if ($LASTEXITCODE -ne 0) {
-        Write-Info "Trying alternative model version..."
+    # PRIORITY 1: Try GPT-4o with GlobalStandard SKU (BEST LATENCY - global routing)
+    Write-Info "Trying GlobalStandard SKU (recommended for best latency)..."
+    foreach ($capacity in $capacityLevels) {
+        if ($deploymentSuccess) { break }
+        
+        Write-Info "  GlobalStandard ${capacity}K TPM..."
         az cognitiveservices account deployment create `
             --name $OpenAIResourceName `
             --resource-group $ResourceGroupName `
             --deployment-name $OpenAIDeploymentName `
-            --model-name $OpenAIModelName `
-            --model-version "2024-05-13" `
+            --model-name "gpt-4o" `
+            --model-version "2024-08-06" `
             --model-format "OpenAI" `
-            --sku-capacity 30 `
-            --sku-name "Standard" `
-            --output none
+            --sku-capacity $capacity `
+            --sku-name "GlobalStandard" `
+            --output none 2>$null
         
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "Failed to deploy GPT-4o model. Please check model availability in your region."
-            exit 1
+        if ($LASTEXITCODE -eq 0) { 
+            $deploymentSuccess = $true
+            $deployedCapacity = $capacity
+            $deployedModel = "gpt-4o"
+            $deployedSku = "GlobalStandard"
+            $deployedModelVersion = "2024-08-06"
+            Write-Success "Deployed with ${capacity}K TPM (GlobalStandard - optimal latency)"
         }
     }
+    
+    # PRIORITY 2: DataZoneStandard as FALLBACK ONLY (higher latency due to regional constraints)
+    if (-not $deploymentSuccess) {
+        Write-Info "GlobalStandard quota exhausted. Trying DataZoneStandard (fallback)..."
+        Write-Info "Note: DataZoneStandard may have slightly higher latency"
+        foreach ($capacity in $capacityLevels) {
+            if ($deploymentSuccess) { break }
+            
+            Write-Info "  DataZoneStandard ${capacity}K TPM..."
+            az cognitiveservices account deployment create `
+                --name $OpenAIResourceName `
+                --resource-group $ResourceGroupName `
+                --deployment-name $OpenAIDeploymentName `
+                --model-name "gpt-4o" `
+                --model-version "2024-08-06" `
+                --model-format "OpenAI" `
+                --sku-capacity $capacity `
+                --sku-name "DataZoneStandard" `
+                --output none 2>$null
+            
+            if ($LASTEXITCODE -eq 0) { 
+                $deploymentSuccess = $true
+                $deployedCapacity = $capacity
+                $deployedModel = "gpt-4o"
+                $deployedSku = "DataZoneStandard"
+                $deployedModelVersion = "2024-08-06"
+                Write-Success "Deployed with ${capacity}K TPM (DataZoneStandard)"
+                Write-Info "Tip: Request GlobalStandard quota increase for better latency"
+            }
+        }
+    }
+    
+    # PRIORITY 3: Standard SKU (older regions)
+    if (-not $deploymentSuccess) {
+        Write-Info "Trying Standard SKU (legacy regions)..."
+        foreach ($capacity in $capacityLevels) {
+            if ($deploymentSuccess) { break }
+            
+            Write-Info "  Standard ${capacity}K TPM..."
+            az cognitiveservices account deployment create `
+                --name $OpenAIResourceName `
+                --resource-group $ResourceGroupName `
+                --deployment-name $OpenAIDeploymentName `
+                --model-name "gpt-4o" `
+                --model-version "2024-05-13" `
+                --model-format "OpenAI" `
+                --sku-capacity $capacity `
+                --sku-name "Standard" `
+                --output none 2>$null
+            
+            if ($LASTEXITCODE -eq 0) { 
+                $deploymentSuccess = $true
+                $deployedCapacity = $capacity
+                $deployedModel = "gpt-4o"
+                $deployedSku = "Standard"
+                $deployedModelVersion = "2024-05-13"
+                Write-Success "Deployed with ${capacity}K TPM (Standard)"
+            }
+        }
+    }
+    
+    # PRIORITY 4: GPT-4o-mini as last resort
+    if (-not $deploymentSuccess) {
+        Write-Info "GPT-4o not available, trying GPT-4o-mini as last resort..."
+        foreach ($capacity in $capacityLevels) {
+            if ($deploymentSuccess) { break }
+            
+            Write-Info "  GPT-4o-mini GlobalStandard ${capacity}K TPM..."
+            az cognitiveservices account deployment create `
+                --name $OpenAIResourceName `
+                --resource-group $ResourceGroupName `
+                --deployment-name $OpenAIDeploymentName `
+                --model-name "gpt-4o-mini" `
+                --model-version "2024-07-18" `
+                --model-format "OpenAI" `
+                --sku-capacity $capacity `
+                --sku-name "GlobalStandard" `
+                --output none 2>$null
+            
+            if ($LASTEXITCODE -eq 0) { 
+                $deploymentSuccess = $true
+                $deployedCapacity = $capacity
+                $deployedModel = "gpt-4o-mini"
+                $deployedSku = "GlobalStandard"
+                $deployedModelVersion = "2024-07-18"
+                Write-Info "Note: Deployed gpt-4o-mini with ${capacity}K TPM (GPT-4o not available)"
+            }
+        }
+    }
+    
+    if (-not $deploymentSuccess) {
+        Write-Error "Failed to deploy any GPT model. Please check:"
+        Write-Host "  1. Azure OpenAI quota in your subscription" -ForegroundColor Yellow
+        Write-Host "  2. Model availability in region '$Location'" -ForegroundColor Yellow
+        Write-Host "  3. Request quota increase at: https://aka.ms/oai/quotaincrease" -ForegroundColor Yellow
+        exit 1
+    }
 }
-Write-Success "GPT-4o model deployed: $OpenAIDeploymentName"
+
+# Scale up TPM if deployed with lower capacity (target: at least 25K for good performance)
+$minimumTargetCapacity = 25
+if ($deployedCapacity -gt 0 -and $deployedCapacity -lt 50) {
+    Write-Info "Attempting to scale up deployment for optimal performance..."
+    Write-Info "Current: ${deployedCapacity}K TPM with $deployedSku SKU"
+    Write-Info "Target: Maximize TPM (minimum ${minimumTargetCapacity}K for large prompts)"
+    
+    # Wait for deployment to stabilize
+    Start-Sleep -Seconds 15
+    
+    # Try scale-up: start from 50K, decrease by 2K until we find available quota
+    # Stop trying if we reach current capacity (no point going lower)
+    $scaleUpSuccess = $false
+    $finalCapacity = $deployedCapacity
+    
+    # Generate scale-up targets: 50, 48, 46, 44, 42, 40, 38, 36, 34, 32, 30, 28, 26, 25
+    $scaleUpTargets = @()
+    for ($i = 50; $i -ge $minimumTargetCapacity; $i -= 2) {
+        if ($i -gt $deployedCapacity) {
+            $scaleUpTargets += $i
+        }
+    }
+    # Add 25 explicitly if not in list
+    if ($scaleUpTargets -notcontains $minimumTargetCapacity -and $minimumTargetCapacity -gt $deployedCapacity) {
+        $scaleUpTargets += $minimumTargetCapacity
+    }
+    
+    if ($scaleUpTargets.Count -gt 0) {
+        Write-Info "Scale-up attempts: $($scaleUpTargets -join 'K, ')K TPM"
+        
+        foreach ($targetCapacity in $scaleUpTargets) {
+            if ($scaleUpSuccess) { break }
+            
+            Write-Info "  Trying ${targetCapacity}K TPM..."
+            az cognitiveservices account deployment create `
+                --name $OpenAIResourceName `
+                --resource-group $ResourceGroupName `
+                --deployment-name $OpenAIDeploymentName `
+                --model-name $deployedModel `
+                --model-version $deployedModelVersion `
+                --model-format "OpenAI" `
+                --sku-capacity $targetCapacity `
+                --sku-name $deployedSku `
+                --output none 2>$null
+            
+            if ($LASTEXITCODE -eq 0) {
+                $scaleUpSuccess = $true
+                $finalCapacity = $targetCapacity
+                Write-Success "Successfully scaled up to ${targetCapacity}K TPM"
+            }
+        }
+    }
+    
+    if (-not $scaleUpSuccess) {
+        Write-Info "Could not scale up (quota limit). Staying at: ${deployedCapacity}K TPM"
+        if ($deployedCapacity -lt $minimumTargetCapacity) {
+            Write-Host ""
+            Write-Host "  ⚠️  WARNING: Current capacity (${deployedCapacity}K TPM) is below recommended minimum (${minimumTargetCapacity}K)" -ForegroundColor Yellow
+            Write-Host "  Large prompts may experience slower response times or rate limiting." -ForegroundColor Yellow
+            Write-Host "  Request quota increase at: https://aka.ms/oai/quotaincrease" -ForegroundColor Yellow
+        }
+        Write-Host ""
+        Write-Host "  # Manual scale-up command (when quota available):" -ForegroundColor Cyan
+        Write-Host "  az cognitiveservices account deployment create ``" -ForegroundColor DarkGray
+        Write-Host "      --name $OpenAIResourceName ``" -ForegroundColor DarkGray
+        Write-Host "      --resource-group $ResourceGroupName ``" -ForegroundColor DarkGray
+        Write-Host "      --deployment-name $OpenAIDeploymentName ``" -ForegroundColor DarkGray
+        Write-Host "      --model-name $deployedModel ``" -ForegroundColor DarkGray
+        Write-Host "      --model-version '$deployedModelVersion' ``" -ForegroundColor DarkGray
+        Write-Host "      --model-format 'OpenAI' ``" -ForegroundColor DarkGray
+        Write-Host "      --sku-capacity 40 ``" -ForegroundColor DarkGray
+        Write-Host "      --sku-name '$deployedSku'" -ForegroundColor DarkGray
+    } else {
+        $deployedCapacity = $finalCapacity
+    }
+}
+
+Write-Success "Model deployment ready: $OpenAIDeploymentName ($deployedModel)"
 
 # ============================================
 # STEP 4: CREATE CONTAINER REGISTRY
@@ -424,7 +733,7 @@ if ($LASTEXITCODE -eq 0) {
         --name $acrNameClean `
         --resource-group $ResourceGroupName `
         --sku Basic `
-        --admin-enabled true `
+        --admin-enabled false `
         --output none
     
     if ($LASTEXITCODE -ne 0) {
@@ -434,10 +743,9 @@ if ($LASTEXITCODE -eq 0) {
 }
 Write-Success "Container Registry ready: $acrNameClean"
 
-# Get ACR credentials
+# Store ACR server name for later use
 $acrServer = "$acrNameClean.azurecr.io"
-$acrUsername = az acr credential show --name $acrNameClean --query "username" -o tsv
-$acrPassword = az acr credential show --name $acrNameClean --query "passwords[0].value" -o tsv
+# Note: Using Managed Identity for ACR authentication (no admin credentials needed)
 
 # ============================================
 # STEP 5: BUILD AND PUSH CONTAINER IMAGE
@@ -472,11 +780,23 @@ if ($LASTEXITCODE -eq 0) {
     Write-Info "Creating Container Apps Environment..."
     Write-Info "This may take 2-3 minutes..."
     
-    az containerapp env create `
-        --name $ContainerAppEnvName `
-        --resource-group $ResourceGroupName `
-        --location $Location `
-        --output none
+    if ($EnableLogAnalytics) {
+        Write-Info "Log Analytics enabled - environment will have full logging capabilities"
+        az containerapp env create `
+            --name $ContainerAppEnvName `
+            --resource-group $ResourceGroupName `
+            --location $Location `
+            --output none
+    } else {
+        Write-Info "Log Analytics disabled (default) - use 'az containerapp logs' for debugging"
+        Write-Info "To enable later, recreate environment with -EnableLogAnalytics switch"
+        az containerapp env create `
+            --name $ContainerAppEnvName `
+            --resource-group $ResourceGroupName `
+            --location $Location `
+            --logs-destination none `
+            --output none
+    }
     
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to create Container Apps Environment"
@@ -486,36 +806,38 @@ if ($LASTEXITCODE -eq 0) {
 Write-Success "Container Apps Environment ready: $ContainerAppEnvName"
 
 # ============================================
-# STEP 7: DEPLOY CONTAINER APP
+# STEP 7: CREATE CONTAINER APP WITH MANAGED IDENTITY
 # ============================================
-Write-Step "Step 7: Deploying Container App"
+Write-Step "Step 7: Creating Container App with Managed Identity"
 
 $appExists = az containerapp show --name $ContainerAppName --resource-group $ResourceGroupName 2>&1
 if ($LASTEXITCODE -eq 0) {
-    Write-Info "Container App '$ContainerAppName' already exists, updating..."
+    Write-Info "Container App '$ContainerAppName' already exists"
     
-    az containerapp update `
+    # Ensure managed identity is enabled
+    Write-Info "Ensuring managed identity is enabled..."
+    az containerapp identity assign `
         --name $ContainerAppName `
         --resource-group $ResourceGroupName `
-        --image "$acrServer/${ContainerImageName}:${ContainerImageTag}" `
-        --output none
+        --system-assigned `
+        --output none 2>$null
 } else {
-    Write-Info "Creating Container App '$ContainerAppName'..."
+    # Step 7a: Create container app with placeholder image and managed identity enabled
+    Write-Info "Creating Container App '$ContainerAppName' with System-Assigned Managed Identity..."
+    Write-Info "Using placeholder image (will update after ACR access is configured)..."
     
     az containerapp create `
         --name $ContainerAppName `
         --resource-group $ResourceGroupName `
         --environment $ContainerAppEnvName `
-        --image "$acrServer/${ContainerImageName}:${ContainerImageTag}" `
+        --image "mcr.microsoft.com/k8se/quickstart:latest" `
         --target-port 8000 `
         --ingress external `
         --min-replicas 1 `
         --max-replicas 3 `
         --cpu 1.0 `
         --memory 2.0Gi `
-        --registry-server $acrServer `
-        --registry-username $acrUsername `
-        --registry-password $acrPassword `
+        --system-assigned `
         --env-vars `
             "AZURE_OPENAI_ENDPOINT=$openaiEndpoint" `
             "AZURE_OPENAI_DEPLOYMENT_NAME=$OpenAIDeploymentName" `
@@ -531,38 +853,86 @@ if ($LASTEXITCODE -eq 0) {
         Write-Error "Failed to create Container App"
         exit 1
     }
-}
-Write-Success "Container App deployed: $ContainerAppName"
-
-# ============================================
-# STEP 8: ENABLE MANAGED IDENTITY
-# ============================================
-Write-Step "Step 8: Configuring Managed Identity"
-
-Write-Info "Enabling system-assigned managed identity..."
-az containerapp identity assign `
-    --name $ContainerAppName `
-    --resource-group $ResourceGroupName `
-    --system-assigned `
-    --output none
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to enable managed identity"
-    exit 1
+    Write-Success "Container App created with Managed Identity enabled"
 }
 
-# Get principal ID
+# Get principal ID for role assignments
 $principalId = az containerapp show `
     --name $ContainerAppName `
     --resource-group $ResourceGroupName `
     --query "identity.principalId" -o tsv
 
-Write-Success "Managed Identity enabled. Principal ID: $principalId"
+if ([string]::IsNullOrEmpty($principalId)) {
+    Write-Error "Failed to get Managed Identity Principal ID"
+    exit 1
+}
+Write-Success "Managed Identity Principal ID: $principalId"
 
 # ============================================
-# STEP 9: ASSIGN RBAC ROLES (LEAST-PRIVILEGE)
+# STEP 8: CONFIGURE ACR ACCESS WITH MANAGED IDENTITY
 # ============================================
-Write-Step "Step 9: Assigning RBAC Roles (Least-Privilege Principle)"
+Write-Step "Step 8: Configuring ACR Access (AcrPull Role)"
+
+Write-Info "Assigning 'AcrPull' role to Managed Identity for ACR access..."
+Write-Info "This allows the Container App to pull images from ACR securely."
+
+$acrResourceId = "/subscriptions/$subscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.ContainerRegistry/registries/$acrNameClean"
+
+$acrRoleResult = az role assignment create `
+    --assignee $principalId `
+    --role "AcrPull" `
+    --scope $acrResourceId `
+    --output none 2>&1
+
+if ($LASTEXITCODE -eq 0 -or $acrRoleResult -match "already exists") {
+    Write-Success "AcrPull role assigned to Managed Identity"
+} else {
+    Write-Info "AcrPull role may already exist (continuing...)"
+}
+
+# Wait for role propagation
+Write-Info "Waiting 30 seconds for role assignment to propagate..."
+Start-Sleep -Seconds 30
+
+# ============================================
+# STEP 9: UPDATE CONTAINER APP WITH REAL IMAGE
+# ============================================
+Write-Step "Step 9: Updating Container App with Application Image"
+
+Write-Info "Updating Container App to use image from ACR..."
+Write-Info "Image: $acrServer/${ContainerImageName}:${ContainerImageTag}"
+
+# First, register the registry with the container app using managed identity
+az containerapp registry set `
+    --name $ContainerAppName `
+    --resource-group $ResourceGroupName `
+    --server $acrServer `
+    --identity system `
+    --output none
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to configure ACR registry with Managed Identity"
+    exit 1
+}
+Write-Success "ACR registry configured with Managed Identity authentication"
+
+# Now update the container app with the real image
+az containerapp update `
+    --name $ContainerAppName `
+    --resource-group $ResourceGroupName `
+    --image "$acrServer/${ContainerImageName}:${ContainerImageTag}" `
+    --output none
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to update Container App with application image"
+    exit 1
+}
+Write-Success "Container App updated with application image"
+
+# ============================================
+# STEP 10: ASSIGN RBAC ROLES (LEAST-PRIVILEGE)
+# ============================================
+Write-Step "Step 10: Assigning RBAC Roles (Least-Privilege Principle)"
 
 Write-Host ""
 Write-Host "  📋 RBAC Assignment Summary (Least-Privilege)" -ForegroundColor Yellow
@@ -641,9 +1011,9 @@ Write-Host "  • NO API keys used (Managed Identity only)" -ForegroundColor Whi
 Write-Host ""
 
 # ============================================
-# STEP 10: GET APPLICATION URL
+# STEP 11: GET APPLICATION URL
 # ============================================
-Write-Step "Step 10: Retrieving Application URL"
+Write-Step "Step 11: Retrieving Application URL"
 
 Start-Sleep -Seconds 5  # Wait for deployment to stabilize
 
@@ -671,6 +1041,11 @@ Write-Host "  Model Deployment:      $OpenAIDeploymentName (GPT-4o)" -Foreground
 Write-Host "  Container Registry:    $acrNameClean" -ForegroundColor White
 Write-Host "  Container App:         $ContainerAppName" -ForegroundColor White
 Write-Host "  Subscription:          $subscriptionId" -ForegroundColor White
+if ($EnableLogAnalytics) {
+    Write-Host "  Log Analytics:         ✅ Enabled" -ForegroundColor White
+} else {
+    Write-Host "  Log Analytics:         Disabled (use -EnableLogAnalytics to enable)" -ForegroundColor Gray
+}
 Write-Host ""
 Write-Host "🌐 APPLICATION URL (Ready to use!)" -ForegroundColor Cyan
 Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
@@ -680,6 +1055,7 @@ Write-Host "🔐 SECURITY CONFIGURATION (Least-Privilege)" -ForegroundColor Cyan
 Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
 Write-Host "  Identity Type:          System-Assigned Managed Identity" -ForegroundColor White
 Write-Host "  Principal ID:           $principalId" -ForegroundColor White
+Write-Host "  ACR Authentication:     ✅ Managed Identity (no admin password)" -ForegroundColor White
 Write-Host "  API Keys Used:          ❌ NO (Managed Identity only)" -ForegroundColor White
 Write-Host "  Secrets Stored:         ❌ NO (Zero secrets in env vars)" -ForegroundColor White
 Write-Host ""
@@ -690,34 +1066,54 @@ Write-Host "  ├─────────────────────
 Write-Host "  │ Reader                              │ Subscription                  │" -ForegroundColor White
 Write-Host "  │ Cost Management Reader              │ Subscription                  │" -ForegroundColor White
 Write-Host "  │ Cognitive Services OpenAI User      │ OpenAI Resource ONLY          │" -ForegroundColor White
+Write-Host "  │ AcrPull                             │ Container Registry ONLY       │" -ForegroundColor White
 Write-Host "  └─────────────────────────────────────┴───────────────────────────────┘" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  ✅ Reader: Query VMs, networks, storage (read-only)" -ForegroundColor White
 Write-Host "  ✅ Cost Management Reader: Analyze costs (read-only)" -ForegroundColor White
 Write-Host "  ✅ OpenAI User: Chat with GPT-4o (resource-scoped only)" -ForegroundColor White
+Write-Host "  ✅ AcrPull: Pull container images from ACR (registry-scoped only)" -ForegroundColor White
 Write-Host ""
 Write-Host "📝 WHAT WAS AUTOMATED" -ForegroundColor Cyan
 Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
+Write-Host "  ✅ Registered required Azure resource providers" -ForegroundColor Green
 Write-Host "  ✅ Created Azure OpenAI (AI Foundry) resource" -ForegroundColor Green
 Write-Host "  ✅ Deployed GPT-4o model" -ForegroundColor Green
 Write-Host "  ✅ Created Container Registry" -ForegroundColor Green
 Write-Host "  ✅ Built and pushed container image" -ForegroundColor Green
 Write-Host "  ✅ Created Container Apps Environment" -ForegroundColor Green
-Write-Host "  ✅ Deployed Container App with correct configurations" -ForegroundColor Green
-Write-Host "  ✅ Enabled System-Assigned Managed Identity" -ForegroundColor Green
+Write-Host "  ✅ Deployed Container App with System-Assigned Managed Identity" -ForegroundColor Green
+Write-Host "  ✅ Configured Managed Identity authentication for ACR" -ForegroundColor Green
 Write-Host "  ✅ Assigned all RBAC roles (Least-Privilege)" -ForegroundColor Green
 Write-Host "  ✅ Configured all environment variables automatically" -ForegroundColor Green
 Write-Host ""
 Write-Host "🔄 MULTI-SUBSCRIPTION ACCESS (Optional)" -ForegroundColor Cyan
 Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
-Write-Host "  To query resources in other subscriptions, run:" -ForegroundColor Yellow
+Write-Host "  To query resources in OTHER subscriptions, assign these 2 roles:" -ForegroundColor Yellow
+Write-Host "  (Replace <other-sub-id> with the target subscription ID)" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  az role assignment create --assignee $principalId \" -ForegroundColor DarkGray
+Write-Host "  # PowerShell syntax:" -ForegroundColor Cyan
+Write-Host "  az role assignment create --assignee $principalId ``" -ForegroundColor DarkGray
 Write-Host "      --role 'Reader' --scope '/subscriptions/<other-sub-id>'" -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "  az role assignment create --assignee $principalId \" -ForegroundColor DarkGray
+Write-Host "  az role assignment create --assignee $principalId ``" -ForegroundColor DarkGray
 Write-Host "      --role 'Cost Management Reader' --scope '/subscriptions/<other-sub-id>'" -ForegroundColor DarkGray
 Write-Host ""
+Write-Host "  # Bash/CLI syntax (single line):" -ForegroundColor Cyan
+Write-Host "  az role assignment create --assignee $principalId --role 'Reader' --scope '/subscriptions/<other-sub-id>'" -ForegroundColor DarkGray
+Write-Host "  az role assignment create --assignee $principalId --role 'Cost Management Reader' --scope '/subscriptions/<other-sub-id>'" -ForegroundColor DarkGray
+Write-Host ""
+if (-not $EnableLogAnalytics) {
+    Write-Host "📊 ENABLE LOGGING (Optional)" -ForegroundColor Cyan
+    Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
+    Write-Host "  Container logs are disabled by default for simpler deployment." -ForegroundColor White
+    Write-Host "  To view container logs from CLI:" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  az containerapp logs show --name $ContainerAppName --resource-group $ResourceGroupName --follow" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  To enable full Log Analytics, redeploy with -EnableLogAnalytics switch" -ForegroundColor Gray
+    Write-Host ""
+}
 Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
 Write-Host "  Author: Zahir Hussain Shah" -ForegroundColor Gray
 Write-Host "  Website: www.zahir.cloud | Email: zahir@zahir.cloud" -ForegroundColor Gray
