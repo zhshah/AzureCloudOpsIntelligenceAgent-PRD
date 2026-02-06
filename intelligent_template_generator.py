@@ -9,6 +9,7 @@ import logging
 import os
 from typing import Dict, Optional, Tuple
 from openai import AzureOpenAI
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure_schema_provider import AzureSchemaProvider
 from api_version_overrides import get_correct_api_version
 
@@ -29,12 +30,29 @@ class IntelligentTemplateGenerator:
         self.subscription_id = subscription_id
         self.schema_provider = AzureSchemaProvider(subscription_id)
         
+        # Check if we should use Managed Identity
+        use_managed_identity = os.getenv("USE_MANAGED_IDENTITY", "false").lower() == "true"
+        
         # Initialize OpenAI client
-        self.openai_client = AzureOpenAI(
-            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-            api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview"),
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
-        )
+        if use_managed_identity:
+            # Use Managed Identity authentication (no API key needed)
+            credential = DefaultAzureCredential()
+            token_provider = get_bearer_token_provider(
+                credential,
+                "https://cognitiveservices.azure.com/.default"
+            )
+            self.openai_client = AzureOpenAI(
+                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+                azure_ad_token_provider=token_provider,
+                api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-08-01-preview")
+            )
+        else:
+            # Use API key authentication
+            self.openai_client = AzureOpenAI(
+                api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+                api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview"),
+                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
+            )
         
         self.deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o")
     
