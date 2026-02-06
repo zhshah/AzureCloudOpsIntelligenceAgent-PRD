@@ -326,6 +326,7 @@ async def execute_approved_command(request: ExecuteApprovedRequest):
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/Icons", StaticFiles(directory="Icons"), name="icons")
 
 
 if __name__ == "__main__":
