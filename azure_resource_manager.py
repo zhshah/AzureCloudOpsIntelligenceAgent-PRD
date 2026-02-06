@@ -2895,19 +2895,24 @@ class AzureResourceManager:
         resources
         | where type =~ "microsoft.web/serverfarms"
         | where properties.numberOfSites == 0
-        | extend Details = pack_all()
         | project 
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
-            Sku = sku.name,
-            Tier = sku.tier,
-            NumberOfSites = properties.numberOfSites,
+            Sku = tostring(sku.name),
+            Tier = tostring(sku.tier),
+            Capacity = toint(sku.capacity),
+            Kind = kind,
+            NumberOfSites = toint(properties.numberOfSites),
+            NumberOfWorkers = toint(properties.numberOfWorkers),
+            Status = tostring(properties.status),
+            Reserved = tobool(properties.reserved),
             Tags = tags,
-            OrphanReason = 'No hosted apps'
-        | order by subscriptionId, ResourceGroup, ResourceName
+            OrphanReason = 'No hosted apps - plan is empty'
+        | order by Tier desc, subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
 
@@ -2925,12 +2930,16 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
-            FaultDomains = properties.platformFaultDomainCount,
-            UpdateDomains = properties.platformUpdateDomainCount,
+            Sku = tostring(sku.name),
+            FaultDomains = toint(properties.platformFaultDomainCount),
+            UpdateDomains = toint(properties.platformUpdateDomainCount),
+            VirtualMachineCount = 0,
+            ProximityPlacementGroup = tostring(properties.proximityPlacementGroup.id),
             Tags = tags,
-            OrphanReason = 'No VMs associated'
+            OrphanReason = 'No VMs associated - availability set is empty'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
@@ -2952,14 +2961,20 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
             DiskType = tostring(sku.name),
+            DiskTier = tostring(sku.tier),
             DiskSizeGB = tolong(properties.diskSizeGB),
+            DiskIOPSReadWrite = tolong(properties.diskIOPSReadWrite),
+            DiskMBpsReadWrite = tolong(properties.diskMBpsReadWrite),
             DiskState = diskState,
+            OsType = tostring(properties.osType),
             TimeCreated = tostring(properties.timeCreated),
+            HyperVGeneration = tostring(properties.hyperVGeneration),
             Tags = tags,
-            OrphanReason = 'Unattached disk'
+            OrphanReason = 'Unattached disk - not connected to any VM'
         | order by DiskSizeGB desc, subscriptionId, ResourceGroup
         """
         return self.query_resources(query, subscriptions)
@@ -3006,14 +3021,19 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
-            SkuType = tostring(sku.name),
+            SkuName = tostring(sku.name),
+            SkuTier = tostring(sku.tier),
             AllocationMethod = tostring(properties.publicIPAllocationMethod),
+            IpVersion = tostring(properties.publicIPAddressVersion),
             IpAddress = tostring(properties.ipAddress),
+            DnsName = tostring(properties.dnsSettings.fqdn),
+            IdleTimeoutMinutes = toint(properties.idleTimeoutInMinutes),
             Tags = tags,
-            OrphanReason = 'Not attached to any resource'
-        | order by SkuType desc, subscriptionId, ResourceGroup
+            OrphanReason = 'Not attached to any resource (VM, LB, NAT Gateway, etc.)'
+        | order by SkuName desc, AllocationMethod desc, subscriptionId, ResourceGroup
         """
         return self.query_resources(query, subscriptions)
 
@@ -3033,10 +3053,17 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
             Kind = kind,
             PrivateIP = tostring(properties.ipConfigurations[0].properties.privateIPAddress),
+            PrivateIPAllocationMethod = tostring(properties.ipConfigurations[0].properties.privateIPAllocationMethod),
+            SubnetId = tostring(properties.ipConfigurations[0].properties.subnet.id),
+            EnableAcceleratedNetworking = tobool(properties.enableAcceleratedNetworking),
+            EnableIPForwarding = tobool(properties.enableIPForwarding),
+            MacAddress = tostring(properties.macAddress),
+            NicType = tostring(properties.nicType),
             Tags = tags,
             OrphanReason = 'Not attached to any VM or service'
         | order by subscriptionId, ResourceGroup, ResourceName
@@ -3055,11 +3082,14 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
-            RuleCount = toint(array_length(properties.securityRules)),
+            InboundRuleCount = toint(array_length(properties.securityRules)),
+            DefaultInboundRules = toint(array_length(properties.defaultSecurityRules)),
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
-            OrphanReason = 'Not attached to NIC or subnet'
+            OrphanReason = 'Not attached to any NIC or subnet'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
@@ -3076,10 +3106,12 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
             RouteCount = toint(array_length(properties.routes)),
             DisableBgpRoutePropagation = tobool(properties.disableBgpRoutePropagation),
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
             OrphanReason = 'Not attached to any subnet'
         | order by subscriptionId, ResourceGroup, ResourceName
@@ -3099,13 +3131,19 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
-            SkuType = tostring(sku.name),
+            SkuName = tostring(sku.name),
             SkuTier = tostring(sku.tier),
+            FrontendIPCount = toint(array_length(properties.frontendIPConfigurations)),
+            BackendPoolCount = 0,
+            LoadBalancingRulesCount = toint(array_length(properties.loadBalancingRules)),
+            ProbesCount = toint(array_length(properties.probes)),
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
-            OrphanReason = 'No backend pools or NAT rules'
-        | order by SkuType desc, subscriptionId, ResourceGroup
+            OrphanReason = 'No backend pools or NAT rules configured'
+        | order by SkuName desc, subscriptionId, ResourceGroup
         """
         return self.query_resources(query, subscriptions)
 
@@ -3121,11 +3159,17 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
-            Sku = tostring(sku.name),
+            SkuName = tostring(sku.name),
+            PolicyMode = tostring(properties.policySettings.mode),
+            PolicyState = tostring(properties.policySettings.state),
+            CustomRuleCount = toint(array_length(properties.customRules.rules)),
+            ManagedRuleSetCount = toint(array_length(properties.managedRules.managedRuleSets)),
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
-            OrphanReason = 'No security policy links'
+            OrphanReason = 'No security policy links - WAF not attached to Front Door'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
@@ -3142,12 +3186,19 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
             RoutingMethod = tostring(properties.trafficRoutingMethod),
             DnsName = tostring(properties.dnsConfig.relativeName),
+            DnsFqdn = tostring(properties.dnsConfig.fqdn),
+            DnsTtl = toint(properties.dnsConfig.ttl),
+            ProfileStatus = tostring(properties.profileStatus),
+            MonitorProtocol = tostring(properties.monitorConfig.protocol),
+            MonitorPort = toint(properties.monitorConfig.port),
+            MonitorPath = tostring(properties.monitorConfig.path),
             Tags = tags,
-            OrphanReason = 'No endpoints configured'
+            OrphanReason = 'No endpoints configured - traffic manager has no targets'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
@@ -3165,7 +3216,7 @@ class AzureResourceManager:
         | extend SKUTier = tostring(properties.sku.tier)
         | extend SKUCapacity = toint(properties.sku.capacity)
         | extend AppGwId = tostring(id)
-        | project AppGwId, resourceGroup, location, subscriptionId, tags, name, SKUName, SKUTier, SKUCapacity
+        | project AppGwId, resourceGroup, location, subscriptionId, tags, name, type, SKUName, SKUTier, SKUCapacity
         | join kind=leftouter (
             resources
             | where type =~ 'microsoft.network/applicationgateways'
@@ -3181,12 +3232,16 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = AppGwId,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
+            SKUName,
             SKUTier,
             SKUCapacity,
+            BackendIPCount = backendIPCount,
+            BackendAddressCount = backendAddressesCount,
             Tags = tags,
-            OrphanReason = 'No backend targets configured'
+            OrphanReason = 'No backend targets configured - application gateway has empty backend pools'
         | order by SKUTier desc, subscriptionId, ResourceGroup
         """
         return self.query_resources(query, subscriptions)
@@ -3203,11 +3258,17 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
             AddressSpace = tostring(properties.addressSpace.addressPrefixes),
+            DnsServers = tostring(properties.dhcpOptions.dnsServers),
+            EnableDdosProtection = tobool(properties.enableDdosProtection),
+            EnableVmProtection = tobool(properties.enableVmProtection),
+            SubnetCount = 0,
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
-            OrphanReason = 'No subnets configured'
+            OrphanReason = 'No subnets configured - virtual network is empty'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
@@ -3228,17 +3289,23 @@ class AzureResourceManager:
         | extend SubnetName = tostring(subnet.name)
         | extend SubnetId = tostring(subnet.id)
         | extend AddressPrefix = tostring(subnet.properties.addressPrefix)
+        | extend PrivateEndpointNetworkPolicies = tostring(subnet.properties.privateEndpointNetworkPolicies)
+        | extend PrivateLinkServiceNetworkPolicies = tostring(subnet.properties.privateLinkServiceNetworkPolicies)
         | project 
             subscriptionId,
             ResourceId = SubnetId,
-            SubnetName,
+            ResourceName = SubnetName,
+            ResourceType = 'microsoft.network/virtualnetworks/subnets',
             VNetId = id,
             VNetName = name,
             ResourceGroup = resourceGroup,
             Location = location,
             AddressPrefix,
-            OrphanReason = 'No connected devices or delegation'
-        | order by subscriptionId, VNetName, SubnetName
+            PrivateEndpointNetworkPolicies,
+            PrivateLinkServiceNetworkPolicies,
+            Tags = tags,
+            OrphanReason = 'No connected devices, delegations, or app gateway configs'
+        | order by subscriptionId, VNetName, ResourceName
         """
         return self.query_resources(query, subscriptions)
 
@@ -3255,13 +3322,17 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
-            Sku = tostring(sku.name),
-            Tier = tostring(sku.tier),
+            SkuName = tostring(sku.name),
+            SkuTier = tostring(sku.tier),
             IdleTimeoutMinutes = toint(properties.idleTimeoutInMinutes),
+            PublicIpAddressCount = toint(array_length(properties.publicIpAddresses)),
+            PublicIpPrefixCount = toint(array_length(properties.publicIpPrefixes)),
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
-            OrphanReason = 'Not attached to any subnet'
+            OrphanReason = 'Not attached to any subnet - NAT gateway is idle'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
@@ -3278,11 +3349,14 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
             IpAddressCount = toint(array_length(properties.ipAddresses)),
+            IpAddresses = tostring(properties.ipAddresses),
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
-            OrphanReason = 'Not attached to any firewall'
+            OrphanReason = 'Not attached to any Azure Firewall or Firewall Policy'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
@@ -3300,12 +3374,17 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
             NumberOfRecordSets = toint(properties.numberOfRecordSets),
             NumberOfVNetLinks = toint(properties.numberOfVirtualNetworkLinks),
+            NumberOfVNetLinksWithRegistration = toint(properties.numberOfVirtualNetworkLinksWithRegistration),
+            MaxNumberOfRecordSets = toint(properties.maxNumberOfRecordSets),
+            MaxNumberOfVirtualNetworkLinks = toint(properties.maxNumberOfVirtualNetworkLinks),
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
-            OrphanReason = 'No Virtual Network links'
+            OrphanReason = 'No Virtual Network links - DNS zone is not connected to any VNet'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
@@ -3330,14 +3409,18 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
-            ServiceName = serviceName,
+            TargetServiceName = serviceName,
+            TargetServiceId = serviceId,
             GroupIds = groupIds,
             ConnectionState = stateEnum,
             SubnetName = subnetName,
+            SubnetId = subnetId,
+            CustomDnsConfigs = tostring(properties.customDnsConfigs),
             Tags = tags,
-            OrphanReason = 'Disconnected from target service'
+            OrphanReason = 'Disconnected from target service - private endpoint connection is broken'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
@@ -3353,6 +3436,7 @@ class AzureResourceManager:
         | extend SKU = tostring(properties.sku.name)
         | extend Tier = tostring(properties.sku.tier)
         | extend GatewayType = tostring(properties.gatewayType)
+        | extend VpnType = tostring(properties.vpnType)
         | extend vpnClientConfiguration = properties.vpnClientConfiguration
         | extend Resource = id
         | join kind=leftouter (
@@ -3366,13 +3450,18 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = Resource,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
             GatewayType,
+            VpnType,
             SKU,
             Tier,
+            EnableBgp = tobool(properties.enableBgp),
+            ActiveActive = tobool(properties.activeActive),
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
-            OrphanReason = 'No P2S config or VPN connections'
+            OrphanReason = 'No P2S config or VPN/ExpressRoute connections - gateway is idle'
         | order by GatewayType, SKU desc, subscriptionId, ResourceGroup
         """
         return self.query_resources(query, subscriptions)
@@ -3390,10 +3479,13 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
+            ProtectedVNetCount = 0,
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
-            OrphanReason = 'No Virtual Networks protected',
+            OrphanReason = 'No Virtual Networks protected - DDoS plan is not protecting any VNets',
             EstimatedMonthlyCost = '$2,944/month'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
@@ -3417,10 +3509,14 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
+            ManagedBy = tostring(managedBy),
+            ResourceCount = 0,
+            ProvisioningState = tostring(properties.provisioningState),
             Tags = tags,
-            OrphanReason = 'No resources in group'
+            OrphanReason = 'No resources in group - resource group is empty'
         | order by subscriptionId, ResourceGroup
         """
         return self.query_resources(query, subscriptions)
@@ -3432,7 +3528,7 @@ class AzureResourceManager:
         query = """
         resources
         | where type =~ 'Microsoft.Web/connections'
-        | project subscriptionId, Resource = id, apiName = name, resourceGroup, tags, location
+        | project subscriptionId, Resource = id, apiName = name, resourceGroup, tags, location, type, properties
         | join kind=leftouter (
             resources
             | where type == 'microsoft.logic/workflows'
@@ -3447,10 +3543,16 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = Resource,
             ResourceName = apiName,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
+            ApiDisplayName = tostring(properties.displayName),
+            ApiName = tostring(properties.api.name),
+            ConnectionState = tostring(properties.statuses[0].status),
+            CreatedTime = tostring(properties.createdTime),
+            ChangedTime = tostring(properties.changedTime),
             Tags = tags,
-            OrphanReason = 'Not used by any Logic App'
+            OrphanReason = 'Not used by any Logic App - API connection is orphaned'
         | order by subscriptionId, ResourceGroup, ResourceName
         """
         return self.query_resources(query, subscriptions)
@@ -3468,13 +3570,19 @@ class AzureResourceManager:
             subscriptionId,
             ResourceId = id,
             ResourceName = name,
+            ResourceType = type,
             ResourceGroup = resourceGroup,
             Location = location,
             ExpirationDate = expiresOn,
+            IssueDate = todatetime(properties.issueDate),
             Thumbprint = tostring(properties.thumbprint),
             SubjectName = tostring(properties.subjectName),
+            Issuer = tostring(properties.issuer),
+            HostNames = tostring(properties.hostNames),
+            KeyVaultId = tostring(properties.keyVaultId),
+            KeyVaultSecretName = tostring(properties.keyVaultSecretName),
             Tags = tags,
-            OrphanReason = 'Certificate expired'
+            OrphanReason = 'Certificate has expired and should be renewed or removed'
         | order by ExpirationDate asc, subscriptionId, ResourceGroup
         """
         return self.query_resources(query, subscriptions)

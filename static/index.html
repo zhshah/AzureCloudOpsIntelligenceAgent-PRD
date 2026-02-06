@@ -2783,17 +2783,51 @@
         }
 
         function showCategory(categoryId) {
-            // Scroll to sidebar and open category
-            const categoryHeader = document.querySelector(`#category-${categoryId}`).previousElementSibling;
+            // Find the category section
+            const categoryPrompts = document.querySelector(`#category-${categoryId}`);
+            if (!categoryPrompts) return;
+            
+            const categoryHeader = categoryPrompts.previousElementSibling;
+            const categorySection = categoryHeader.parentElement;
+            
+            // If category is not expanded, expand it
             if (!categoryHeader.classList.contains('active')) {
                 categoryHeader.click();
             }
+            
+            // Scroll the sidebar to bring this category to the top
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar && categorySection) {
+                // Calculate the position to scroll to (offset from top of sidebar)
+                const sidebarRect = sidebar.getBoundingClientRect();
+                const sectionRect = categorySection.getBoundingClientRect();
+                const scrollOffset = sectionRect.top - sidebarRect.top + sidebar.scrollTop - 20; // 20px padding
+                
+                // Smooth scroll the sidebar
+                sidebar.scrollTo({
+                    top: scrollOffset,
+                    behavior: 'smooth'
+                });
+            }
+            
+            // Also scroll the main page to ensure sidebar is visible
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
             
             // Remove welcome state
             const welcomeState = document.querySelector('.welcome-state');
             if (welcomeState) {
                 welcomeState.remove();
             }
+            
+            // Highlight the category briefly
+            categorySection.style.transition = 'background-color 0.3s ease';
+            categorySection.style.backgroundColor = 'rgba(0, 120, 212, 0.1)';
+            setTimeout(() => {
+                categorySection.style.backgroundColor = '';
+            }, 1500);
         }
 
         function quickPrompt(prompt) {
