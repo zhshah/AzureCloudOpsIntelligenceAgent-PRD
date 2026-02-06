@@ -2169,7 +2169,7 @@
                 <div class="category-section">
                     <div class="category-header" onclick="toggleCategory('orphaned')">
                         <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/general/10318-icon-service-Resource-Graph-Explorer.svg" alt="Orphaned"></div>
+                            <div class="category-icon"><img src="/Icons/general/10349-icon-service-Resource-Explorer.svg" alt="Orphaned"></div>
                             <div class="category-name">Orphaned Resources</div>
                         </div>
                         <div class="category-toggle">▼</div>
@@ -2188,7 +2188,7 @@
                         </div>
                         
                         <div class="prompt-item" onclick="quickPrompt('Find orphaned Availability Sets - sets not associated to any Virtual Machine or VMSS. Excludes Azure Site Recovery (ASR) sets. Include: Availability Set Name, Resource Group, Location, Fault Domains, Update Domains, VM Count (should be 0), Tags. These can be safely deleted.')">
-                            <span class="prompt-icon"><img src="/Icons/compute/10034-icon-service-Availability-Sets.svg" alt="Availability Set" style="width:18px;height:18px;"></span>
+                            <span class="prompt-icon"><img src="/Icons/compute/10025-icon-service-Availability-Sets.svg" alt="Availability Set" style="width:18px;height:18px;"></span>
                             <span>Availability Sets (no VMs)</span>
                         </div>
                         
@@ -2200,7 +2200,7 @@
                         
                         <!-- DATABASE -->
                         <div class="prompt-item" onclick="quickPrompt('Find orphaned SQL Elastic Pools without any databases. 💲 These pools cost money even when empty. Include: Pool Name, SQL Server Name, Resource Group, Location, DTU/vCore Config, Database Count (should be 0), Monthly Cost Estimate, Tags. Recommend deletion or database migration.')">
-                            <span class="prompt-icon"><img src="/Icons/databases/10137-icon-service-SQL-Elastic-Pools.svg" alt="SQL Pool" style="width:18px;height:18px;"></span>
+                            <span class="prompt-icon"><img src="/Icons/databases/10134-icon-service-SQL-Elastic-Pools.svg" alt="SQL Pool" style="width:18px;height:18px;"></span>
                             <span>SQL Elastic Pools (empty) 💲</span>
                         </div>
                         
@@ -2236,7 +2236,7 @@
                         </div>
                         
                         <div class="prompt-item" onclick="quickPrompt('Find orphaned NAT Gateways not attached to any subnet. 💲 NAT Gateways cost money even when not routing traffic. Include: NAT Gateway Name, Resource Group, Location, SKU, Idle Timeout, Attached Subnets (should be 0), Monthly Cost Estimate, Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10310-icon-service-NAT-Gateways.svg" alt="NAT Gateway" style="width:18px;height:18px;"></span>
+                            <span class="prompt-icon"><img src="/Icons/networking/10310-icon-service-NAT.svg" alt="NAT Gateway" style="width:18px;height:18px;"></span>
                             <span>NAT Gateways (not attached) 💲</span>
                         </div>
                         
@@ -2246,12 +2246,12 @@
                         </div>
                         
                         <div class="prompt-item" onclick="quickPrompt('Find orphaned Private DNS Zones without Virtual Network Links. 💲 Private DNS Zones cost money even when not linked to any VNet. Include: Zone Name, Resource Group, Location, Record Set Count, VNet Links (should be 0), Monthly Cost Estimate, Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10064-icon-service-Private-DNS-Zones.svg" alt="Private DNS" style="width:18px;height:18px;"></span>
+                            <span class="prompt-icon"><img src="/Icons/networking/10064-icon-service-DNS-Zones.svg" alt="Private DNS" style="width:18px;height:18px;"></span>
                             <span>Private DNS Zones (no links) 💲</span>
                         </div>
                         
                         <div class="prompt-item" onclick="quickPrompt('Find orphaned Private Endpoints in Disconnected state. 💲 Private Endpoints cost money even when disconnected from target service. Include: Endpoint Name, Resource Group, Location, Target Service, Connection State (should be Disconnected), Subnet, Monthly Cost Estimate, Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/02579-icon-service-Private-Endpoints.svg" alt="Private Endpoint" style="width:18px;height:18px;"></span>
+                            <span class="prompt-icon"><img src="/Icons/networking/00427-icon-service-Private-Link.svg" alt="Private Endpoint" style="width:18px;height:18px;"></span>
                             <span>Private Endpoints (disconnected) 💲</span>
                         </div>
                         
@@ -2266,7 +2266,7 @@
                         </div>
                         
                         <div class="prompt-item" onclick="quickPrompt('Find orphaned Subnets without connected devices or delegation (empty subnets). Include: Subnet Name, VNet Name, Resource Group, Address Prefix, Connected Devices (should be 0), Delegation (should be none), Tags. These may be reserved for future use.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/02743-icon-service-Subnet.svg" alt="Subnet" style="width:18px;height:18px;"></span>
+                            <span class="prompt-icon"><img src="/Icons/networking/02742-icon-service-Subnet.svg" alt="Subnet" style="width:18px;height:18px;"></span>
                             <span>Empty Subnets</span>
                         </div>
                         
@@ -2276,7 +2276,7 @@
                         </div>
                         
                         <div class="prompt-item" onclick="quickPrompt('Find orphaned Front Door WAF Policies without Security Policy Links. Include: Policy Name, Resource Group, Location, SKU, Security Links (should be 0), Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10365-icon-service-Web-Application-Firewall-Policies-WAF.svg" alt="WAF Policy" style="width:18px;height:18px;"></span>
+                            <span class="prompt-icon"><img src="/Icons/networking/10362-icon-service-Web-Application-Firewall-Policies(WAF).svg" alt="WAF Policy" style="width:18px;height:18px;"></span>
                             <span>Front Door WAF Policies (unused)</span>
                         </div>
                         
@@ -2292,7 +2292,7 @@
                         </div>
                         
                         <div class="prompt-item" onclick="quickPrompt('Find orphaned API Connections not used by any Logic App. Include: Connection Name, API Type, Resource Group, Location, Associated Logic Apps (should be none), Tags. These are often leftover from deleted Logic Apps.')">
-                            <span class="prompt-icon"><img src="/Icons/integration/10201-icon-service-Logic-Apps.svg" alt="API Connection" style="width:18px;height:18px;"></span>
+                            <span class="prompt-icon"><img src="/Icons/integration/02631-icon-service-Logic-Apps.svg" alt="API Connection" style="width:18px;height:18px;"></span>
                             <span>API Connections (unused)</span>
                         </div>
                         
