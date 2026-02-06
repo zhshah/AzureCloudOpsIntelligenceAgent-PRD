@@ -2722,18 +2722,12 @@
                     <p>Your intelligent assistant for comprehensive Azure infrastructure management. Manage resources, optimize costs, ensure security, monitor health, and explore Azure services. Select a category to get started or use the chat to ask questions.</p>
                     
                     <div class="welcome-categories">
-                        <div class="welcome-category-card" onclick="showCategory('resources')">
-                            <span class="welcome-category-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Resources"></span>
-                            <div class="welcome-category-title">Resource Management</div>
-                            <div class="welcome-category-desc">Inventory, search, and filter Azure resources</div>
-                            <div class="welcome-category-count">6 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('cost')">
-                            <span class="welcome-category-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Cost"></span>
-                            <div class="welcome-category-title">Cost Optimization</div>
-                            <div class="welcome-category-desc">Cost analysis, comparisons, and savings opportunities</div>
-                            <div class="welcome-category-count">7 Quick Actions</div>
+                        <!-- Foundational & Governance - First -->
+                        <div class="welcome-category-card" onclick="showCategory('landingzone')">
+                            <span class="welcome-category-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" alt="Landing Zone"></span>
+                            <div class="welcome-category-title">Landing Zone (CAF)</div>
+                            <div class="welcome-category-desc">CAF assessment, Platform & Application LZ review</div>
+                            <div class="welcome-category-count">22 Quick Actions</div>
                         </div>
                         
                         <div class="welcome-category-card" onclick="showCategory('security')">
@@ -2743,74 +2737,11 @@
                             <div class="welcome-category-count">7 Quick Actions</div>
                         </div>
                         
-                        <div class="welcome-category-card" onclick="showCategory('monitoring')">
-                            <span class="welcome-category-icon"><img src="/Icons/management + governance/00001-icon-service-Monitor.svg" alt="Monitoring"></span>
-                            <div class="welcome-category-title">Monitoring & Alerts</div>
-                            <div class="welcome-category-desc">Alerts, monitoring gaps, VM Insights status</div>
-                            <div class="welcome-category-count">11 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('sql')">
-                            <span class="welcome-category-icon"><img src="/Icons/databases/10130-icon-service-SQL-Database.svg" alt="SQL"></span>
-                            <div class="welcome-category-title">Azure SQL PaaS</div>
-                            <div class="welcome-category-desc">SQL Database, Managed Instance optimization</div>
-                            <div class="welcome-category-count">7 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('aks')">
-                            <span class="welcome-category-icon"><img src="/Icons/compute/10023-icon-service-Kubernetes-Services.svg" alt="AKS"></span>
-                            <div class="welcome-category-title">Azure Kubernetes</div>
-                            <div class="welcome-category-desc">AKS clusters, monitoring, security posture</div>
-                            <div class="welcome-category-count">5 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('appservices')">
-                            <span class="welcome-category-icon"><img src="/Icons/compute/10035-icon-service-App-Services.svg" alt="App Services"></span>
-                            <div class="welcome-category-title">App Services</div>
-                            <div class="welcome-category-desc">Web apps, monitoring, public access</div>
-                            <div class="welcome-category-count">5 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('updates')">
-                            <span class="welcome-category-icon"><img src="/Icons/compute/00195-icon-service-Maintenance-Configuration.svg" alt="Updates"></span>
-                            <div class="welcome-category-title">Update Management</div>
-                            <div class="welcome-category-desc">VM and Arc machine patches and compliance</div>
-                            <div class="welcome-category-count">6 Quick Actions</div>
-                        </div>
-                        
                         <div class="welcome-category-card" onclick="showCategory('policy')">
                             <span class="welcome-category-icon"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" alt="Policy"></span>
                             <div class="welcome-category-title">Azure Policy</div>
                             <div class="welcome-category-desc">Policy compliance and exemptions</div>
                             <div class="welcome-category-count">5 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('tags')">
-                            <span class="welcome-category-icon"><img src="/Icons/general/10014-icon-service-Tag.svg" alt="Tags"></span>
-                            <div class="welcome-category-title">Tags Management</div>
-                            <div class="welcome-category-desc">Tag inventory and compliance</div>
-                            <div class="welcome-category-count">5 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('arc')">
-                            <span class="welcome-category-icon"><img src="/Icons/management + governance/00756-icon-service-Azure-Arc.svg" alt="Arc"></span>
-                            <div class="welcome-category-title">Azure Arc</div>
-                            <div class="welcome-category-desc">Hybrid infrastructure management</div>
-                            <div class="welcome-category-count">3 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('storage')">
-                            <span class="welcome-category-icon"><img src="/Icons/storage/10086-icon-service-Storage-Accounts.svg" alt="Storage"></span>
-                            <div class="welcome-category-title">Storage Accounts</div>
-                            <div class="welcome-category-desc">Capacity, security, file shares, cost optimization</div>
-                            <div class="welcome-category-count">10 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('entraid')">
-                            <span class="welcome-category-icon"><img src="/Icons/identity/10235-icon-service-Identity-Governance.svg" alt="Entra ID"></span>
-                            <div class="welcome-category-title">Entra ID (Azure AD)</div>
-                            <div class="welcome-category-desc">Users, groups, apps, devices, conditional access</div>
-                            <div class="welcome-category-count">14 Quick Actions</div>
                         </div>
                         
                         <div class="welcome-category-card" onclick="showCategory('iam')">
@@ -2820,13 +2751,7 @@
                             <div class="welcome-category-count">6 Quick Actions</div>
                         </div>
                         
-                        <div class="welcome-category-card" onclick="showCategory('backup')">
-                            <span class="welcome-category-icon"><img src="/Icons/storage/00017-icon-service-Recovery-Services-Vaults.svg" alt="Backup"></span>
-                            <div class="welcome-category-title">Azure Backup</div>
-                            <div class="welcome-category-desc">VMs, disks, files, SQL backup protection status</div>
-                            <div class="welcome-category-count">12 Quick Actions</div>
-                        </div>
-                        
+                        <!-- Networking - Core Infrastructure -->
                         <div class="welcome-category-card" onclick="showCategory('networking')">
                             <span class="welcome-category-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" alt="Networking"></span>
                             <div class="welcome-category-title">Networking</div>
@@ -2848,11 +2773,93 @@
                             <div class="welcome-category-count">14 Quick Actions</div>
                         </div>
                         
-                        <div class="welcome-category-card" onclick="showCategory('landingzone')">
-                            <span class="welcome-category-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" alt="Landing Zone"></span>
-                            <div class="welcome-category-title">Landing Zone (CAF)</div>
-                            <div class="welcome-category-desc">CAF assessment, Platform & Application LZ review</div>
-                            <div class="welcome-category-count">22 Quick Actions</div>
+                        <!-- Resource & Cost Management -->
+                        <div class="welcome-category-card" onclick="showCategory('resources')">
+                            <span class="welcome-category-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Resources"></span>
+                            <div class="welcome-category-title">Resource Management</div>
+                            <div class="welcome-category-desc">Inventory, search, and filter Azure resources</div>
+                            <div class="welcome-category-count">6 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('cost')">
+                            <span class="welcome-category-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Cost"></span>
+                            <div class="welcome-category-title">Cost Optimization</div>
+                            <div class="welcome-category-desc">Cost analysis, comparisons, and savings opportunities</div>
+                            <div class="welcome-category-count">7 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('tags')">
+                            <span class="welcome-category-icon"><img src="/Icons/general/10014-icon-service-Tag.svg" alt="Tags"></span>
+                            <div class="welcome-category-title">Tags Management</div>
+                            <div class="welcome-category-desc">Tag inventory and compliance</div>
+                            <div class="welcome-category-count">5 Quick Actions</div>
+                        </div>
+                        
+                        <!-- Compute & Applications -->
+                        <div class="welcome-category-card" onclick="showCategory('aks')">
+                            <span class="welcome-category-icon"><img src="/Icons/compute/10023-icon-service-Kubernetes-Services.svg" alt="AKS"></span>
+                            <div class="welcome-category-title">Azure Kubernetes</div>
+                            <div class="welcome-category-desc">AKS clusters, monitoring, security posture</div>
+                            <div class="welcome-category-count">5 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('appservices')">
+                            <span class="welcome-category-icon"><img src="/Icons/compute/10035-icon-service-App-Services.svg" alt="App Services"></span>
+                            <div class="welcome-category-title">App Services</div>
+                            <div class="welcome-category-desc">Web apps, monitoring, public access</div>
+                            <div class="welcome-category-count">5 Quick Actions</div>
+                        </div>
+                        
+                        <!-- Data & Storage -->
+                        <div class="welcome-category-card" onclick="showCategory('sql')">
+                            <span class="welcome-category-icon"><img src="/Icons/databases/10130-icon-service-SQL-Database.svg" alt="SQL"></span>
+                            <div class="welcome-category-title">Azure SQL PaaS</div>
+                            <div class="welcome-category-desc">SQL Database, Managed Instance optimization</div>
+                            <div class="welcome-category-count">7 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('storage')">
+                            <span class="welcome-category-icon"><img src="/Icons/storage/10086-icon-service-Storage-Accounts.svg" alt="Storage"></span>
+                            <div class="welcome-category-title">Storage Accounts</div>
+                            <div class="welcome-category-desc">Capacity, security, file shares, cost optimization</div>
+                            <div class="welcome-category-count">10 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('backup')">
+                            <span class="welcome-category-icon"><img src="/Icons/storage/00017-icon-service-Recovery-Services-Vaults.svg" alt="Backup"></span>
+                            <div class="welcome-category-title">Azure Backup</div>
+                            <div class="welcome-category-desc">VMs, disks, files, SQL backup protection status</div>
+                            <div class="welcome-category-count">12 Quick Actions</div>
+                        </div>
+                        
+                        <!-- Operations & Management -->
+                        <div class="welcome-category-card" onclick="showCategory('monitoring')">
+                            <span class="welcome-category-icon"><img src="/Icons/management + governance/00001-icon-service-Monitor.svg" alt="Monitoring"></span>
+                            <div class="welcome-category-title">Monitoring & Alerts</div>
+                            <div class="welcome-category-desc">Alerts, monitoring gaps, VM Insights status</div>
+                            <div class="welcome-category-count">11 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('updates')">
+                            <span class="welcome-category-icon"><img src="/Icons/compute/00195-icon-service-Maintenance-Configuration.svg" alt="Updates"></span>
+                            <div class="welcome-category-title">Update Management</div>
+                            <div class="welcome-category-desc">VM and Arc machine patches and compliance</div>
+                            <div class="welcome-category-count">6 Quick Actions</div>
+                        </div>
+                        
+                        <!-- Identity & Hybrid -->
+                        <div class="welcome-category-card" onclick="showCategory('entraid')">
+                            <span class="welcome-category-icon"><img src="/Icons/identity/10235-icon-service-Identity-Governance.svg" alt="Entra ID"></span>
+                            <div class="welcome-category-title">Entra ID (Azure AD)</div>
+                            <div class="welcome-category-desc">Users, groups, apps, devices, conditional access</div>
+                            <div class="welcome-category-count">14 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('arc')">
+                            <span class="welcome-category-icon"><img src="/Icons/management + governance/00756-icon-service-Azure-Arc.svg" alt="Arc"></span>
+                            <div class="welcome-category-title">Azure Arc</div>
+                            <div class="welcome-category-desc">Hybrid infrastructure management</div>
+                            <div class="welcome-category-count">3 Quick Actions</div>
                         </div>
                         
                         <div class="welcome-category-card" onclick="showAboutModal()">
@@ -3055,16 +3062,14 @@
 
         // Load sidebar live insights (Security Score, Savings, Resources) - with timeouts and graceful fallbacks
         async function loadSidebarLiveInsights(subscriptionId) {
-            console.log('Loading sidebar live insights for:', subscriptionId);
+            console.log('📊 Loading sidebar live insights for:', subscriptionId);
             
-            // Skip if no valid subscription
+            // Use environment default if no subscription provided
             if (!subscriptionId || subscriptionId === 'loading' || subscriptionId === 'none') {
-                console.log('Skipping insights - no valid subscription');
-                setInsightsFallback();
-                return;
+                console.log('No subscription provided, using current context');
+                subscriptionId = 'current';
             }
             
-            const isAllSubs = subscriptionId === 'all';
             const accessToken = sessionStorage.getItem('accessToken');
             const headers = { 'Content-Type': 'application/json' };
             if (accessToken) {
@@ -3072,7 +3077,7 @@
             }
 
             // Helper function to fetch with timeout
-            async function fetchWithTimeout(url, options, timeoutMs = 30000) {
+            async function fetchWithTimeout(url, options, timeoutMs = 45000) {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                 try {
@@ -3085,35 +3090,23 @@
                 }
             }
 
-            // Set fallback values
-            function setInsightsFallback() {
-                const resourcesEl = document.getElementById('sidebarResources');
-                const savingsEl = document.getElementById('sidebarSavings');
-                const securityEl = document.getElementById('sidebarSecurityScore');
-                const resourcesSubEl = document.getElementById('sidebarResourcesSubtitle');
-                const savingsSubEl = document.getElementById('sidebarSavingsSubtitle');
-                const securitySubEl = document.getElementById('sidebarSecuritySubtitle');
-                
-                if (resourcesEl) { resourcesEl.innerHTML = '--'; resourcesSubEl.textContent = 'Click to view resources'; }
-                if (savingsEl) { savingsEl.innerHTML = '--'; savingsSubEl.textContent = 'Click to check savings'; }
-                if (securityEl) { securityEl.innerHTML = '--'; securitySubEl.textContent = 'Click to view security'; }
-            }
-
-            // Fetch all in parallel with individual error handling
-            const resourcePromise = (async () => {
+            // Fetch Resources - this one works reliably
+            (async () => {
                 try {
+                    console.log('📦 Fetching resource count...');
                     const response = await fetchWithTimeout('/api/chat', {
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify({
-                            message: 'How many total resources in my subscription? Just the number.',
-                            subscription_context: subscriptionId,
+                            message: 'How many total resources in my subscription? Just reply with a number.',
+                            subscription_context: subscriptionId === 'all' || subscriptionId === 'current' ? null : subscriptionId,
                             conversation_history: []
                         })
-                    }, 25000);
+                    }, 40000);
                     
                     if (response.ok) {
                         const data = await response.json();
+                        console.log('📦 Resource response:', data.response?.substring(0, 100));
                         const countMatch = data.response?.match(/\b(\d+)\b/);
                         const el = document.getElementById('sidebarResources');
                         const subEl = document.getElementById('sidebarResourcesSubtitle');
@@ -3122,103 +3115,109 @@
                         if (countMatch && el) {
                             el.innerHTML = countMatch[1];
                             subEl.textContent = 'In current subscription';
+                            card.classList.remove('warning-dynamic', 'danger-dynamic');
                             card.classList.add('success-dynamic');
-                        } else {
-                            el.innerHTML = '--';
-                            subEl.textContent = 'Click to view resources';
                         }
                     }
                 } catch (err) {
-                    console.warn('Resource count fetch error:', err.message);
-                    const el = document.getElementById('sidebarResources');
-                    const subEl = document.getElementById('sidebarResourcesSubtitle');
-                    if (el) { el.innerHTML = '--'; subEl.textContent = 'Click to view'; }
+                    console.warn('📦 Resource fetch error:', err.message);
                 }
             })();
 
-            const savingsPromise = (async () => {
+            // Fetch Savings
+            (async () => {
                 try {
+                    console.log('💰 Fetching savings...');
                     const response = await fetchWithTimeout('/api/chat', {
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify({
-                            message: 'What is the total potential monthly savings from Azure Advisor? Just the dollar amount.',
-                            subscription_context: subscriptionId,
+                            message: 'What is total potential monthly savings from Azure Advisor cost recommendations? Just give dollar amount like $123.',
+                            subscription_context: subscriptionId === 'all' || subscriptionId === 'current' ? null : subscriptionId,
                             conversation_history: []
                         })
-                    }, 25000);
+                    }, 40000);
                     
                     if (response.ok) {
                         const data = await response.json();
-                        const savingsMatch = data.response?.match(/\$[\d,]+\.?\d*/);
+                        console.log('💰 Savings response:', data.response?.substring(0, 100));
                         const el = document.getElementById('sidebarSavings');
                         const subEl = document.getElementById('sidebarSavingsSubtitle');
                         const card = document.getElementById('savingsCard');
                         
-                        if (savingsMatch && el) {
-                            el.innerHTML = savingsMatch[0] + '/mo';
-                            subEl.textContent = 'Potential savings found';
-                            card.classList.add('warning-dynamic');
-                        } else {
-                            el.innerHTML = '$0';
-                            subEl.textContent = 'No immediate savings';
-                            card.classList.add('success-dynamic');
+                        if (el) {
+                            const savingsMatch = data.response?.match(/\$[\d,]+\.?\d*/);
+                            const zeroMatch = data.response?.toLowerCase().includes('no ') || 
+                                             data.response?.match(/\$0|zero|none/i);
+                            
+                            if (savingsMatch) {
+                                el.innerHTML = savingsMatch[0] + '/mo';
+                                subEl.textContent = 'Potential savings found';
+                                card.classList.remove('success-dynamic', 'danger-dynamic');
+                                card.classList.add('warning-dynamic');
+                            } else if (zeroMatch) {
+                                el.innerHTML = '$0';
+                                subEl.textContent = 'No savings opportunities';
+                                card.classList.remove('warning-dynamic', 'danger-dynamic');
+                                card.classList.add('success-dynamic');
+                            } else {
+                                el.innerHTML = 'Check';
+                                subEl.textContent = 'Click to analyze';
+                            }
                         }
                     }
                 } catch (err) {
-                    console.warn('Savings fetch error:', err.message);
-                    const el = document.getElementById('sidebarSavings');
-                    const subEl = document.getElementById('sidebarSavingsSubtitle');
-                    if (el) { el.innerHTML = '--'; subEl.textContent = 'Click to check'; }
+                    console.warn('💰 Savings fetch error:', err.message);
                 }
             })();
 
-            const securityPromise = (async () => {
+            // Fetch Security
+            (async () => {
                 try {
+                    console.log('🛡️ Fetching security...');
                     const response = await fetchWithTimeout('/api/chat', {
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify({
-                            message: 'How many security recommendations do I have? Just the number.',
-                            subscription_context: subscriptionId,
+                            message: 'How many security recommendations do I have in Defender for Cloud? Just reply with a number.',
+                            subscription_context: subscriptionId === 'all' || subscriptionId === 'current' ? null : subscriptionId,
                             conversation_history: []
                         })
-                    }, 25000);
+                    }, 40000);
                     
                     if (response.ok) {
                         const data = await response.json();
-                        const countMatch = data.response?.match(/\b(\d+)\b/);
+                        console.log('🛡️ Security response:', data.response?.substring(0, 100));
                         const el = document.getElementById('sidebarSecurityScore');
                         const subEl = document.getElementById('sidebarSecuritySubtitle');
                         const card = document.getElementById('securityCard');
                         
-                        if (countMatch && el) {
-                            const count = parseInt(countMatch[1]);
-                            el.innerHTML = count + ' items';
-                            subEl.textContent = count > 10 ? 'Needs attention' : 'Good posture';
-                            card.classList.add(count > 10 ? 'warning-dynamic' : 'success-dynamic');
-                        } else {
-                            el.innerHTML = '--';
-                            subEl.textContent = 'Click to review';
+                        if (el) {
+                            const countMatch = data.response?.match(/\b(\d+)\b/);
+                            const zeroMatch = data.response?.toLowerCase().includes('no ') || 
+                                             data.response?.match(/\b0\b|zero|none/i);
+                            
+                            if (countMatch) {
+                                const count = parseInt(countMatch[1]);
+                                el.innerHTML = count + ' items';
+                                subEl.textContent = count > 10 ? 'Needs attention' : count > 0 ? 'Review recommended' : 'Good posture';
+                                card.classList.remove('success-dynamic', 'warning-dynamic', 'danger-dynamic');
+                                card.classList.add(count > 10 ? 'warning-dynamic' : 'success-dynamic');
+                            } else if (zeroMatch) {
+                                el.innerHTML = '0 items';
+                                subEl.textContent = 'Excellent posture';
+                                card.classList.remove('warning-dynamic', 'danger-dynamic');
+                                card.classList.add('success-dynamic');
+                            } else {
+                                el.innerHTML = 'Check';
+                                subEl.textContent = 'Click to review';
+                            }
                         }
                     }
                 } catch (err) {
-                    console.warn('Security fetch error:', err.message);
-                    const el = document.getElementById('sidebarSecurityScore');
-                    const subEl = document.getElementById('sidebarSecuritySubtitle');
-                    if (el) { el.innerHTML = '--'; subEl.textContent = 'Click to review'; }
+                    console.warn('🛡️ Security fetch error:', err.message);
                 }
             })();
-
-            // Wait for all with timeout - don't block UI
-            try {
-                await Promise.race([
-                    Promise.all([resourcePromise, savingsPromise, securityPromise]),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Overall timeout')), 60000))
-                ]);
-            } catch (err) {
-                console.warn('Live insights timeout or error:', err.message);
-            }
         }
 
         function showNotification(message) {
@@ -3680,16 +3679,22 @@
                     } else {
                         // No subscriptions found
                         select.innerHTML = '<option value="none">No subscriptions available</option>';
+                        // Still load insights with default context
+                        loadSidebarLiveInsights('current');
                     }
                 } else {
                     console.error('Failed to load subscriptions');
                     const select = document.getElementById('subscriptionSelect');
                     select.innerHTML = '<option value="current">Current Subscription</option>';
+                    // Load insights with default context
+                    loadSidebarLiveInsights('current');
                 }
             } catch (error) {
                 console.error('Error loading subscriptions:', error);
                 const select = document.getElementById('subscriptionSelect');
                 select.innerHTML = '<option value="current">Current Subscription</option>';
+                // Load insights with default context
+                loadSidebarLiveInsights('current');
             }
         }
 
@@ -3698,6 +3703,14 @@
             loadUserProfile();
             loadAzureSubscriptions();
             document.getElementById('userInput').focus();
+            
+            // Load sidebar insights after a short delay to ensure UI is ready
+            setTimeout(() => {
+                const select = document.getElementById('subscriptionSelect');
+                const subId = select?.value || 'current';
+                console.log('🚀 Initial insights load with subscription:', subId);
+                loadSidebarLiveInsights(subId);
+            }, 2000);
         });
     </script>
 </body>
