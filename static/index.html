@@ -2213,6 +2213,443 @@
                     </div>
                 </div>
 
+                <!-- Networking Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('networking')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" alt="Networking"></div>
+                            <div class="category-name">Networking</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-networking">
+                        <!-- Virtual Networks -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Virtual Networks (VNets) in my subscription with comprehensive details. Include: VNet Name, Resource Group, Location, Address Space, Subnet Count, Peering Count, DNS Servers (Custom/Azure Default), DDoS Protection, Tags. Show network topology overview.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" style="width:16px;height:16px"></span>
+                            <span>All Virtual Networks inventory</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show ALL Subnets across all VNets with details. Include: Subnet Name, VNet Name, Address Prefix, Available IPs, Used IPs, NSG Associated, Route Table, Service Endpoints, Private Endpoint Policies, Delegations. Identify subnets running low on IP addresses.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/02742-icon-service-Subnet.svg" style="width:16px;height:16px"></span>
+                            <span>All Subnets with IP utilization</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VNet Peering status across all VNets. Include: Source VNet, Target VNet, Peering Name, Peering State, Peering Sync Status, Allow Gateway Transit, Use Remote Gateway, Allow Forwarded Traffic, Cross-Subscription Peering. Identify any broken or disconnected peerings.')">
+                            <span class="prompt-icon">🔗</span>
+                            <span>VNet Peering status</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Analyze VNet address space conflicts and overlaps. Show: VNet pairs with overlapping address spaces, Impact on potential peering, RFC1918 compliance, Address space efficiency, Recommendations for re-addressing if needed.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>VNet address space conflicts</span>
+                        </div>
+                        <!-- Network Security Groups -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Network Security Groups (NSGs) with security analysis. Include: NSG Name, Resource Group, Location, Associated Subnets, Associated NICs, Total Rules, Allow Rules, Deny Rules, Any/Any Rules (RISK), Open Internet Ports, Security Score.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10067-icon-service-Network-Security-Groups.svg" style="width:16px;height:16px"></span>
+                            <span>All NSGs with security analysis</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show NSGs with DANGEROUS rules allowing unrestricted access (0.0.0.0/0 or Any source). Include: NSG Name, Rule Name, Priority, Direction, Source (Any/Internet), Destination Port, Protocol, Risk Level, Associated Resources, Remediation Recommendation.')">
+                            <span class="prompt-icon">🚨</span>
+                            <span>NSGs with risky Any/Any rules</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show NSGs with sensitive ports exposed to internet (RDP 3389, SSH 22, SQL 1433, SMB 445, HTTP 80/443 without WAF). Include: NSG Name, Port, Protocol, Source Range, Risk Level, Best Practice Recommendation, Affected Resources.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>NSGs with exposed sensitive ports</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show orphaned NSGs not associated with any subnet or NIC. Include: NSG Name, Resource Group, Location, Rule Count, Created Date, Last Modified, Cost Impact, Cleanup Recommendation.')">
+                            <span class="prompt-icon">📭</span>
+                            <span>Orphaned NSGs</span>
+                        </div>
+                        <!-- Azure Firewall -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure Firewalls in my subscription. Include: Firewall Name, Resource Group, Location, SKU (Standard/Premium), Threat Intel Mode, DNS Proxy Status, Availability Zones, Public IPs, Associated VNet, Firewall Policy, SNAT Ranges.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10084-icon-service-Firewalls.svg" style="width:16px;height:16px"></span>
+                            <span>All Azure Firewalls</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure Firewall rule analysis. Include: Firewall Name, Application Rules Count, Network Rules Count, NAT Rules Count, Rules allowing Any destination, Rules with broad source ranges, Threat Intel blocked requests (last 7 days), Optimization recommendations.')">
+                            <span class="prompt-icon">🛡️</span>
+                            <span>Azure Firewall rule analysis</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure Firewall throughput and health. Include: Firewall Name, Health State, Throughput (Gbps), SNAT Port Utilization, Firewall Latency, Application Rules Hit, Network Rules Hit, Threat Intel Hits, Recommendations for scaling.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Azure Firewall health & throughput</span>
+                        </div>
+                        <!-- Application Gateway -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Application Gateways in my subscription. Include: App Gateway Name, Resource Group, Location, SKU/Tier (Standard_v2/WAF_v2), Capacity (Instances/Autoscale), Frontend IPs (Public/Private), Backend Pools Count, HTTP Settings, Listeners, Health Probe Status.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10076-icon-service-Application-Gateways.svg" style="width:16px;height:16px"></span>
+                            <span>All Application Gateways</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Application Gateway backend health. Include: App Gateway Name, Backend Pool Name, Backend Server, Health Status (Healthy/Unhealthy/Unknown), Probe Status, HTTP Settings, Last Probe Time, Unhealthy Reason, Remediation Steps.')">
+                            <span class="prompt-icon">💚</span>
+                            <span>App Gateway backend health</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Application Gateways WITHOUT WAF enabled. Include: App Gateway Name, Resource Group, Current SKU, WAF Status, Protected Applications, Risk Level, Recommendation to enable WAF, Estimated Cost Impact.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>App Gateways without WAF</span>
+                        </div>
+                        <!-- Web Application Firewall -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Web Application Firewall (WAF) policies. Include: WAF Policy Name, Resource Group, SKU, Mode (Detection/Prevention), Managed Rules, Custom Rules Count, Associated Resources (App Gateway/Front Door/CDN), Rule Groups Enabled.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10362-icon-service-Web-Application-Firewall-Policies(WAF).svg" style="width:16px;height:16px"></span>
+                            <span>All WAF Policies</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show WAF policies in DETECTION mode (not blocking). Include: WAF Policy Name, Current Mode, Associated Resources, Last 7 Days Detections, Top Triggered Rules, Risk Assessment, Recommendation to switch to Prevention mode.')">
+                            <span class="prompt-icon">🔍</span>
+                            <span>WAF policies in Detection mode</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show WAF blocked requests analysis. Include: WAF Policy Name, Total Blocked Requests (24h/7d), Top 10 Blocked Rules, Top Source IPs, Top Blocked URLs, Anomaly Score Distribution, False Positive Candidates, Tuning Recommendations.')">
+                            <span class="prompt-icon">🛡️</span>
+                            <span>WAF blocked requests analysis</span>
+                        </div>
+                        <!-- Load Balancers -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Load Balancers in my subscription. Include: LB Name, Resource Group, Location, SKU (Basic/Standard), Type (Public/Internal), Frontend IP, Backend Pool Size, Health Probe Status, Load Balancing Rules Count, Outbound Rules.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10062-icon-service-Load-Balancers.svg" style="width:16px;height:16px"></span>
+                            <span>All Load Balancers</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Load Balancers using BASIC SKU (deprecated features, no SLA). Include: LB Name, Resource Group, Backend Pool Members, Current Configuration, Migration Path to Standard SKU, Impact Assessment.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>Basic SKU Load Balancers</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Load Balancer backend pool health. Include: LB Name, Backend Pool Name, Total Instances, Healthy Instances, Unhealthy Instances, Health Probe Status, Probe Protocol/Port, Recommendations.')">
+                            <span class="prompt-icon">💚</span>
+                            <span>Load Balancer backend health</span>
+                        </div>
+                        <!-- Virtual WAN -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Virtual WANs and Hubs in my subscription. Include: vWAN Name, Resource Group, vWAN Type (Basic/Standard), Hub Count, Total Connections, ExpressRoute Gateways, VPN Gateways, Routing Status, Security Partner.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10353-icon-service-Virtual-WANs.svg" style="width:16px;height:16px"></span>
+                            <span>All Virtual WANs</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Virtual WAN Hub details. Include: Hub Name, vWAN, Location, Hub Status, VNet Connections, VPN Site Connections, ExpressRoute Connections, Routing Tables, Effective Routes, Security Configuration.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/00860-icon-service-Virtual-WAN-Hub.svg" style="width:16px;height:16px"></span>
+                            <span>Virtual WAN Hub details</span>
+                        </div>
+                        <!-- Public IPs -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Public IP Addresses in my subscription. Include: Public IP Name, Resource Group, IP Address, SKU (Basic/Standard), Assignment (Static/Dynamic), Associated Resource, Zone Redundancy, DDoS Protection, Idle Timeout.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10069-icon-service-Public-IP-Addresses.svg" style="width:16px;height:16px"></span>
+                            <span>All Public IP Addresses</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show UNASSOCIATED (orphaned) Public IP Addresses. Include: Public IP Name, Resource Group, IP Address, SKU, Created Date, Monthly Cost, Recommendation (Delete or Associate).')">
+                            <span class="prompt-icon">📭</span>
+                            <span>Orphaned Public IPs</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Public IPs using BASIC SKU (no zone redundancy, limited features). Include: Public IP Name, Associated Resource, Current Usage, Migration Path to Standard SKU, Impact Assessment.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>Basic SKU Public IPs</span>
+                        </div>
+                        <!-- VPN & ExpressRoute -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL VPN Gateways in my subscription. Include: VPN Gateway Name, Resource Group, Location, SKU, Gateway Type, VPN Type (Route/Policy), Active-Active, BGP Enabled, Connections Count, Tunnel Status.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10063-icon-service-Virtual-Network-Gateways.svg" style="width:16px;height:16px"></span>
+                            <span>All VPN Gateways</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VPN Gateway connection status. Include: Gateway Name, Connection Name, Connection Type (S2S/P2S/VNet2VNet), Status (Connected/Disconnected), BGP Status, IKE Version, Shared Key Rotation Date, Tunnel Health.')">
+                            <span class="prompt-icon">🔗</span>
+                            <span>VPN connection status</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('List ALL ExpressRoute Circuits. Include: Circuit Name, Resource Group, Service Provider, Peering Location, Bandwidth, SKU Tier/Family, Circuit State, Provider State, Peerings (Private/Microsoft), Connected VNets.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10079-icon-service-ExpressRoute-Circuits.svg" style="width:16px;height:16px"></span>
+                            <span>All ExpressRoute Circuits</span>
+                        </div>
+                        <!-- Route Tables & Network Watcher -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Route Tables (UDRs) with route analysis. Include: Route Table Name, Resource Group, Associated Subnets, Total Routes, System Routes, Custom Routes, Next Hop Types, BGP Route Propagation, Potential routing conflicts.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10082-icon-service-Route-Tables.svg" style="width:16px;height:16px"></span>
+                            <span>All Route Tables (UDRs)</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show orphaned Route Tables not associated with any subnet. Include: Route Table Name, Resource Group, Route Count, Created Date, Recommendations.')">
+                            <span class="prompt-icon">📭</span>
+                            <span>Orphaned Route Tables</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Network Watcher status by region. Include: Region, Network Watcher Status (Enabled/Disabled), NSG Flow Logs Enabled, Connection Monitor, Traffic Analytics Status, Packet Capture capability, Recommendations.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10066-icon-service-Network-Watcher.svg" style="width:16px;height:16px"></span>
+                            <span>Network Watcher status</span>
+                        </div>
+                        <!-- DDoS & Traffic Manager -->
+                        <div class="prompt-item" onclick="quickPrompt('Show DDoS Protection status. Include: DDoS Protection Plans, Protected VNets, Protected Public IPs, Attack Metrics (last 30 days), Unprotected Resources, Cost Analysis, Protection Recommendations.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10072-icon-service-DDoS-Protection-Plans.svg" style="width:16px;height:16px"></span>
+                            <span>DDoS Protection status</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Traffic Manager profiles. Include: Profile Name, Resource Group, Routing Method, DNS Name, Monitoring Protocol, Endpoint Count, Endpoint Status, TTL, Traffic Analytics.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10065-icon-service-Traffic-Manager-Profiles.svg" style="width:16px;height:16px"></span>
+                            <span>All Traffic Manager profiles</span>
+                        </div>
+                        <!-- Front Door -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure Front Door profiles. Include: Front Door Name, Resource Group, SKU (Standard/Premium), Endpoints, Origin Groups, Routing Rules, WAF Policy, Caching Enabled, Custom Domains, Health Status.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10073-icon-service-Front-Door-and-CDN-Profiles.svg" style="width:16px;height:16px"></span>
+                            <span>All Azure Front Door profiles</span>
+                        </div>
+                        <!-- Network Security Best Practices -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform comprehensive network security assessment. Analyze: NSG rules for risky configurations, Public IP exposure, Missing WAF protection, Unencrypted traffic, Network segmentation gaps, DDoS protection gaps, Firewall rule gaps. Provide security score and prioritized recommendations.')">
+                            <span class="prompt-icon">🔒</span>
+                            <span>Network security assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show network cost optimization opportunities. Include: Unused Public IPs, Oversized Gateways, Underutilized Load Balancers, Unnecessary NAT Gateways, Basic to Standard SKU migrations, Bandwidth optimization, Total potential monthly savings.')">
+                            <span class="prompt-icon">💰</span>
+                            <span>Network cost optimization</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Azure Private Link Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('privatelink')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/networking/00427-icon-service-Private-Link.svg" alt="Private Link"></div>
+                            <div class="category-name">Azure Private Link</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-privatelink">
+                        <!-- Private Endpoints Inventory -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Private Endpoints in my subscription with comprehensive details. Include: Private Endpoint Name, Resource Group, Location, Target Resource Type, Target Resource Name, Private IP Address, Subnet, VNet, Connection Status (Approved/Pending/Rejected), Custom DNS Config.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/00427-icon-service-Private-Link.svg" style="width:16px;height:16px"></span>
+                            <span>All Private Endpoints inventory</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Private Endpoints grouped by target service type. Include: Service Type (Storage/SQL/KeyVault/etc), Count of Private Endpoints, Target Resources, Subnets Used, Connection States, Custom DNS Zones Associated.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Private Endpoints by service type</span>
+                        </div>
+                        <!-- Private Endpoint Connection Issues -->
+                        <div class="prompt-item" onclick="quickPrompt('Show Private Endpoints with connection issues. Include: Private Endpoint Name, Target Resource, Connection State (Pending/Rejected/Disconnected), Manual Approval Required, Rejection Reason, Owner, Action Required, SLA Impact.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>Private Endpoints connection issues</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Private Endpoints pending approval. Include: Private Endpoint Name, Requesting Subscription, Target Resource, Target Subscription, Request Time, Approver Required, Business Justification, Approval Action URL.')">
+                            <span class="prompt-icon">🕐</span>
+                            <span>Private Endpoints pending approval</span>
+                        </div>
+                        <!-- PaaS Services Without Private Endpoints -->
+                        <div class="prompt-item" onclick="quickPrompt('Show ALL PaaS resources that SUPPORT Private Endpoints but do NOT have them configured. Include: Resource Name, Resource Type, Resource Group, Location, Current Network Access (Public), Private Endpoint Supported, Risk Level, Implementation Priority, Private Endpoint Recommendation.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>PaaS without Private Endpoints</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Storage Accounts without Private Endpoints. Include: Storage Account Name, Resource Group, Public Network Access, Firewall Rules, Services (Blob/File/Queue/Table), Risk Assessment, Private Endpoint Recommendation per service.')">
+                            <span class="prompt-icon">💾</span>
+                            <span>Storage without Private Endpoints</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show SQL Databases/Servers without Private Endpoints. Include: SQL Server Name, Databases, Resource Group, Public Network Access, Firewall Rules, Connection Policy, Risk Level, Private Endpoint Recommendation.')">
+                            <span class="prompt-icon">🗄️</span>
+                            <span>SQL without Private Endpoints</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Key Vaults without Private Endpoints. Include: Key Vault Name, Resource Group, Public Network Access status, Firewall Rules, Secrets Count, Keys Count, Risk Level, Private Endpoint Recommendation.')">
+                            <span class="prompt-icon">🔐</span>
+                            <span>Key Vaults without Private Endpoints</span>
+                        </div>
+                        <!-- Private Link Services -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Private Link Services (for exposing your own services). Include: Private Link Service Name, Resource Group, Location, Load Balancer, Frontend IP, NAT IP Configurations, Auto-Approval Subscriptions, Visibility, Connected Private Endpoints.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/02209-icon-service-Private-Link-Services.svg" style="width:16px;height:16px"></span>
+                            <span>All Private Link Services</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Private Link Service connection requests. Include: Service Name, Requesting Private Endpoint, Requesting Subscription, Connection State, Request Message, Approval Status, Auto-Approved, Timestamp.')">
+                            <span class="prompt-icon">📬</span>
+                            <span>Private Link Service connections</span>
+                        </div>
+                        <!-- Network Integration -->
+                        <div class="prompt-item" onclick="quickPrompt('Show Private Endpoint network integration status. Include: Private Endpoint Name, VNet, Subnet, Private IP, DNS Resolution Status, Custom DNS Configured, Private DNS Zone Linked, Network Connectivity Test Result.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>Private Endpoint network integration</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VNets with high Private Endpoint density. Include: VNet Name, Subnet Name, Subnet Size, Total IPs, Used by Private Endpoints, Available IPs, Utilization %, Subnet Expansion Recommendation.')">
+                            <span class="prompt-icon">📈</span>
+                            <span>VNet Private Endpoint density</span>
+                        </div>
+                        <!-- Security & Compliance -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform Private Link security assessment. Analyze: Resources with public access that should use Private Endpoints, Missing Private DNS zone configurations, Cross-subscription Private Endpoint risks, Private Endpoint policy vulnerabilities. Provide security score and recommendations.')">
+                            <span class="prompt-icon">🛡️</span>
+                            <span>Private Link security assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Private Endpoint DNS configuration audit. Include: Private Endpoint Name, Target Service, Expected DNS Zone, Actual DNS Zone, DNS Resolution Test, A Record Exists, FQDN Resolution, Configuration Issues, Fix Required.')">
+                            <span class="prompt-icon">🔧</span>
+                            <span>Private Endpoint DNS audit</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Private DNS Zones Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('privatedns')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/networking/10064-icon-service-DNS-Zones.svg" alt="Private DNS"></div>
+                            <div class="category-name">Private DNS Zones</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-privatedns">
+                        <!-- DNS Zone Inventory -->
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Private DNS Zones in my subscription. Include: Zone Name, Resource Group, Record Sets Count, VNet Links Count, Auto-Registration Enabled VNets, SOA Record, Tags. Group by DNS zone type (Azure services vs custom).')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10064-icon-service-DNS-Zones.svg" style="width:16px;height:16px"></span>
+                            <span>All Private DNS Zones inventory</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Private DNS Zones for Azure services (privatelink.* zones). Include: Zone Name, Associated Service Type, Record Count, VNet Links, Private Endpoints Using Zone, Auto-Registration Status.')">
+                            <span class="prompt-icon">🔗</span>
+                            <span>Azure Private Link DNS Zones</span>
+                        </div>
+                        <!-- DNS Zone Issues -->
+                        <div class="prompt-item" onclick="quickPrompt('CRITICAL: Find DUPLICATE Private DNS Zones for the same Azure service across subscriptions. Scan ALL subscriptions and show: Zone Name (e.g., privatelink.blob.core.windows.net), Subscription 1: Zone details + VNet Links, Subscription 2: Zone details + VNet Links, Conflicting Configurations, Resolution Priority, Recommended Action (Consolidate/Delete).')">
+                            <span class="prompt-icon">🚨</span>
+                            <span>Duplicate DNS Zones across subscriptions</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show MISSING required Private DNS Zones for Azure services. Compare: Private Endpoints deployed vs Required Private DNS Zones. Show: Missing Zone Name, Service Type, Affected Private Endpoints, Impact (DNS Resolution will fail), Creation Priority, Zone Configuration Template.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>Missing required DNS Zones</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Private DNS Zones with MISSING VNet Links. Include: Zone Name, Purpose, Record Count, Expected VNets (where Private Endpoints exist), Linked VNets, Missing VNet Links, Impact of Missing Links, Recommendation.')">
+                            <span class="prompt-icon">🔗</span>
+                            <span>DNS Zones with missing VNet links</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Private DNS Zones NOT linked to any VNet (orphaned). Include: Zone Name, Resource Group, Record Count, Created Date, Last Modified, Purpose Unknown, Cleanup Recommendation.')">
+                            <span class="prompt-icon">📭</span>
+                            <span>Orphaned Private DNS Zones</span>
+                        </div>
+                        <!-- DNS Record Analysis -->
+                        <div class="prompt-item" onclick="quickPrompt('Show stale DNS records in Private DNS Zones (records pointing to deleted resources). Include: Zone Name, Record Name, Record Type, Record Value (IP), Target Resource Status (Deleted/Not Found), Record Age, Cleanup Recommendation.')">
+                            <span class="prompt-icon">🗑️</span>
+                            <span>Stale DNS records</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Private DNS Zones record distribution. Include: Zone Name, Total Records, A Records, AAAA Records, CNAME Records, PTR Records, SOA Records, Other Records, Largest Zones by Record Count.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>DNS record distribution</span>
+                        </div>
+                        <!-- VNet Link Analysis -->
+                        <div class="prompt-item" onclick="quickPrompt('Show VNet Link status across all Private DNS Zones. Include: Zone Name, VNet Link Name, VNet Name, Link Status (Completed/InProgress/Failed), Auto-Registration Enabled, Registration VNets, Provisioning State Issues.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>VNet Link status analysis</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VNets with Auto-Registration enabled across multiple DNS Zones. Include: VNet Name, DNS Zones with Auto-Registration, Potential Conflicts, Record Overlap Risk, Best Practice Assessment.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>VNets with auto-registration</span>
+                        </div>
+                        <!-- DNS Resolution Issues -->
+                        <div class="prompt-item" onclick="quickPrompt('Analyze Private DNS resolution chain. For each Private Endpoint show: Service FQDN, Expected DNS Zone, Zone Exists, VNet Linked, A Record Exists, IP Address, Resolution Test Status, Issues Found, Fix Required.')">
+                            <span class="prompt-icon">🔍</span>
+                            <span>DNS resolution chain analysis</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show common Private DNS Zone issues and misconfigurations. Check: Missing zones for Private Endpoints, Multiple zones for same service, Missing VNet links, Auto-registration conflicts, Stale records, Cross-subscription zone sprawl. Provide remediation steps.')">
+                            <span class="prompt-icon">🛠️</span>
+                            <span>Common DNS Zone issues</span>
+                        </div>
+                        <!-- Best Practices -->
+                        <div class="prompt-item" onclick="quickPrompt('Show Private DNS Zone best practices compliance. Check: Centralized zone management, Hub VNet zone hosting, Spoke VNet linking, Auto-registration usage, Zone naming conventions, Record TTL settings, Zone redundancy, Documentation. Score and recommend.')">
+                            <span class="prompt-icon">✅</span>
+                            <span>DNS Zone best practices</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Generate Private DNS Zone architecture recommendation. Based on current deployment: Hub-Spoke topology detection, Recommended zone placement, VNet linking strategy, Auto-registration guidance, Cross-subscription considerations, Terraform/Bicep template for optimal setup.')">
+                            <span class="prompt-icon">🏗️</span>
+                            <span>DNS Zone architecture recommendation</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Landing Zone Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('landingzone')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" alt="Landing Zone"></div>
+                            <div class="category-name">Landing Zone (CAF)</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-landingzone">
+                        <!-- Landing Zone Overview -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform comprehensive Azure Landing Zone assessment based on Microsoft Cloud Adoption Framework (CAF). Analyze: Management Group hierarchy, Subscription organization, Policy assignments at each level, RBAC structure, Network topology (Hub-Spoke/vWAN), Identity integration, Governance maturity. Provide LZ readiness score with gaps and recommendations.')">
+                            <span class="prompt-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" style="width:16px;height:16px"></span>
+                            <span>Landing Zone assessment (CAF)</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show complete Management Group hierarchy and structure. Include: Root Management Group, Child Management Groups at each level, Subscriptions under each MG, Policy Assignments inherited, RBAC roles inherited, Total resources per MG branch. Visualize hierarchy depth and breadth.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10011-icon-service-Management-Groups.svg" style="width:16px;height:16px"></span>
+                            <span>Management Group hierarchy</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Subscription organization and categorization. Include: Subscription Name, Management Group path, Environment type (Platform/Application), Purpose (Connectivity/Identity/Management/Workload), Total Resources, Cost (Last Month), Policy Compliance %, Owner.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10002-icon-service-Subscriptions.svg" style="width:16px;height:16px"></span>
+                            <span>Subscription organization review</span>
+                        </div>
+                        <!-- Platform Landing Zone -->
+                        <div class="prompt-item" onclick="quickPrompt('Analyze PLATFORM Landing Zone components based on CAF. Review: Connectivity subscription (Hub VNet, Azure Firewall, VPN/ExpressRoute, DNS), Identity subscription (Domain Controllers, Azure AD Connect), Management subscription (Log Analytics, Automation, Backup). Show: Deployed resources, Configuration status, Best practice gaps, Recommendations.')">
+                            <span class="prompt-icon">🏛️</span>
+                            <span>Platform Landing Zone review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review CONNECTIVITY subscription (Hub). Analyze: Hub VNet configuration, Azure Firewall rules and policies, VPN Gateway connections, ExpressRoute circuits, Azure Bastion, Public IPs, DDoS Protection, DNS configuration, Peering to spoke VNets. Identify gaps vs CAF recommendations.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>Connectivity (Hub) subscription review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review IDENTITY subscription. Analyze: Domain Controller VMs, Azure AD Connect servers, Hybrid identity configuration, Private DNS zones for AD, Network connectivity to on-premises, Backup configuration, High availability setup. Score against CAF best practices.')">
+                            <span class="prompt-icon">🔐</span>
+                            <span>Identity subscription review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review MANAGEMENT subscription. Analyze: Log Analytics workspaces, Azure Automation accounts, Update Management configuration, Azure Monitor setup, Backup vaults, Azure Policy definitions, Blueprints. Assess centralized management capability.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Management subscription review</span>
+                        </div>
+                        <!-- Application Landing Zone -->
+                        <div class="prompt-item" onclick="quickPrompt('Analyze APPLICATION Landing Zone (Spoke) subscriptions. For each spoke subscription show: Spoke Name, Purpose/Workload, VNet and peering to Hub, NSGs configured, Route tables (UDRs), Policy compliance, Cost, Resource count, Owner, Security posture.')">
+                            <span class="prompt-icon">📱</span>
+                            <span>Application Landing Zones review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review specific Spoke subscription for Landing Zone compliance. Ask which subscription, then analyze: VNet configuration, Hub connectivity, NSG rules, Route table configuration, Policy compliance, Private endpoints usage, Backup protection, Tagging compliance, Cost governance.')">
+                            <span class="prompt-icon">🔍</span>
+                            <span>Single Spoke subscription review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Compare Application Landing Zones (spokes) against each other. Show: Consistency in VNet sizing, Common policy deviations, Security posture variations, Cost patterns, Tagging compliance differences, Best-in-class spoke identification, Standardization recommendations.')">
+                            <span class="prompt-icon">⚖️</span>
+                            <span>Spoke consistency comparison</span>
+                        </div>
+                        <!-- Policy & Governance -->
+                        <div class="prompt-item" onclick="quickPrompt('Analyze Landing Zone policy structure based on CAF. Show: Policies at Root MG (should be minimal), Policies at Platform MG, Policies at Landing Zones MG, Policies at individual subscriptions. Identify: Policy inheritance, Overlapping policies, Missing required policies, Policy effectiveness.')">
+                            <span class="prompt-icon"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" style="width:16px;height:16px"></span>
+                            <span>Landing Zone policy structure</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show required CAF policies NOT deployed. Compare deployed policies against CAF recommended policies for: Allowed locations, Allowed VM SKUs, Required tags, Network security (NSG on subnets), Encryption requirements, Backup requirements, Monitoring requirements. List missing policies with priority.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>Missing CAF recommended policies</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Analyze RBAC structure for Landing Zone. Show: RBAC assignments at Management Group level, Subscription level, Built-in vs Custom roles, Privileged role holders, Service Principal access, Break-glass account configuration, PIM usage. Identify least privilege violations.')">
+                            <span class="prompt-icon">👥</span>
+                            <span>Landing Zone RBAC structure</span>
+                        </div>
+                        <!-- Network Topology -->
+                        <div class="prompt-item" onclick="quickPrompt('Analyze Landing Zone network topology. Determine: Topology type (Hub-Spoke traditional, Hub-Spoke with Azure Firewall, Virtual WAN), Hub VNet(s), Spoke VNets, Peering configuration, Transit connectivity, On-premises connectivity, DNS architecture. Compare to CAF recommended topologies.')">
+                            <span class="prompt-icon">🔀</span>
+                            <span>Landing Zone network topology</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Validate Hub-Spoke network design. Check: Hub VNet address space, Spoke VNet address spaces, No overlapping CIDRs, Peering configuration (allow gateway transit), Route tables for traffic flow through firewall, DNS configuration, ExpressRoute/VPN gateway, Network segmentation.')">
+                            <span class="prompt-icon">✅</span>
+                            <span>Hub-Spoke design validation</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show network segmentation and security boundaries. Analyze: Subscription as security boundary, VNet as network boundary, Subnet as micro-segment, NSG placement, Azure Firewall rules, Application security groups (ASGs), Service endpoints, Private endpoints. Score segmentation maturity.')">
+                            <span class="prompt-icon">🛡️</span>
+                            <span>Network segmentation review</span>
+                        </div>
+                        <!-- Compliance & Security -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform Landing Zone security baseline assessment. Check CAF security best practices: MFA enforcement, Conditional Access, Privileged Identity Management, Security Center/Defender configuration, Network security, Data encryption, Key management, Logging and monitoring, Incident response readiness.')">
+                            <span class="prompt-icon">🔒</span>
+                            <span>Security baseline assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Assess Landing Zone compliance readiness. Check: Regulatory compliance policies (HIPAA/PCI/SOC2/ISO27001), Data residency controls, Encryption requirements, Access controls, Audit logging, Backup and DR, Policy enforcement. Identify compliance gaps.')">
+                            <span class="prompt-icon">📜</span>
+                            <span>Compliance readiness assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review Defender for Cloud coverage across Landing Zone. Show: Defender plans enabled (Servers/SQL/Storage/AppService/Containers/KeyVault), Coverage by subscription, Security score per subscription, Unprotected resources, Cost of full coverage, Priority recommendations.')">
+                            <span class="prompt-icon">🛡️</span>
+                            <span>Defender for Cloud coverage</span>
+                        </div>
+                        <!-- Operations & Monitoring -->
+                        <div class="prompt-item" onclick="quickPrompt('Review Landing Zone monitoring and logging configuration. Check: Centralized Log Analytics workspace, Activity log collection, Diagnostic settings on all resources, Azure Monitor alerts, Action groups, Workbooks/Dashboards, Application Insights, VM monitoring agents. Identify monitoring gaps.')">
+                            <span class="prompt-icon">📈</span>
+                            <span>Monitoring & logging review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review Landing Zone backup and disaster recovery. Analyze: Backup policies per subscription/workload, Recovery Services vaults, Backup compliance, DR strategy (Azure Site Recovery), Cross-region replication, RPO/RTO defined, DR testing schedule. Identify protection gaps.')">
+                            <span class="prompt-icon">💾</span>
+                            <span>Backup & DR review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review Landing Zone cost governance. Analyze: Cost Management setup, Budgets per subscription/MG, Cost alerts, Tag-based cost allocation, Reserved Instances usage, Savings Plans, Orphaned resources, Right-sizing opportunities, Showback/chargeback readiness.')">
+                            <span class="prompt-icon">💰</span>
+                            <span>Cost governance review</span>
+                        </div>
+                        <!-- Landing Zone Maturity -->
+                        <div class="prompt-item" onclick="quickPrompt('Calculate Landing Zone maturity score. Assess each CAF pillar: 1) Identity (0-100), 2) Network (0-100), 3) Management (0-100), 4) Governance (0-100), 5) Security (0-100), 6) Platform automation (0-100). Provide overall maturity level (Initial/Developing/Defined/Managed/Optimized) with improvement roadmap.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Landing Zone maturity score</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Generate Landing Zone improvement roadmap. Based on current assessment, provide: Quick wins (< 1 week), Short-term improvements (1-4 weeks), Medium-term enhancements (1-3 months), Long-term transformation (3-6 months). Prioritize by: Security impact, Cost savings, Operational efficiency.')">
+                            <span class="prompt-icon">🗺️</span>
+                            <span>Landing Zone improvement roadmap</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- API Management Category -->
                 <div class="category-section">
                     <div class="category-header" onclick="toggleCategory('apim')">
@@ -2388,6 +2825,34 @@
                             <div class="welcome-category-title">Azure Backup</div>
                             <div class="welcome-category-desc">VMs, disks, files, SQL backup protection status</div>
                             <div class="welcome-category-count">12 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('networking')">
+                            <span class="welcome-category-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" alt="Networking"></span>
+                            <div class="welcome-category-title">Networking</div>
+                            <div class="welcome-category-desc">VNets, NSGs, Firewalls, Load Balancers, WAF, vWAN</div>
+                            <div class="welcome-category-count">32 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('privatelink')">
+                            <span class="welcome-category-icon"><img src="/Icons/networking/00427-icon-service-Private-Link.svg" alt="Private Link"></span>
+                            <div class="welcome-category-title">Azure Private Link</div>
+                            <div class="welcome-category-desc">Private endpoints, PaaS security, connections</div>
+                            <div class="welcome-category-count">14 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('privatedns')">
+                            <span class="welcome-category-icon"><img src="/Icons/networking/10064-icon-service-DNS-Zones.svg" alt="Private DNS"></span>
+                            <div class="welcome-category-title">Private DNS Zones</div>
+                            <div class="welcome-category-desc">DNS zones, VNet links, resolution issues</div>
+                            <div class="welcome-category-count">14 Quick Actions</div>
+                        </div>
+                        
+                        <div class="welcome-category-card" onclick="showCategory('landingzone')">
+                            <span class="welcome-category-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" alt="Landing Zone"></span>
+                            <div class="welcome-category-title">Landing Zone (CAF)</div>
+                            <div class="welcome-category-desc">CAF assessment, Platform & Application LZ review</div>
+                            <div class="welcome-category-count">22 Quick Actions</div>
                         </div>
                         
                         <div class="welcome-category-card" onclick="showAboutModal()">
