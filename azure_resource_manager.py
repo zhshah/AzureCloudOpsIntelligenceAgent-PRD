@@ -154,13 +154,44 @@ class AzureResourceManager:
             
             response = self.rg_client.resources(request)
             
+            # Enrich data with subscription names
+            enriched_data = self._enrich_with_subscription_names(response.data)
+            
             return {
                 "count": response.count,
                 "total_records": response.total_records,
-                "data": response.data
+                "data": enriched_data
             }
         except Exception as e:
             return {"error": str(e), "count": 0, "data": []}
+    
+    def _enrich_with_subscription_names(self, data: list) -> list:
+        """
+        Enrich query results with human-readable subscription names.
+        Looks for 'subscriptionId' field and adds 'SubscriptionName' field.
+        """
+        if not data:
+            return data
+        
+        # Get subscription name mapping
+        sub_names = self._get_subscription_names()
+        
+        enriched = []
+        for item in data:
+            # Handle both dict and list-like items
+            if isinstance(item, dict):
+                item_copy = dict(item)
+                # Check for subscriptionId field (case-insensitive)
+                sub_id = item_copy.get('subscriptionId') or item_copy.get('SubscriptionId') or item_copy.get('subscription_id')
+                if sub_id:
+                    # Add subscription name
+                    sub_name = sub_names.get(sub_id, sub_id)
+                    item_copy['SubscriptionName'] = sub_name
+                enriched.append(item_copy)
+            else:
+                enriched.append(item)
+        
+        return enriched
     
     def get_storage_accounts_with_private_endpoints(self) -> Dict[str, Any]:
         """Get storage accounts with private endpoints"""
