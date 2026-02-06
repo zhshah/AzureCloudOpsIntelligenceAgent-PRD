@@ -2083,6 +2083,418 @@ class OpenAIAgent:
                         }
                     }
                 }
+            },
+            # ============================================
+            # ORPHANED RESOURCES TOOLS
+            # Based on: https://github.com/dolevshor/azure-orphan-resources
+            # ============================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_app_service_plans",
+                    "description": "Get orphaned App Service Plans without any hosted apps. These cost money even when empty. Use when user asks about unused app service plans, empty app service plans, orphaned app plans.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_availability_sets",
+                    "description": "Get orphaned Availability Sets not associated to any VM. Use when user asks about unused availability sets, empty availability sets, orphaned availability sets.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_managed_disks",
+                    "description": "Get orphaned Managed Disks in Unattached state. These cost money. Use when user asks about unattached disks, orphaned disks, unused disks, disk cleanup.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_sql_elastic_pools",
+                    "description": "Get orphaned SQL Elastic Pools without any databases. These cost money when empty. Use when user asks about empty elastic pools, unused SQL pools, orphaned elastic pools.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_public_ips",
+                    "description": "Get orphaned Public IP addresses not attached to any resource. Static IPs cost money. Use when user asks about unattached public IPs, unused public IPs, orphaned IPs.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_nics",
+                    "description": "Get orphaned Network Interfaces not attached to any VM or resource. Use when user asks about unattached NICs, orphaned network interfaces, unused NICs.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_nsgs",
+                    "description": "Get orphaned Network Security Groups not attached to any NIC or subnet. Use when user asks about unused NSGs, orphaned NSGs, unattached security groups.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_route_tables",
+                    "description": "Get orphaned Route Tables not attached to any subnet. Use when user asks about unused route tables, orphaned route tables, unattached UDR.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_load_balancers",
+                    "description": "Get orphaned Load Balancers without backend pools or NAT rules. These cost money. Use when user asks about unused load balancers, orphaned LBs, empty load balancers.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_front_door_waf_policies",
+                    "description": "Get orphaned Front Door WAF Policies without security links. Use when user asks about unused WAF policies, orphaned Front Door policies.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_traffic_manager_profiles",
+                    "description": "Get orphaned Traffic Manager Profiles without endpoints. Use when user asks about unused traffic manager, orphaned traffic manager profiles.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_application_gateways",
+                    "description": "Get orphaned Application Gateways without backend targets. These are expensive. Use when user asks about unused app gateways, orphaned application gateways, empty app gateway.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_virtual_networks",
+                    "description": "Get orphaned Virtual Networks without any subnets. Use when user asks about empty VNets, orphaned virtual networks, VNets without subnets.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_subnets",
+                    "description": "Get orphaned Subnets without connected devices or delegation (empty subnets). Use when user asks about empty subnets, unused subnets, orphaned subnets.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_nat_gateways",
+                    "description": "Get orphaned NAT Gateways not attached to any subnet. These cost money. Use when user asks about unused NAT gateways, orphaned NAT, unattached NAT gateway.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_ip_groups",
+                    "description": "Get orphaned IP Groups not attached to any Azure Firewall. Use when user asks about unused IP groups, orphaned IP groups.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_private_dns_zones",
+                    "description": "Get orphaned Private DNS Zones without Virtual Network Links. These cost money. Use when user asks about unused private DNS, orphaned DNS zones, unlinked private DNS.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_private_endpoints",
+                    "description": "Get orphaned Private Endpoints in Disconnected state. These cost money. Use when user asks about disconnected private endpoints, orphaned private endpoints.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_vnet_gateways",
+                    "description": "Get orphaned Virtual Network Gateways without P2S config or VPN connections. These are expensive. Use when user asks about unused VPN gateways, orphaned VNet gateways, VNet gateway without connections.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_ddos_plans",
+                    "description": "Get orphaned DDoS Protection Plans without any protected VNets. These are VERY expensive (~$2,944/month). Use when user asks about unused DDoS protection, orphaned DDoS plans.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_resource_groups",
+                    "description": "Get empty Resource Groups without any resources. Use when user asks about empty resource groups, orphaned RGs, resource groups cleanup.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_api_connections",
+                    "description": "Get orphaned API Connections not used by any Logic App. Use when user asks about unused API connections, orphaned Logic App connections.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_certificates",
+                    "description": "Get expired App Service Certificates. Use when user asks about expired certificates, certificate cleanup.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_all_orphaned_resources_summary",
+                    "description": "Get summary count of all orphaned resource types. Returns counts for quick overview. Use when user asks about all orphaned resources, orphaned resources summary, full orphan scan.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
             }
         ]
         
@@ -3058,6 +3470,154 @@ Always provide actionable insights with REAL Azure data only."""
                     subscriptions=arguments.get("subscriptions")
                 )
                 return self._cache_query_results(result, "rbac_privileged")
+            
+            # ============================================================
+            # ORPHANED RESOURCES FUNCTIONS
+            # Based on: https://github.com/dolevshor/azure-orphan-resources
+            # ============================================================
+            elif function_name == "get_orphaned_app_service_plans":
+                result = self.resource_manager.get_orphaned_app_service_plans(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_app_service_plans")
+            
+            elif function_name == "get_orphaned_availability_sets":
+                result = self.resource_manager.get_orphaned_availability_sets(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_availability_sets")
+            
+            elif function_name == "get_orphaned_managed_disks":
+                result = self.resource_manager.get_orphaned_managed_disks(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_managed_disks")
+            
+            elif function_name == "get_orphaned_sql_elastic_pools":
+                result = self.resource_manager.get_orphaned_sql_elastic_pools(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_sql_elastic_pools")
+            
+            elif function_name == "get_orphaned_public_ips":
+                result = self.resource_manager.get_orphaned_public_ips(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_public_ips")
+            
+            elif function_name == "get_orphaned_nics":
+                result = self.resource_manager.get_orphaned_nics(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_nics")
+            
+            elif function_name == "get_orphaned_nsgs":
+                result = self.resource_manager.get_orphaned_nsgs(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_nsgs")
+            
+            elif function_name == "get_orphaned_route_tables":
+                result = self.resource_manager.get_orphaned_route_tables(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_route_tables")
+            
+            elif function_name == "get_orphaned_load_balancers":
+                result = self.resource_manager.get_orphaned_load_balancers(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_load_balancers")
+            
+            elif function_name == "get_orphaned_front_door_waf_policies":
+                result = self.resource_manager.get_orphaned_front_door_waf_policies(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_front_door_waf")
+            
+            elif function_name == "get_orphaned_traffic_manager_profiles":
+                result = self.resource_manager.get_orphaned_traffic_manager_profiles(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_traffic_manager")
+            
+            elif function_name == "get_orphaned_application_gateways":
+                result = self.resource_manager.get_orphaned_application_gateways(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_app_gateways")
+            
+            elif function_name == "get_orphaned_virtual_networks":
+                result = self.resource_manager.get_orphaned_virtual_networks(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_vnets")
+            
+            elif function_name == "get_orphaned_subnets":
+                result = self.resource_manager.get_orphaned_subnets(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_subnets")
+            
+            elif function_name == "get_orphaned_nat_gateways":
+                result = self.resource_manager.get_orphaned_nat_gateways(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_nat_gateways")
+            
+            elif function_name == "get_orphaned_ip_groups":
+                result = self.resource_manager.get_orphaned_ip_groups(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_ip_groups")
+            
+            elif function_name == "get_orphaned_private_dns_zones":
+                result = self.resource_manager.get_orphaned_private_dns_zones(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_private_dns")
+            
+            elif function_name == "get_orphaned_private_endpoints":
+                result = self.resource_manager.get_orphaned_private_endpoints(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_private_endpoints")
+            
+            elif function_name == "get_orphaned_vnet_gateways":
+                result = self.resource_manager.get_orphaned_vnet_gateways(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_vnet_gateways")
+            
+            elif function_name == "get_orphaned_ddos_plans":
+                result = self.resource_manager.get_orphaned_ddos_plans(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_ddos_plans")
+            
+            elif function_name == "get_orphaned_resource_groups":
+                result = self.resource_manager.get_orphaned_resource_groups(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_resource_groups")
+            
+            elif function_name == "get_orphaned_api_connections":
+                result = self.resource_manager.get_orphaned_api_connections(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_api_connections")
+            
+            elif function_name == "get_orphaned_certificates":
+                result = self.resource_manager.get_orphaned_certificates(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "orphaned_certificates")
+            
+            elif function_name == "get_all_orphaned_resources_summary":
+                result = self.resource_manager.get_all_orphaned_resources_summary(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return result  # This is already a summary, no need to cache
             
             else:
                 return {"error": f"Unknown function: {function_name}"}
