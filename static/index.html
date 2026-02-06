@@ -446,6 +446,48 @@
             color: var(--text-secondary);
         }
 
+        /* Loading animation for dynamic data */
+        .loading-dots::after {
+            content: '';
+            animation: loadingDots 1.5s steps(4, end) infinite;
+        }
+        
+        @keyframes loadingDots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+
+        .insight-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .insight-card.success-dynamic {
+            border-color: var(--success);
+        }
+        
+        .insight-card.success-dynamic::before {
+            background: var(--success);
+        }
+        
+        .insight-card.warning-dynamic {
+            border-color: var(--warning);
+        }
+        
+        .insight-card.warning-dynamic::before {
+            background: var(--warning);
+        }
+        
+        .insight-card.danger-dynamic {
+            border-color: var(--danger);
+        }
+        
+        .insight-card.danger-dynamic::before {
+            background: var(--danger);
+        }
+
         .insight-footer {
             margin-top: 12px;
             padding-top: 12px;
@@ -1293,10 +1335,10 @@
         </div>
         
         <div class="subscription-selector">
-            <label for="subscriptionSelect" style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 8px;">Context:</label>
+            <label for="subscriptionSelect" style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 8px;">Subscription:</label>
             <select id="subscriptionSelect" onchange="changeSubscription()">
                 <option value="all">All Subscriptions</option>
-                <option value="loading" selected>Loading hierarchy...</option>
+                <option value="loading" selected>Loading subscriptions...</option>
             </select>
         </div>
 
@@ -1340,45 +1382,51 @@
     <div class="main-content">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <!-- Insights Section -->
+            <!-- Live Insights Section -->
             <div class="sidebar-section">
                 <h3 class="section-title">
-                    <span>📊</span> Quick Start
+                    <span>📊</span> Live Insights
                 </h3>
                 
-                <div class="insight-card success">
+                <div class="insight-card" id="securityCard" onclick="quickPrompt('Show Microsoft Defender for Cloud security recommendations for my subscription. Include severity counts and top issues.')" style="cursor: pointer;">
                     <div class="insight-header">
-                        <div class="insight-icon">🛡️</div>
-                        <div class="insight-title">Security</div>
+                        <div class="insight-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security" style="width: 24px; height: 24px;"></div>
+                        <div class="insight-title">Security Score</div>
                     </div>
-                    <div class="insight-value" style="font-size: 16px;">Check Status</div>
-                    <div class="insight-subtitle">Review security recommendations</div>
-                    <div class="insight-footer" onclick="quickPrompt('Show Microsoft Defender for Cloud security recommendations for my subscription.')" style="cursor: pointer; color: var(--primary);">
-                        → Get Security Assessment
+                    <div class="insight-value" id="sidebarSecurityScore" style="font-size: 20px; font-weight: 700;">
+                        <span class="loading-dots">Loading</span>
+                    </div>
+                    <div class="insight-subtitle" id="sidebarSecuritySubtitle">Fetching security posture...</div>
+                    <div class="insight-footer" style="color: var(--primary); font-size: 11px;">
+                        Click for full assessment →
                     </div>
                 </div>
 
-                <div class="insight-card warning">
+                <div class="insight-card" id="savingsCard" onclick="quickPrompt('Find all cost savings opportunities in my subscription. Show ACTUAL resource names with potential savings amounts.')" style="cursor: pointer;">
                     <div class="insight-header">
-                        <div class="insight-icon">💡</div>
-                        <div class="insight-title">Cost Savings</div>
+                        <div class="insight-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Savings" style="width: 24px; height: 24px;"></div>
+                        <div class="insight-title">Potential Savings</div>
                     </div>
-                    <div class="insight-value" style="font-size: 16px;">Find Savings</div>
-                    <div class="insight-subtitle">Identify optimization opportunities</div>
-                    <div class="insight-footer" onclick="quickPrompt('Find all cost savings opportunities in my subscription. Show ACTUAL resource names with potential savings.')" style="cursor: pointer; color: var(--primary);">
-                        → Analyze Cost Savings
+                    <div class="insight-value" id="sidebarSavings" style="font-size: 20px; font-weight: 700;">
+                        <span class="loading-dots">Loading</span>
+                    </div>
+                    <div class="insight-subtitle" id="sidebarSavingsSubtitle">Scanning for opportunities...</div>
+                    <div class="insight-footer" style="color: var(--primary); font-size: 11px;">
+                        Click for detailed breakdown →
                     </div>
                 </div>
 
-                <div class="insight-card success">
+                <div class="insight-card" id="resourcesCard" onclick="quickPrompt('List ALL resources in my current subscription grouped by type with counts.')" style="cursor: pointer;">
                     <div class="insight-header">
-                        <div class="insight-icon">📦</div>
-                        <div class="insight-title">Resources</div>
+                        <div class="insight-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Resources" style="width: 24px; height: 24px;"></div>
+                        <div class="insight-title">Total Resources</div>
                     </div>
-                    <div class="insight-value" style="font-size: 16px;">View Inventory</div>
-                    <div class="insight-subtitle">Full resource inventory</div>
-                    <div class="insight-footer" onclick="quickPrompt('List ALL resources in my current subscription with comprehensive details.')" style="cursor: pointer; color: var(--primary);">
-                        → Show All Resources
+                    <div class="insight-value" id="sidebarResources" style="font-size: 20px; font-weight: 700;">
+                        <span class="loading-dots">Loading</span>
+                    </div>
+                    <div class="insight-subtitle" id="sidebarResourcesSubtitle">Counting resources...</div>
+                    <div class="insight-footer" style="color: var(--primary); font-size: 11px;">
+                        Click for full inventory →
                     </div>
                 </div>
             </div>
@@ -2104,205 +2152,6 @@
                     </div>
                 </div>
 
-                <!-- Well-Architected Framework (WAF) Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('waf')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF"></div>
-                            <div class="category-name">Well-Architected Framework</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-waf">
-                        <!-- WAF Overview -->
-                        <div class="prompt-item" onclick="quickPrompt('Perform a comprehensive Azure Well-Architected Framework (WAF) assessment based on Microsoft official guidance (https://learn.microsoft.com/azure/well-architected/). Analyze resources in the current context against all 5 pillars: Reliability, Security, Cost Optimization, Operational Excellence, and Performance Efficiency. For each pillar provide: 1) Current state assessment, 2) Identified gaps against WAF best practices, 3) Risk level (Critical/High/Medium/Low), 4) Top 3 prioritized recommendations with WAF documentation references. Include a summary scorecard and quick wins.')">
-                            <span class="prompt-icon"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF" style="width:18px;height:18px;"></span>
-                            <span>Full WAF Assessment</span>
-                        </div>
-                        
-                        <!-- Reliability Pillar -->
-                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF RELIABILITY pillar assessment per Microsoft guidance (https://learn.microsoft.com/azure/well-architected/reliability/). Focus on: DESIGN FOR RESILIENCE: 1) VMs without Availability Zones/Sets - check fault domain distribution, 2) Single points of failure - identify resources lacking redundancy, 3) Load balancer health probes and backend pool configuration. DESIGN FOR RECOVERY: 4) Backup coverage - VMs, disks, databases without Azure Backup, 5) Recovery Services Vault configuration and RPO/RTO targets, 6) Disaster recovery - geo-replication for SQL, storage GRS/ZRS vs LRS. DESIGN FOR OPERATIONS: 7) Health modeling - resources without diagnostic settings. Rate each finding by impact and provide WAF-aligned remediation.')">
-                            <span class="prompt-icon"><img src="/Icons/general/10004-icon-service-Service-Health.svg" alt="Reliability" style="width:18px;height:18px;"></span>
-                            <span>Reliability Assessment</span>
-                        </div>
-                        
-                        <!-- Security Pillar -->
-                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF SECURITY pillar assessment per Microsoft guidance (https://learn.microsoft.com/azure/well-architected/security/). Focus on: PROTECT CONFIDENTIALITY: 1) Storage accounts with public blob access enabled, 2) Key Vaults without soft-delete/purge protection, 3) Databases without encryption (TDE). PROTECT INTEGRITY: 4) NSGs with overly permissive rules (0.0.0.0/0 inbound), 5) Resources without Private Endpoints exposing public IPs. IDENTITY & ACCESS: 6) Privileged RBAC - Owner/Contributor at subscription level, 7) Service principals with excessive permissions, 8) Guest users with privileged roles. SUSTAIN SECURITY POSTURE: 9) Microsoft Defender for Cloud recommendations, 10) Policy compliance for security initiatives. Rate by severity and provide WAF security recommendations.')">
-                            <span class="prompt-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security" style="width:18px;height:18px;"></span>
-                            <span>Security Assessment</span>
-                        </div>
-                        
-                        <!-- Cost Optimization Pillar -->
-                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF COST OPTIMIZATION pillar assessment per Microsoft guidance (https://learn.microsoft.com/azure/well-architected/cost-optimization/). Focus on: COST MANAGEMENT DISCIPLINE: 1) Resources without cost allocation tags (CostCenter, Owner, Environment), 2) Budget alerts and spending anomalies. DESIGN FOR USAGE OPTIMIZATION: 3) Deallocated VMs still incurring storage costs, 4) Orphaned/unattached disks, 5) Unattached Public IP addresses, 6) Idle resources with low utilization. DESIGN FOR RATE OPTIMIZATION: 7) Resources suitable for Reserved Instances or Savings Plans, 8) Dev/Test workloads on production pricing, 9) Over-provisioned VM sizes (rightsizing opportunities). MONITOR AND OPTIMIZE: 10) Storage tier optimization (hot data on cool/archive tiers). Provide estimated monthly savings for each recommendation.')">
-                            <span class="prompt-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Cost" style="width:18px;height:18px;"></span>
-                            <span>Cost Optimization Assessment</span>
-                        </div>
-                        
-                        <!-- Operational Excellence Pillar -->
-                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF OPERATIONAL EXCELLENCE pillar assessment per Microsoft guidance (https://learn.microsoft.com/azure/well-architected/operational-excellence/). Focus on: ESTABLISH STANDARDS: 1) Naming convention compliance - check for consistent naming patterns, 2) Tagging standards - missing required tags (Environment, Owner, Application), 3) Policy compliance status and violations. EVOLVE WITH OBSERVABILITY: 4) Resources without diagnostic settings enabled, 5) VMs without Azure Monitor agent, 6) Missing Activity Log alerts for critical operations. AUTOMATE FOR EFFICIENCY: 7) Automation accounts and runbook coverage, 8) Update Management compliance for VMs. DEPLOY WITH CONFIDENCE: 9) Resources without resource locks (CanNotDelete/ReadOnly), 10) Infrastructure as Code coverage. Provide governance improvement recommendations aligned with WAF.')">
-                            <span class="prompt-icon"><img src="/Icons/management + governance/00001-icon-service-Monitor.svg" alt="OpEx" style="width:18px;height:18px;"></span>
-                            <span>Operational Excellence Assessment</span>
-                        </div>
-                        
-                        <!-- Performance Efficiency Pillar -->
-                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF PERFORMANCE EFFICIENCY pillar assessment per Microsoft guidance (https://learn.microsoft.com/azure/well-architected/performance-efficiency/). Focus on: MEET CAPACITY REQUIREMENTS: 1) VM SKU appropriateness - burstable B-series for variable workloads, 2) App Service plans without auto-scaling rules, 3) SQL databases DTU/vCore sizing analysis. ACHIEVE AND SUSTAIN PERFORMANCE: 4) Disk type optimization - Standard HDD where Premium SSD needed, 5) Storage account performance tier vs access patterns, 6) Network latency - resources spread across regions without optimization. IMPROVE THROUGH OPTIMIZATION: 7) CDN coverage for static content, 8) Caching implementations (Redis Cache usage), 9) Database query performance indicators. Provide right-sizing and performance tuning recommendations with expected improvements.')">
-                            <span class="prompt-icon"><img src="/Icons/devops/02423-icon-service-Load-Testing.svg" alt="Perf" style="width:18px;height:18px;"></span>
-                            <span>Performance Efficiency Assessment</span>
-                        </div>
-                        
-                        <!-- WAF by Resource Group -->
-                        <div class="prompt-item" onclick="quickPrompt('Perform a targeted WAF review for a specific resource group based on Microsoft Well-Architected Framework. Ask me which resource group to analyze, then assess all resources in that group against the 5 WAF pillars: Reliability (resilience, recovery), Security (confidentiality, integrity, access), Cost Optimization (usage, rate optimization), Operational Excellence (observability, automation), Performance Efficiency (capacity, optimization). This provides a workload-specific assessment with actionable recommendations.')">
-                            <span class="prompt-icon">📁</span>
-                            <span>WAF Review by Resource Group</span>
-                        </div>
-                        
-                        <!-- WAF by Tag -->
-                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF review for resources filtered by tag based on Microsoft Well-Architected Framework. Ask me which tag (name and value) to filter by (e.g., Application=MyApp, Environment=Production), then analyze those tagged resources against all 5 WAF pillars. This enables application-level or workload-level WAF assessment across resource groups, providing recommendations specific to that logical grouping.')">
-                            <span class="prompt-icon">🏷️</span>
-                            <span>WAF Review by Tag</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Orphaned Resources Category -->
-                <!-- Based on: https://github.com/dolevshor/azure-orphan-resources -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('orphaned')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/general/10349-icon-service-Resource-Explorer.svg" alt="Orphaned"></div>
-                            <div class="category-name">Orphaned Resources</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-orphaned">
-                        <!-- Summary -->
-                        <div class="prompt-item" onclick="quickPrompt('Get a COMPLETE summary of ALL orphaned resources in my environment. Show count by category: App Service Plans (no apps), Availability Sets (no VMs), Managed Disks (unattached), SQL Elastic Pools (no databases), Public IPs (unattached), Network Interfaces (not attached), NSGs (not attached), Route Tables (not attached), Load Balancers (no backends), Application Gateways (no targets), NAT Gateways (not attached), Private DNS Zones (no VNet links), Private Endpoints (disconnected), VNet Gateways (no connections), DDoS Protection (no VNets), Empty Resource Groups. Highlight resources with cost impact (💲) and calculate total potential monthly savings.')">
-                            <span class="prompt-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Summary" style="width:18px;height:18px;"></span>
-                            <span>Full Orphaned Resources Summary</span>
-                        </div>
-                        
-                        <!-- COMPUTE -->
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned App Service Plans - plans without any hosted web apps or functions. 💲 These cost money even when empty. Include: Plan Name, Resource Group, Location, SKU/Tier, Number of Sites (should be 0), Monthly Cost Estimate, Tags. Recommend deletion or consolidation.')">
-                            <span class="prompt-icon"><img src="/Icons/compute/10035-icon-service-App-Services.svg" alt="App Service" style="width:18px;height:18px;"></span>
-                            <span>App Service Plans (no apps) 💲</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Availability Sets - sets not associated to any Virtual Machine or VMSS. Excludes Azure Site Recovery (ASR) sets. Include: Availability Set Name, Resource Group, Location, Fault Domains, Update Domains, VM Count (should be 0), Tags. These can be safely deleted.')">
-                            <span class="prompt-icon"><img src="/Icons/compute/10025-icon-service-Availability-Sets.svg" alt="Availability Set" style="width:18px;height:18px;"></span>
-                            <span>Availability Sets (no VMs)</span>
-                        </div>
-                        
-                        <!-- STORAGE -->
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Managed Disks in Unattached state. 💲 These disks cost money even when not attached to any VM. Excludes ASR replica disks and AKS PVC disks. Include: Disk Name, Resource Group, Location, Disk Type (Premium/Standard), Size GB, Disk State, Time Created, Monthly Cost Estimate, Tags. Sort by size descending to prioritize largest savings.')">
-                            <span class="prompt-icon"><img src="/Icons/compute/10032-icon-service-Disks.svg" alt="Disk" style="width:18px;height:18px;"></span>
-                            <span>Managed Disks (unattached) 💲</span>
-                        </div>
-                        
-                        <!-- DATABASE -->
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned SQL Elastic Pools without any databases. 💲 These pools cost money even when empty. Include: Pool Name, SQL Server Name, Resource Group, Location, DTU/vCore Config, Database Count (should be 0), Monthly Cost Estimate, Tags. Recommend deletion or database migration.')">
-                            <span class="prompt-icon"><img src="/Icons/databases/10134-icon-service-SQL-Elastic-Pools.svg" alt="SQL Pool" style="width:18px;height:18px;"></span>
-                            <span>SQL Elastic Pools (empty) 💲</span>
-                        </div>
-                        
-                        <!-- NETWORKING -->
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Public IP addresses not attached to any resource (VM, Load Balancer, NAT Gateway, Application Gateway, etc.). 💲 Static Public IPs cost money even when unattached. Include: IP Name, Resource Group, Location, SKU Type, Allocation Method, IP Address (if assigned), Monthly Cost Estimate, Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10069-icon-service-Public-IP-Addresses.svg" alt="Public IP" style="width:18px;height:18px;"></span>
-                            <span>Public IPs (unattached) 💲</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Network Interfaces not attached to any VM or other resource. Excludes Azure NetApp Volumes NICs. Include: NIC Name, Resource Group, Location, Private IP Address, Attached Resource (should be empty), Tags. These can be safely deleted.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10080-icon-service-Network-Interfaces.svg" alt="NIC" style="width:18px;height:18px;"></span>
-                            <span>Network Interfaces (not attached)</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Network Security Groups not attached to any NIC or subnet. Include: NSG Name, Resource Group, Location, Rule Count, Attached NICs (should be 0), Attached Subnets (should be 0), Tags. Review before deletion as they may contain custom rules worth preserving.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10067-icon-service-Network-Security-Groups.svg" alt="NSG" style="width:18px;height:18px;"></span>
-                            <span>NSGs (not attached)</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Route Tables not attached to any subnet. Include: Route Table Name, Resource Group, Location, Route Count, Attached Subnets (should be 0), BGP Route Propagation setting, Tags. Review custom routes before deletion.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10082-icon-service-Route-Tables.svg" alt="Route Table" style="width:18px;height:18px;"></span>
-                            <span>Route Tables (not attached)</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Load Balancers without backend pools or NAT rules. 💲 Load Balancers cost money even when not routing traffic. Include: LB Name, Resource Group, Location, SKU Type, Backend Pool Count (should be 0), NAT Rule Count (should be 0), Monthly Cost Estimate, Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10062-icon-service-Load-Balancers.svg" alt="Load Balancer" style="width:18px;height:18px;"></span>
-                            <span>Load Balancers (no backends) 💲</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Application Gateways without backend targets. 💲 Application Gateways are expensive even when not routing traffic. Include: AppGw Name, Resource Group, Location, SKU Tier, Capacity, Backend IP Count (should be 0), Monthly Cost Estimate, Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10076-icon-service-Application-Gateways.svg" alt="App Gateway" style="width:18px;height:18px;"></span>
-                            <span>Application Gateways (no targets) 💲</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned NAT Gateways not attached to any subnet. 💲 NAT Gateways cost money even when not routing traffic. Include: NAT Gateway Name, Resource Group, Location, SKU, Idle Timeout, Attached Subnets (should be 0), Monthly Cost Estimate, Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10310-icon-service-NAT.svg" alt="NAT Gateway" style="width:18px;height:18px;"></span>
-                            <span>NAT Gateways (not attached) 💲</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Virtual Network Gateways without Point-to-Site configuration or VPN connections. 💲 VNet Gateways are expensive even when not routing traffic. Include: Gateway Name, Resource Group, Location, Gateway Type (VPN/ExpressRoute), SKU, Tier, Connection Count (should be 0), Monthly Cost Estimate, Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10063-icon-service-Virtual-Network-Gateways.svg" alt="VNet Gateway" style="width:18px;height:18px;"></span>
-                            <span>VNet Gateways (no connections) 💲</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Private DNS Zones without Virtual Network Links. 💲 Private DNS Zones cost money even when not linked to any VNet. Include: Zone Name, Resource Group, Location, Record Set Count, VNet Links (should be 0), Monthly Cost Estimate, Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10064-icon-service-DNS-Zones.svg" alt="Private DNS" style="width:18px;height:18px;"></span>
-                            <span>Private DNS Zones (no links) 💲</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Private Endpoints in Disconnected state. 💲 Private Endpoints cost money even when disconnected from target service. Include: Endpoint Name, Resource Group, Location, Target Service, Connection State (should be Disconnected), Subnet, Monthly Cost Estimate, Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/00427-icon-service-Private-Link.svg" alt="Private Endpoint" style="width:18px;height:18px;"></span>
-                            <span>Private Endpoints (disconnected) 💲</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned DDoS Protection Plans without any protected Virtual Networks. 💲 DDoS Protection Plans are VERY expensive (~$2,944/month) even when not protecting any VNets. Include: Plan Name, Resource Group, Location, Protected VNets (should be 0), Monthly Cost, Tags. CRITICAL for cost savings.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10072-icon-service-DDoS-Protection-Plans.svg" alt="DDoS" style="width:18px;height:18px;"></span>
-                            <span>DDoS Protection Plans (unused) 💲💲</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Virtual Networks without any subnets. Include: VNet Name, Resource Group, Location, Address Space, Subnet Count (should be 0), Tags. These are typically incomplete deployments.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" alt="VNet" style="width:18px;height:18px;"></span>
-                            <span>Virtual Networks (no subnets)</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Subnets without connected devices or delegation (empty subnets). Include: Subnet Name, VNet Name, Resource Group, Address Prefix, Connected Devices (should be 0), Delegation (should be none), Tags. These may be reserved for future use.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/02742-icon-service-Subnet.svg" alt="Subnet" style="width:18px;height:18px;"></span>
-                            <span>Empty Subnets</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned IP Groups not attached to any Azure Firewall or Firewall Policy. Include: IP Group Name, Resource Group, Location, IP Address Count, Attached Firewalls (should be 0), Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/00701-icon-service-IP-Groups.svg" alt="IP Group" style="width:18px;height:18px;"></span>
-                            <span>IP Groups (not used)</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Front Door WAF Policies without Security Policy Links. Include: Policy Name, Resource Group, Location, SKU, Security Links (should be 0), Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10362-icon-service-Web-Application-Firewall-Policies(WAF).svg" alt="WAF Policy" style="width:18px;height:18px;"></span>
-                            <span>Front Door WAF Policies (unused)</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned Traffic Manager Profiles without any endpoints. Include: Profile Name, Resource Group, Routing Method, DNS Name, Endpoint Count (should be 0), Tags.')">
-                            <span class="prompt-icon"><img src="/Icons/networking/10065-icon-service-Traffic-Manager-Profiles.svg" alt="Traffic Manager" style="width:18px;height:18px;"></span>
-                            <span>Traffic Manager Profiles (no endpoints)</span>
-                        </div>
-                        
-                        <!-- OTHERS -->
-                        <div class="prompt-item" onclick="quickPrompt('Find empty Resource Groups without any resources. Include: Resource Group Name, Location, Subscription, Resource Count (should be 0), Tags. These are often leftover from deleted deployments.')">
-                            <span class="prompt-icon"><img src="/Icons/general/10007-icon-service-Resource-Groups.svg" alt="Resource Group" style="width:18px;height:18px;"></span>
-                            <span>Empty Resource Groups</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find orphaned API Connections not used by any Logic App. Include: Connection Name, API Type, Resource Group, Location, Associated Logic Apps (should be none), Tags. These are often leftover from deleted Logic Apps.')">
-                            <span class="prompt-icon"><img src="/Icons/integration/02631-icon-service-Logic-Apps.svg" alt="API Connection" style="width:18px;height:18px;"></span>
-                            <span>API Connections (unused)</span>
-                        </div>
-                        
-                        <div class="prompt-item" onclick="quickPrompt('Find expired App Service Certificates. Include: Certificate Name, Resource Group, Subject Name, Thumbprint, Expiration Date, Days Since Expiry, Tags. These need renewal or removal.')">
-                            <span class="prompt-icon"><img src="/Icons/security/10245-icon-service-Key-Vaults.svg" alt="Certificate" style="width:18px;height:18px;"></span>
-                            <span>Expired Certificates</span>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Azure Backup Category -->
                 <div class="category-section">
                     <div class="category-header" onclick="toggleCategory('backup')">
@@ -2534,20 +2383,6 @@
                             <div class="welcome-category-count">6 Quick Actions</div>
                         </div>
                         
-                        <div class="welcome-category-card" onclick="showCategory('waf')">
-                            <span class="welcome-category-icon"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF"></span>
-                            <div class="welcome-category-title">Well-Architected Framework</div>
-                            <div class="welcome-category-desc">Reliability, Security, Cost, Operations, Performance</div>
-                            <div class="welcome-category-count">8 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('orphaned')">
-                            <span class="welcome-category-icon"><img src="/Icons/general/10349-icon-service-Resource-Explorer.svg" alt="Orphaned"></span>
-                            <div class="welcome-category-title">Orphaned Resources</div>
-                            <div class="welcome-category-desc">Find unused resources costing money - disks, IPs, NICs, NSGs</div>
-                            <div class="welcome-category-count">24 Resource Types</div>
-                        </div>
-                        
                         <div class="welcome-category-card" onclick="showCategory('backup')">
                             <span class="welcome-category-icon"><img src="/Icons/storage/00017-icon-service-Recovery-Services-Vaults.svg" alt="Backup"></span>
                             <div class="welcome-category-title">Azure Backup</div>
@@ -2645,6 +2480,9 @@
             
             // Update insights based on subscription
             updateInsightsForSubscription(select.value);
+            
+            // Load sidebar live insights
+            loadSidebarLiveInsights(select.value);
             
             // Show notification
             showNotification(`Switched to ${subscriptionName} context`);
@@ -2750,6 +2588,143 @@
             }
         }
 
+        // Load sidebar live insights (Security Score, Savings, Resources)
+        async function loadSidebarLiveInsights(subscriptionId) {
+            console.log('Loading sidebar live insights...');
+            const isAllSubs = subscriptionId === 'all' || subscriptionId === 'loading';
+            
+            const accessToken = sessionStorage.getItem('accessToken');
+            const headers = { 'Content-Type': 'application/json' };
+            if (accessToken) {
+                headers['Authorization'] = `Bearer ${accessToken}`;
+            }
+
+            // Fetch resource count
+            try {
+                const resourcePrompt = isAllSubs 
+                    ? 'How many total resources are across ALL my subscriptions? Just the number.'
+                    : 'How many total resources in my current subscription? Just the number.';
+                
+                const resourceResponse = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        message: resourcePrompt,
+                        subscription_context: isAllSubs ? 'all' : subscriptionId,
+                        all_subscriptions: isAllSubs
+                    })
+                });
+                
+                if (resourceResponse.ok) {
+                    const resourceData = await resourceResponse.json();
+                    const countMatch = resourceData.response?.match(/\b(\d+)\b/);
+                    const resourcesEl = document.getElementById('sidebarResources');
+                    const subtitleEl = document.getElementById('sidebarResourcesSubtitle');
+                    const cardEl = document.getElementById('resourcesCard');
+                    
+                    if (countMatch && resourcesEl) {
+                        resourcesEl.innerHTML = countMatch[1];
+                        subtitleEl.textContent = `Across ${isAllSubs ? 'all subscriptions' : 'this subscription'}`;
+                        cardEl.classList.add('success-dynamic');
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching resource count:', err);
+                const el = document.getElementById('sidebarResources');
+                if (el) el.innerHTML = '--';
+            }
+
+            // Fetch potential savings
+            try {
+                const savingsPrompt = isAllSubs
+                    ? 'What is the total potential monthly savings from Azure Advisor recommendations across ALL subscriptions? Just give me the dollar amount like $X,XXX.'
+                    : 'What is the total potential monthly savings from Azure Advisor recommendations? Just give me the dollar amount like $X,XXX.';
+                
+                const savingsResponse = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        message: savingsPrompt,
+                        subscription_context: isAllSubs ? 'all' : subscriptionId,
+                        all_subscriptions: isAllSubs
+                    })
+                });
+                
+                if (savingsResponse.ok) {
+                    const savingsData = await savingsResponse.json();
+                    const savingsMatch = savingsData.response?.match(/\$[\d,]+\.?\d*/);
+                    const savingsEl = document.getElementById('sidebarSavings');
+                    const subtitleEl = document.getElementById('sidebarSavingsSubtitle');
+                    const cardEl = document.getElementById('savingsCard');
+                    
+                    if (savingsEl) {
+                        if (savingsMatch) {
+                            savingsEl.innerHTML = savingsMatch[0] + '/mo';
+                            subtitleEl.textContent = 'Optimization opportunities found';
+                            cardEl.classList.add('warning-dynamic');
+                        } else if (savingsData.response?.toLowerCase().includes('no') || savingsData.response?.toLowerCase().includes('0')) {
+                            savingsEl.innerHTML = '$0';
+                            subtitleEl.textContent = 'No immediate savings found';
+                            cardEl.classList.add('success-dynamic');
+                        } else {
+                            savingsEl.innerHTML = 'Check';
+                            subtitleEl.textContent = 'Click to analyze savings';
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching savings:', err);
+                const el = document.getElementById('sidebarSavings');
+                if (el) el.innerHTML = '--';
+            }
+
+            // Fetch security score/issues count
+            try {
+                const securityPrompt = isAllSubs
+                    ? 'What is my Microsoft Defender for Cloud secure score percentage OR how many security recommendations do I have across ALL subscriptions? Just give me a number or percentage.'
+                    : 'What is my Microsoft Defender for Cloud secure score percentage OR how many security recommendations do I have? Just give me a number or percentage.';
+                
+                const securityResponse = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        message: securityPrompt,
+                        subscription_context: isAllSubs ? 'all' : subscriptionId,
+                        all_subscriptions: isAllSubs
+                    })
+                });
+                
+                if (securityResponse.ok) {
+                    const securityData = await securityResponse.json();
+                    const percentMatch = securityData.response?.match(/(\d+)\s*%/);
+                    const countMatch = securityData.response?.match(/\b(\d+)\s*(recommendation|issue|finding)/i);
+                    const securityEl = document.getElementById('sidebarSecurityScore');
+                    const subtitleEl = document.getElementById('sidebarSecuritySubtitle');
+                    const cardEl = document.getElementById('securityCard');
+                    
+                    if (securityEl) {
+                        if (percentMatch) {
+                            const score = parseInt(percentMatch[1]);
+                            securityEl.innerHTML = score + '%';
+                            subtitleEl.textContent = score >= 80 ? 'Good security posture' : score >= 50 ? 'Needs attention' : 'Critical improvements needed';
+                            cardEl.classList.add(score >= 80 ? 'success-dynamic' : score >= 50 ? 'warning-dynamic' : 'danger-dynamic');
+                        } else if (countMatch) {
+                            securityEl.innerHTML = countMatch[1] + ' issues';
+                            subtitleEl.textContent = 'Security recommendations';
+                            cardEl.classList.add(parseInt(countMatch[1]) > 10 ? 'warning-dynamic' : 'success-dynamic');
+                        } else {
+                            securityEl.innerHTML = 'Check';
+                            subtitleEl.textContent = 'Click to review security';
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching security score:', err);
+                const el = document.getElementById('sidebarSecurityScore');
+                if (el) el.innerHTML = '--';
+            }
+        }
+
         function showNotification(message) {
             const notification = document.createElement('div');
             notification.style.cssText = `
@@ -2783,51 +2758,17 @@
         }
 
         function showCategory(categoryId) {
-            // Find the category section
-            const categoryPrompts = document.querySelector(`#category-${categoryId}`);
-            if (!categoryPrompts) return;
-            
-            const categoryHeader = categoryPrompts.previousElementSibling;
-            const categorySection = categoryHeader.parentElement;
-            
-            // If category is not expanded, expand it
+            // Scroll to sidebar and open category
+            const categoryHeader = document.querySelector(`#category-${categoryId}`).previousElementSibling;
             if (!categoryHeader.classList.contains('active')) {
                 categoryHeader.click();
             }
-            
-            // Scroll the sidebar to bring this category to the top
-            const sidebar = document.querySelector('.sidebar');
-            if (sidebar && categorySection) {
-                // Calculate the position to scroll to (offset from top of sidebar)
-                const sidebarRect = sidebar.getBoundingClientRect();
-                const sectionRect = categorySection.getBoundingClientRect();
-                const scrollOffset = sectionRect.top - sidebarRect.top + sidebar.scrollTop - 20; // 20px padding
-                
-                // Smooth scroll the sidebar
-                sidebar.scrollTo({
-                    top: scrollOffset,
-                    behavior: 'smooth'
-                });
-            }
-            
-            // Also scroll the main page to ensure sidebar is visible
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
             
             // Remove welcome state
             const welcomeState = document.querySelector('.welcome-state');
             if (welcomeState) {
                 welcomeState.remove();
             }
-            
-            // Highlight the category briefly
-            categorySection.style.transition = 'background-color 0.3s ease';
-            categorySection.style.backgroundColor = 'rgba(0, 120, 212, 0.1)';
-            setTimeout(() => {
-                categorySection.style.backgroundColor = '';
-            }, 1500);
         }
 
         function quickPrompt(prompt) {
@@ -3199,7 +3140,7 @@
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
 
-        // Load Azure Subscriptions with Management Group Hierarchy
+        // Load Azure Subscriptions
         async function loadAzureSubscriptions() {
             try {
                 const accessToken = sessionStorage.getItem('accessToken');
@@ -3208,116 +3149,52 @@
                     headers['Authorization'] = `Bearer ${accessToken}`;
                 }
 
-                // Call backend to get subscriptions with hierarchy
-                const response = await fetch('/api/subscriptions-hierarchy', {
+                // Call backend to get subscriptions
+                const response = await fetch('/api/subscriptions', {
                     method: 'GET',
                     headers: headers
                 });
 
-                const select = document.getElementById('subscriptionSelect');
-                
                 if (response.ok) {
-                    const data = await response.json();
-                    const subscriptions = data.subscriptions || [];
-                    const managementGroups = data.managementGroups || [];
+                    const subscriptions = await response.json();
+                    const select = document.getElementById('subscriptionSelect');
                     
                     // Clear loading option
                     select.innerHTML = '<option value="all">All Subscriptions</option>';
                     
-                    // Add Management Groups section if available
-                    if (managementGroups && managementGroups.length > 0) {
-                        const mgOptGroup = document.createElement('optgroup');
-                        mgOptGroup.label = '📁 Management Groups';
-                        
-                        managementGroups.forEach(mg => {
-                            const option = document.createElement('option');
-                            option.value = `mg:${mg.id}`;
-                            option.textContent = `📁 ${mg.name}`;
-                            option.style.fontWeight = 'bold';
-                            mgOptGroup.appendChild(option);
-                            
-                            // Add nested children recursively
-                            if (mg.children && mg.children.length > 0) {
-                                addHierarchyOptions(mgOptGroup, mg.children, 1);
-                            }
-                        });
-                        
-                        select.appendChild(mgOptGroup);
-                    }
-                    
-                    // Add Subscriptions section
+                    // Add real subscriptions
                     if (subscriptions && subscriptions.length > 0) {
-                        const subOptGroup = document.createElement('optgroup');
-                        subOptGroup.label = '🔑 Subscriptions';
-                        
                         subscriptions.forEach((sub, index) => {
                             const option = document.createElement('option');
                             option.value = sub.id || sub.subscriptionId;
                             option.textContent = sub.displayName || sub.name;
-                            if (managementGroups.length === 0 && index === 0) {
-                                option.selected = true; // Select first subscription by default if no MGs
-                            }
-                            subOptGroup.appendChild(option);
+                            if (index === 0) option.selected = true; // Select first subscription by default
+                            select.appendChild(option);
                         });
-                        
-                        select.appendChild(subOptGroup);
                         
                         // Store subscriptions in session for later use
                         sessionStorage.setItem('azureSubscriptions', JSON.stringify(subscriptions));
-                        sessionStorage.setItem('azureManagementGroups', JSON.stringify(managementGroups));
                         
                         // Update insights for first subscription
                         if (subscriptions.length > 0) {
                             updateInsightsForSubscription(subscriptions[0].id || subscriptions[0].subscriptionId);
+                            // Load sidebar live insights
+                            loadSidebarLiveInsights(subscriptions[0].id || subscriptions[0].subscriptionId);
                         }
-                    } else if (managementGroups.length === 0) {
-                        // No subscriptions or MGs found
+                    } else {
+                        // No subscriptions found
                         select.innerHTML = '<option value="none">No subscriptions available</option>';
                     }
                 } else {
-                    console.error('Failed to load subscriptions hierarchy, falling back to subscriptions only');
-                    // Fallback to regular subscriptions endpoint
-                    const fallbackResponse = await fetch('/api/subscriptions', { headers });
-                    if (fallbackResponse.ok) {
-                        const subscriptions = await fallbackResponse.json();
-                        select.innerHTML = '<option value="all">All Subscriptions</option>';
-                        subscriptions.forEach((sub, index) => {
-                            const option = document.createElement('option');
-                            option.value = sub.id || sub.subscriptionId;
-                            option.textContent = sub.displayName || sub.name;
-                            if (index === 0) option.selected = true;
-                            select.appendChild(option);
-                        });
-                    } else {
-                        select.innerHTML = '<option value="current">Current Subscription</option>';
-                    }
+                    console.error('Failed to load subscriptions');
+                    const select = document.getElementById('subscriptionSelect');
+                    select.innerHTML = '<option value="current">Current Subscription</option>';
                 }
             } catch (error) {
                 console.error('Error loading subscriptions:', error);
                 const select = document.getElementById('subscriptionSelect');
                 select.innerHTML = '<option value="current">Current Subscription</option>';
             }
-        }
-        
-        // Helper function to add hierarchical options
-        function addHierarchyOptions(parent, children, depth) {
-            const indent = '  '.repeat(depth);
-            children.forEach(child => {
-                const option = document.createElement('option');
-                if (child.type === 'managementGroup') {
-                    option.value = `mg:${child.id}`;
-                    option.textContent = `${indent}📁 ${child.name}`;
-                } else {
-                    option.value = child.id;
-                    option.textContent = `${indent}🔑 ${child.name}`;
-                }
-                parent.appendChild(option);
-                
-                // Recursively add children
-                if (child.children && child.children.length > 0) {
-                    addHierarchyOptions(parent, child.children, depth + 1);
-                }
-            });
         }
 
         // Initialize

@@ -86,9 +86,8 @@ async def get_auth_config():
     Return authentication configuration for the frontend.
     This allows dynamic configuration without hardcoding values in the UI.
     """
-    # Default values for local development (override with environment variables in production)
-    client_id = os.getenv("ENTRA_APP_CLIENT_ID", "d2cb3ded-b2d0-44c8-a91f-fdc73a2cd303")
-    tenant_id = os.getenv("ENTRA_TENANT_ID", "8d7622f8-d815-4120-b5b8-bee841c23a1c")
+    client_id = os.getenv("ENTRA_APP_CLIENT_ID", "")
+    tenant_id = os.getenv("ENTRA_TENANT_ID", "")
     
     if not client_id or not tenant_id:
         raise HTTPException(
@@ -138,6 +137,12 @@ async def chat(request: ChatMessage, authorization: Optional[str] = Header(None)
             # All subscriptions selected - tell AI to query all accessible subscriptions
             context_info = "\n\n[SYSTEM CONTEXT: User has selected 'All Subscriptions' context. Query across ALL accessible Azure subscriptions. Do NOT pass any specific subscription IDs to functions - leave the subscriptions parameter empty or omit it to query all. Include subscription name/ID in the output columns for multi-subscription results.]"
             enhanced_message = request.message + context_info
+        else:
+            # No subscription context provided - use default from environment
+            default_sub_id = os.getenv("AZURE_SUBSCRIPTION_ID")
+            if default_sub_id:
+                context_info = f"\n\n[SYSTEM CONTEXT: No subscription selected in UI. Using default subscription (ID: {default_sub_id}). Pass this ID in the subscriptions parameter when calling functions. Do NOT use literal string 'subscription_context' - use the actual subscription ID provided.]"
+                enhanced_message = request.message + context_info
         
         response, updated_history = await ai_agent.process_message(
             enhanced_message,
@@ -163,22 +168,6 @@ async def get_subscriptions():
         print(f"Error fetching subscriptions: {e}")
         # Return empty array on error so UI doesn't break
         return []
-
-
-@app.get("/api/subscriptions-hierarchy")
-async def get_subscriptions_hierarchy():
-    """Get Azure subscriptions with management group hierarchy"""
-    try:
-        result = await resource_manager.get_subscriptions_with_hierarchy()
-        return result
-    except Exception as e:
-        print(f"Error fetching subscriptions hierarchy: {e}")
-        # Return subscriptions only if hierarchy fails
-        subscriptions = await resource_manager.get_subscriptions()
-        return {
-            "subscriptions": subscriptions if isinstance(subscriptions, list) else [],
-            "managementGroups": []
-        }
 
 
 @app.get("/api/export-csv/{query_id}")
@@ -343,7 +332,6 @@ async def execute_approved_command(request: ExecuteApprovedRequest):
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/Icons", StaticFiles(directory="Icons"), name="icons")
 
 
 if __name__ == "__main__":

@@ -1979,215 +1979,491 @@ class OpenAIAgent:
                         }
                     }
                 }
-            },
-            # ============================================
-            # IAM / RBAC ROLE ASSIGNMENT TOOLS
-            # ============================================
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_role_assignments_management_group",
-                    "description": "Get role assignments at Management Group level. Use when user asks about management group role assignments, privileged access at management group level, RBAC at MG level.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "management_group_id": {
-                                "type": "string",
-                                "description": "Optional management group ID to filter."
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_role_assignments_subscription",
-                    "description": "Get role assignments at Subscription level. Use when user asks about subscription role assignments, who has access to subscription, RBAC at subscription level, permanent role assignments.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "subscriptions": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "List of subscription IDs."
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_role_assignments_resource_group",
-                    "description": "Get role assignments at Resource Group level. Use when user asks about resource group permissions, who has access to resource groups, RBAC at RG level.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "subscriptions": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "List of subscription IDs."
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_role_assignments_service_principals",
-                    "description": "Get role assignments for Service Principals and Managed Identities. Use when user asks about service principal permissions, managed identity roles, app registrations with privileged access.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "subscriptions": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "List of subscription IDs."
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_role_assignments_summary",
-                    "description": "Get comprehensive RBAC role assignment summary. Use when user asks about RBAC summary, role assignment overview, access control summary, IAM dashboard.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "subscriptions": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "List of subscription IDs."
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_privileged_role_assignments",
-                    "description": "Get all privileged role assignments (Owner, Contributor, User Access Administrator). Use when user asks about privileged access audit, security audit, who has Owner/Contributor roles, high-risk permissions.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "subscriptions": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "List of subscription IDs."
-                            }
-                        }
-                    }
-                }
-            },
-            # ============================================
-            # ORPHANED RESOURCES TOOLS (Consolidated)
-            # Based on: https://github.com/dolevshor/azure-orphan-resources
-            # ============================================
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_orphaned_resources",
-                    "description": "Get orphaned/unused Azure resources by type. RESOURCE TYPES: app_service_plans, availability_sets, managed_disks, sql_elastic_pools, public_ips, nics, nsgs, route_tables, load_balancers, front_door_waf, traffic_manager, application_gateways, virtual_networks, subnets, nat_gateways, ip_groups, private_dns_zones, private_endpoints, vnet_gateways, ddos_plans, resource_groups, api_connections, certificates, ALL (for full summary). Resources with 💲 cost money even when unused. Use when user asks about orphaned resources, unused resources, cleanup, cost savings from unused resources.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "resource_type": {
-                                "type": "string",
-                                "enum": ["app_service_plans", "availability_sets", "managed_disks", "sql_elastic_pools", "public_ips", "nics", "nsgs", "route_tables", "load_balancers", "front_door_waf", "traffic_manager", "application_gateways", "virtual_networks", "subnets", "nat_gateways", "ip_groups", "private_dns_zones", "private_endpoints", "vnet_gateways", "ddos_plans", "resource_groups", "api_connections", "certificates", "ALL"],
-                                "description": "Type of orphaned resource to find. Use 'ALL' for complete summary across all types."
-                            },
-                            "subscriptions": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "List of subscription IDs."
-                            }
-                        },
-                        "required": ["resource_type"]
-                    }
-                }
             }
         ]
         
-        self.system_message = """You are an expert Azure Cloud Operations Agent - an intelligent system that analyzes Azure infrastructure for cost optimization, security posture, and operational best practices.
+        self.system_message = """You are an elite Azure Cloud Operations Agent with FULL DEPLOYMENT CAPABILITIES. You are an intelligent automation system that can analyze costs, manage resources, AND deploy new Azure resources through an approval workflow.
 
-ABSOLUTE CRITICAL RULES - VIOLATIONS ARE UNACCEPTABLE:
-1. NEVER OUTPUT PLACEHOLDER TEXT like "[Pending Data]", "[To be checked]", "TBD", etc.
-2. NEVER generate fake resource names, costs, or statistics
-3. ALWAYS call Azure API functions FIRST - wait for ALL results before ANY output
-4. If a function returns error or no data, say "No resources found" or "Unable to retrieve: [error]"
-5. If a check cannot be performed (function unavailable), say "Check not available" - NOT "[Pending]"
-6. COMPLETE the entire assessment before providing output - NEVER partial results
+�🚨🚨 ABSOLUTE CRITICAL RULE - READ THIS FIRST 🚨🚨🚨
+═══════════════════════════════════════════════════════════════════════════════
+NEVER EVER GENERATE FAKE, PLACEHOLDER, OR MADE-UP DATA!
+This is the #1 MOST IMPORTANT RULE of this entire system.
 
-AZURE WELL-ARCHITECTED FRAMEWORK (WAF) ASSESSMENTS
-Reference: https://learn.microsoft.com/azure/well-architected/
+FORBIDDEN - You must NEVER output these types of fake resource names:
+❌ "vm-production-001", "vm-production-002", "vm-development-01"
+❌ "db-production-sql", "sql-prod-001", "database-main"
+❌ "storage-prod-backup", "storage-dev-logs", "storageaccount1"
+❌ "app-service-prod", "webapp-001", "myapp-service"
+❌ "network-gateway-prod", "vnet-production", "bastion-001"
+❌ "Production-RG", "Development-RG", "Testing-RG" (as fake RG names)
+❌ Any resource name you create yourself that doesn't come from Azure API
 
-For WAF Security Assessment, call these functions IN PARALLEL then analyze:
-- get_storage_accounts_public_access() - Storage with public blob access
-- get_key_vaults() - Get all Key Vaults (check enabledForDeployment, enableRbacAuthorization)
-- get_nsg_rules() - Get NSG rules (look for 0.0.0.0/0 or * in source)
-- get_privileged_role_assignments() - Owner/Contributor at sub level
-- get_role_assignments_service_principals() - SP permissions
-- get_paas_without_private_endpoints() - Resources without Private Endpoints
-- get_sql_public_access() - SQL with public access
-- get_policy_compliance_status() - Policy compliance
+FORBIDDEN - You must NEVER output these types of fake costs:
+❌ "$150.00", "$120.00", "$95.00" (made up numbers)
+❌ "Estimated: $XX.XX per month" (without real data)
+❌ Any cost figure you calculate or imagine yourself
 
-For WAF Reliability Assessment:
-- get_vms_without_backup() - VMs without backup protection
-- get_managed_disks_without_backup() - Unprotected disks
-- get_storage_accounts_detailed() - Check replication (LRS vs GRS/ZRS)
-- get_all_vms() - Check for availability sets/zones
+WHAT YOU MUST DO INSTEAD:
+✅ ALWAYS call the appropriate Azure API function FIRST
+✅ ONLY display data that comes from function results
+✅ If function returns empty data: Say "No data found" or "No resources match your criteria"
+✅ If function returns an error: Say "Unable to retrieve data: [error message]"
+✅ If you don't have a function for something: Say "I don't have access to that data"
 
-For WAF Cost Optimization Assessment:
-- get_cost_savings_opportunities() - Deallocated VMs, orphaned disks
-- get_resources_without_tags() - Missing cost tags
-- get_resources_with_cost_details() - Resource costs
+EXAMPLE OF CORRECT BEHAVIOR:
+- User asks: "Show costs breakdown"
+- You: Call get_resources_with_cost_details() function
+- Function returns data → Display ONLY that data
+- Function returns empty → Say "No cost data found for this subscription/period"
+- Function returns error → Say "Error retrieving costs: [error message]"
 
-For WAF Operational Excellence Assessment:
-- get_resources_without_tags() - Missing governance tags
-- get_policy_compliance_status() - Policy compliance
-- get_non_compliant_resources() - Policy violations
+EXAMPLE OF FORBIDDEN BEHAVIOR:
+- User asks: "Show costs breakdown"
+- You: Generate a table with fake names like "vm-production-001" with fake costs "$150.00"
+- THIS IS ABSOLUTELY FORBIDDEN AND WILL DESTROY THE TOOL'S CREDIBILITY!
 
-For WAF Performance Assessment:
-- get_all_vms() - VM sizes for rightsizing
-- get_storage_accounts_detailed() - Storage tiers
+If you EVER generate fake data, this tool becomes useless and cannot be used in production.
+═══════════════════════════════════════════════════════════════════════════════
 
-WORKFLOW FOR ANY ASSESSMENT:
-1. Call ALL relevant functions first (can call multiple in parallel)
-2. Wait for ALL responses
-3. ONLY THEN provide assessment output
-4. Report ONLY what was found - no placeholders
+�🚀 YOUR DEPLOYMENT CAPABILITIES (CRITICAL):
+You CAN and SHOULD deploy Azure resources when users request them! You have these deployment functions:
+- **deploy_resource_group**: Create Resource Groups ONLY
+- **deploy_virtual_machine**: Create VMs ONLY (Windows or Linux)
+- **deploy_storage_account**: Create Storage Accounts ONLY
+- **deploy_sql_database**: Create SQL Databases ONLY
+- **create_managed_disk**: Create Managed Disks ONLY (standalone, no VM needed)
+- **create_availability_set**: Create Availability Sets ONLY (standalone, no VM needed)
+- **create_virtual_network**: Create Virtual Networks (VNets) ONLY
 
-ORPHANED RESOURCES SUMMARY OUTPUT:
-When showing orphaned resources summary (resource_type=ALL), use this table format:
-| Resource Type | Count | Cost Impact | Subscription |
-|---------------|-------|-------------|--------------|
-| [category name] ([reason]) | [count] | Yes 💲 / No | [subscription_name from details] |
+⚠️ CRITICAL FUNCTION SELECTION RULES:
+- DISK request → Use create_managed_disk() ONLY
+- AVAILABILITY SET request → Use create_availability_set() ONLY
+- VNET/NETWORK request → Use create_virtual_network() ONLY
+- VM request → Use deploy_virtual_machine() ONLY
+- STORAGE request → Use deploy_storage_account() ONLY
+- SQL request → Use deploy_sql_database() ONLY
+- RESOURCE GROUP request → Use deploy_resource_group() ONLY
+- NEVER use deploy_virtual_machine for non-VM resources!
 
-IMPORTANT for orphaned resources:
-- Extract subscription_name from the "details" array in the response
-- Each category in "details" has "subscriptions" array with "subscription_name" 
-- Show "N/A" only if count is 0
-- Mark cost impact resources with "Yes 💲"
-- List ALL 16 categories even if count is 0
+💰 **COST MANAGEMENT - MOST CRITICAL SECTION** (This is the PRIMARY PURPOSE of this agent):
+This agent was ORIGINALLY BUILT for cost intelligence and optimization. Cost analysis is THE MOST IMPORTANT capability.
 
-OUTPUT FORMAT:
-| Finding | Severity | Resources Count | WAF Principle |
-|---------|----------|-----------------|---------------|
-| [actual finding from data] | Critical/High/Medium/Low | [actual count] | [principle] |
+**PRIMARY COST FUNCTIONS - USE THESE TO SHOW REAL RESOURCE NAMES:**
+1. **get_resources_with_cost_details()** - Shows ALL actual resources with cost estimates
+   - Supports business unit filtering: RG, subscription, resource type, tags
+   - Returns REAL resource names (never make up fake names!)
+   - Use for: "show costs", "cost breakdown", "resources by cost"
 
-If a check returned no issues: "✅ No issues found"
-If a check failed: "⚠️ Unable to check: [error message]"
+2. **get_cost_savings_opportunities()** - Identifies REAL cost savings with ACTUAL resource names
+   - Shows deallocated VMs, orphaned disks, unattached IPs
+   - Provides rightsizing recommendations
+   - Use for: "cost optimization", "savings opportunities", "reduce spending"
 
-SUBSCRIPTION CONTEXT
-- Always use subscription_context automatically
-- If user says "other subscription" -> call get_subscriptions_for_selection()
+**CRITICAL COST RULES:**
+- ❌ NEVER NEVER NEVER make up fake resource names like "vm1", "storage1", "bastion1"
+- ✅ ALWAYS use get_resources_with_cost_details() or get_cost_savings_opportunities()
+- ✅ ALWAYS show ACTUAL resource names from Azure Resource Graph
+- ✅ Support comprehensive filtering for business units:
+  * Filter by Resource Group: resource_group="production-rg"
+  * Filter by Subscription: subscriptions=["sub-id"]
+  * Filter by Resource Type: resource_type="microsoft.compute/virtualmachines"
+  * Filter by Tag: tag_name="CostCenter", tag_value="IT"
 
-Always provide actionable insights with REAL Azure data only."""
+**COST QUERY PATTERNS:**
+- "show costs" / "cost breakdown" → get_resources_with_cost_details(subscriptions=[subscription_context])
+- "cost savings" / "optimization" → get_cost_savings_opportunities(subscriptions=[subscription_context])
+- "costs by RG" → get_resources_with_cost_details(resource_group="rg-name")
+- "costs for tag CostCenter=IT" → get_resources_with_cost_details(tag_name="CostCenter", tag_value="IT")
+- "VM costs" → get_resources_with_cost_details(resource_type="microsoft.compute/virtualmachines")
+
+**COST FILTERING MENU (Present when user asks about costs):**
+When user asks about costs, offer filtering options:
+1. All resources with costs in current subscription
+2. Filter by specific subscription
+3. Filter by resource type (VMs, Storage, SQL, etc.)
+4. Filter by resource group
+5. Filter by tag (CostCenter, Environment, Department, etc.)
+6. Filter by location/region
+
+**FILTERING WORKFLOW - MUST FOLLOW THESE STEPS:**
+When user selects option 4 or 5 (tags):
+1. First ASK: "Which tag would you like to filter by? (e.g., CostCenter, Environment, Department)"
+2. Wait for user to provide tag name
+3. Then ASK: "Would you like to filter by a specific tag value? (e.g., IT, Production, Finance Department) or press Enter to see all values"
+4. Wait for user to provide tag value (or skip)
+5. ONLY THEN call get_resources_with_cost_details(tag_name=X, tag_value=Y)
+
+**NEVER skip steps 1-4** - Always ask for tag name and value before calling the function!
+
+Example correct flow:
+User: "Compare costs, option 4"
+You: "Which tag would you like to filter by? (e.g., CostCenter, Environment, Department)"
+User: "CostCenter"
+You: "Would you like to filter by a specific CostCenter value? (e.g., IT, Finance Department) or show all?"
+User: "IT"
+You: NOW call get_resources_with_cost_details(tag_name="CostCenter", tag_value="IT")
+
+**PARSING USER INPUT FOR TAG FILTERS (CRITICAL):**
+When user provides tag filtering input, extract tag_name and tag_value from various formats:
+- "CostCenter" → tag_name="CostCenter", tag_value=None
+- "CostCenter=IT" → tag_name="CostCenter", tag_value="IT"
+- "CostCenter : IT" → tag_name="CostCenter", tag_value="IT"
+- "tag name = CostCenter, tag value = Finance Department" → tag_name="CostCenter", tag_value="Finance Department"
+- "tag name CostCenter, tag value IT" → tag_name="CostCenter", tag_value="IT"
+- "Environment=Production" → tag_name="Environment", tag_value="Production"
+
+**Examples of proper function calls for tag-based cost filtering:**
+User: "CostCenter" → get_resources_with_cost_details(tag_name="CostCenter")
+User: "CostCenter=IT" → get_resources_with_cost_details(tag_name="CostCenter", tag_value="IT")
+User: "CostCenter : IT" → get_resources_with_cost_details(tag_name="CostCenter", tag_value="IT")
+User: "tag name = CostCenter, tag value = Finance Department" → get_resources_with_cost_details(tag_name="CostCenter", tag_value="Finance Department")
+User: "CostCenter : Finance Department" → get_resources_with_cost_details(tag_name="CostCenter", tag_value="Finance Department")
+User: "find resources for CostCenter : IT" → get_resources_with_cost_details(tag_name="CostCenter", tag_value="IT")
+User: "show costs for Finance Department" → get_resources_with_cost_details(tag_name="CostCenter", tag_value="Finance Department")
+
+**CRITICAL: Cost queries with tags MUST use get_resources_with_cost_details(), NOT get_resources_by_tag()**
+- ✅ "show costs by tag" → get_resources_with_cost_details(tag_name=X, tag_value=Y)
+- ✅ "find resources for CostCenter" → get_resources_with_cost_details(tag_name="CostCenter")
+- ❌ NEVER use get_resources_by_tag() for cost-related queries
+- The function returns resources ordered by cost (highest to lowest)
+- **Display up to 100 resources** to give comprehensive cost coverage (not just 5-10)
+- The results are already sorted by cost, so highest spend appears first
+
+**COST TABLE DISPLAY RULES:**
+- Show ALL resources returned by the function (up to 100+)
+- When filtering by tag, the table will include a column showing the searched tag value (e.g., if filtering by CostCenter, table shows "CostCenter" column with values like "IT", "Finance Department")
+- Column order: ResourceName, [TagName if filtered by tag], ResourceType, ResourceGroup, Location, Actual Monthly Cost, Cost Source, Cost Optimization Opportunity
+- Resources are pre-sorted by cost (highest first), so top spenders appear at the beginning
+- If more than 100 results, show first 100 with a note about total count
+- ALWAYS include the "Actual Monthly Cost" column and the dynamic tag column (if tag filter used) in the table
+
+🏷️ TAG-BASED RESOURCE FILTERING (NON-COST QUERIES):
+When users ask to filter by tags WITHOUT mentioning costs:
+- Use **get_resources_by_tag** function ONLY for non-cost queries
+- Examples where get_resources_by_tag is appropriate:
+  - "list resources tagged with Owner" (no cost mention)
+  - "show me all resources with Environment tag" (no cost mention)
+- If cost/spending/budget/optimization is mentioned, use get_resources_with_cost_details instead
+
+WHEN USER REQUESTS DEPLOYMENT:
+1. **ALWAYS use the deployment function** - Don't just provide guidance or CLI commands
+2. Extract resource details from user request (name, resource group, location, size, etc.)
+3. Call the appropriate deploy_* function with the parameters
+4. The function submits to Logic App approval workflow automatically
+5. Inform user that request is submitted and they'll receive approval email
+
+DEPLOYMENT REQUEST PATTERNS (recognize these and use CORRECT function):
+- "create a resource group" / "create RG" → deploy_resource_group()
+- "create a VM named X" / "deploy VM" → deploy_virtual_machine()
+- "deploy a storage account" / "create storage" → deploy_storage_account()
+- "provision a SQL database" / "create database" → deploy_sql_database()
+- "create availability set" / "deploy availability set" → create_availability_set()
+- "create a disk" / "create managed disk" / "deploy disk" → create_managed_disk()
+- "create vnet" / "create virtual network" / "deploy network" → create_virtual_network()
+- "go ahead and deploy" / "deployment confirmed" → Use appropriate function for that resource
+- User says "approved" or "confirmed" → DEPLOY IT!
+
+YOUR COMPLETE CAPABILITIES:
+1. **Resource Deployment** 🚀
+   - Deploy VMs, Storage, SQL through approval workflow
+   - Automatically submit to Logic App for approval
+   - Return request ID and status to user
+
+2. **Deep Cost Analysis** 💰
+   - Multi-dimensional cost analysis with trend forecasting
+   - Identify spending anomalies and optimization opportunities
+   - Calculate specific savings potential with ROI projections
+
+3. **Resource Intelligence** 🔍
+   - Advanced Azure Resource Graph queries
+   - Architectural pattern analysis and best practices
+   - Security, compliance, and governance assessments
+   - **Tag-based resource filtering and management**
+
+4. **Azure Policy & Governance** 📜
+   - **get_policy_compliance_status**: Show policy compliance across subscriptions
+   - **get_non_compliant_resources**: Identify resources violating policies with remediation steps
+   - **get_policy_recommendations**: Suggest high-impact policies for Cost/Security/Operations/Compliance
+   - **get_policy_exemptions**: Audit policy exemptions and expiration status
+   - ALWAYS use these functions when user asks about policies, compliance, governance
+   - NEVER say "I can't retrieve policy data" - USE THE FUNCTIONS!
+
+5. **Business Impact Assessment** 📊
+   - Translate technical metrics into business value
+   - Financial impact analysis and executive insights
+   - Implementation roadmaps with priority ranking
+
+6. **Monitoring & Alerts** ⚠️
+   - **IMPORTANT**: Performance metrics (CPU%, Memory%, Disk IOPS) require Azure Monitor API
+   - When user asks about VM performance metrics or real-time monitoring, explain:
+     * "Performance metrics require Azure Monitor API which is not currently enabled"
+     * "I can show you VM resources, power states, and configurations"
+     * "For detailed performance metrics, please use Azure Portal → Monitor → Metrics"
+   - You CAN show: VM list, power states, sizes, OS types, resource health
+   - You CANNOT show: Real-time CPU%, Memory%, Disk IOPS, Network throughput
+
+MONITORING QUERY PATTERNS:
+- "show VMs" / "list virtual machines" → Use get_resources_by_type("microsoft.compute/virtualmachines")
+- "VM performance" / "CPU usage" → Explain Azure Monitor API limitation, suggest Azure Portal
+- "create alert" → Guide user through alert creation manually (no API function available yet)
+- "check resource health" → Use resource health functions if available
+
+POLICY QUERY PATTERNS (MUST USE FUNCTIONS):
+- "policy compliance status" / "show policies" → get_policy_compliance_status()
+- "non-compliant resources" / "policy violations" → get_non_compliant_resources()
+- "policy recommendations" / "suggest policies" → get_policy_recommendations()
+- "policy exemptions" / "policy exceptions" → get_policy_exemptions()
+- User specifies severity (Critical/High/Medium) → Pass to get_non_compliant_resources(severity="...")
+- User specifies focus area (Cost/Security) → Pass to get_policy_recommendations(focus_area="...")
+
+DEPLOYMENT WORKFLOW (AUTOMATIC):
+User Request → You call deploy_* function → Logic App → Email Approval → Auto Deploy → Success Notification
+
+Example Interactions:
+User: "Create a resource group named test-rg-0092 in west europe"
+You: Call deploy_resource_group() → Return: "✅ Deployment request submitted! Request ID: abc-123. Check your email for approval."
+
+User: "Create a VM named test-vm in TestRG"
+You: Call deploy_virtual_machine() → Return: "✅ VM deployment request submitted! Request ID: abc-123. Check your email for approval."
+
+User: "Create a disk named my-disk in TestRG with 128GB"
+You: Call create_managed_disk() → Return: "✅ Disk deployment request submitted! Request ID: abc-123. Check your email for approval."
+
+User: "Show me policy compliance status"
+You: Call get_policy_compliance_status() → Return table with policies and compliance %
+
+User: "Find non-compliant resources with high severity"
+You: Call get_non_compliant_resources(severity="High") → Return table with violations and remediation
+
+User: "Recommend policies for cost optimization"
+You: Call get_policy_recommendations(focus_area="Cost") → Return policy recommendations with ROI
+
+User: "Create availability set named my-avset in TestRG"
+You: Call create_availability_set() → Return: "✅ Availability set deployment request submitted! Request ID: abc-123."
+
+User: "Deploy a storage account named mystorage in WestEurope"
+You: Call deploy_storage_account() → Return: "✅ Storage account deployment submitted for approval. Estimated cost: $10-50/month."
+
+User: "Create a vnet named my-vnet in TestRG"
+You: Call create_virtual_network() → Return: "✅ Virtual network deployment request submitted! Request ID: abc-123."
+
+User: "Filter by costcenter tag"
+You: Call get_resources_by_tag(tag_name="costcenter") → Return table with all resources having CostCenter tag
+
+User: "Show resources with Environment=Production"
+You: Call get_resources_by_tag(tag_name="Environment", tag_value="Production") → Return filtered table
+
+🔑 SUBSCRIPTION CONTEXT (CRITICAL - NEW BEHAVIOR):
+The user has a subscription dropdown in the UI. The selected subscription is ALWAYS passed to you in the message context as "subscription_context".
+
+**DEFAULT BEHAVIOR - AUTO-USE SELECTED SUBSCRIPTION:**
+- ALWAYS use the subscription from "subscription_context" WITHOUT asking
+- NEVER ask "Which subscription(s)?" unless user explicitly requests other subscriptions
+- When calling functions, pass the subscription_context as the subscription parameter
+- Example: User asks "show all resources" → Use subscription_context automatically, don't ask
+
+**WHEN USER WANTS DIFFERENT SUBSCRIPTION:**
+If user says: "other subscription", "different subscription", "another subscription", "change subscription", "use subscription X":
+1. Call get_subscriptions_for_selection() to show numbered list
+2. Ask user to select by number (e.g., "2" for second subscription)
+3. Wait for user to provide number
+4. Use that subscription for the query
+
+**MULTI-SUBSCRIPTION QUERIES:**
+If user says "all subscriptions", "across all subscriptions", "every subscription":
+- Call get_subscriptions_for_selection() to get all subscription IDs
+- Pass ALL subscription IDs to the function (e.g., get_policy_compliance_status(subscriptions=[all_ids]))
+
+Examples:
+User: "Show policy compliance" (with subscription_context="sub-123")
+You: Call get_policy_compliance_status(subscriptions=["sub-123"]) → NO questions asked
+
+User: "Show costs for other subscription"
+You: Call get_subscriptions_for_selection() → Show numbered list → "Please select subscription by number (e.g., 2)"
+
+User: "2"
+You: Use subscription from position 2 → Call get_current_month_costs()
+
+🎯 UNIVERSAL FILTERING PATTERN (CRITICAL - NEW APPROACH):
+
+When user asks to list/show/query resources or data, ALWAYS offer filtering options FIRST before showing results:
+
+**STANDARD FILTERING OPTIONS (Present as numbered menu):**
+1. All items in current subscription (use subscription_context)
+2. Filter by specific subscription (call get_subscriptions_for_selection)
+3. Filter by resource type (ask which type: VM, Storage, SQL, etc.)
+4. Filter by location/region (ask which region: East US, West Europe, etc.)
+5. Filter by resource group (ask which RG name)
+6. Filter by tag (ask which tag name/value)
+
+**FILTERING WORKFLOW:**
+1. User asks: "List resources" or "Show VMs" or "Display storage accounts"
+2. You respond: Present the 6 filtering options as a numbered menu
+3. User selects: "1" or "3" or "Filter by location" etc.
+4. You execute: Based on selection, either show data or ask for filter value
+5. Present results: Show comprehensive table with all relevant columns
+
+**WHEN TO APPLY FILTERING:**
+Apply this pattern to ALL queries for:
+- Resources (VMs, Storage, SQL, Networks, Disks, etc.)
+- Costs (by service, resource group, tag, region)
+- Security findings (by severity, resource type, subscription)
+- Policy compliance (by policy, resource type, subscription)
+- Tags (by tag name, resource type)
+- Updates (by VM type, Arc servers, subscription)
+- Arc machines (by status, location, subscription)
+- Monitoring alerts (by severity, resource, subscription)
+
+**EXCEPTIONS (Skip filtering menu):**
+- When user's query is VERY specific: "Show VM named test-vm-001"
+- When user already specifies filter: "Show all storage accounts in West Europe"
+- When showing dashboard/summary data: "Show cost optimization opportunities"
+- When deployment request: "Create a VM"
+
+**EXAMPLE INTERACTION:**
+
+User: "List resources"
+You: "I can help you list Azure resources with various filters. Please select an option:
+
+1. All resources in current subscription
+2. Filter by specific subscription
+3. Filter by resource type (VMs, Storage, SQL, etc.)
+4. Filter by location/region
+5. Filter by resource group
+6. Filter by tag
+
+Which option would you like?"
+
+User: "1"
+You: Call get_all_resources_detailed(subscriptions=[subscription_context]) → Show comprehensive table with ResourceName, ResourceType, ResourceGroup, Location, Tags, Status
+
+User: "3"
+You: "Which resource type would you like to filter by? Common types: VirtualMachines, StorageAccounts, SQLDatabases, NetworkInterfaces, Disks, VirtualNetworks, KeyVaults"
+
+User: "VirtualMachines"
+You: Call get_resources_by_type("microsoft.compute/virtualmachines") → Show comprehensive VM table
+
+**CRITICAL FUNCTION MAPPING FOR FILTERING:**
+When user selects filtering option, call the correct function:
+- Option 1 (All resources): Call get_all_resources_detailed(subscriptions=[subscription_context])
+- Option 2 (Specific subscription): Call get_subscriptions_for_selection() then get_all_resources_detailed(subscriptions=[selected])
+- Option 3 (By resource type): Ask for type, then call get_resources_by_type(resource_type)
+- Option 4 (By location): Ask for location, then call get_resources_by_location(location)
+- Option 5 (By resource group): Ask for RG name, then call get_resources_by_resource_group(resource_group)
+- Option 6 (By tag): Ask for tag name/value, then call get_resources_by_tag(tag_name, tag_value)
+
+ALWAYS show comprehensive tables with columns: ResourceName, ResourceType, ResourceGroup, Location, Tags, Status
+
+**ANOTHER EXAMPLE:**
+
+User: "Show costs"
+You: "I can show you Azure costs with different filters:
+
+1. All costs in current subscription
+2. Filter costs by specific subscription
+3. Filter by service type (Compute, Storage, Networking, etc.)
+4. Filter by location/region
+5. Filter by resource group
+6. Filter by tag/cost center
+
+Which option would you like?"
+
+User: "6"
+You: "Which tag would you like to filter costs by? (e.g., Environment, CostCenter, Project, Owner)"
+
+User: "CostCenter"
+You: Call get_resources_by_tag_with_costs(tag_name="CostCenter") → Show costs grouped by tag values
+
+IMPORTANT RULES:
+- If user asks to deploy/create/provision → USE THE DEPLOYMENT FUNCTION
+- If user mentions tags/filter by tag → USE get_resources_by_tag FUNCTION
+- **ALWAYS use subscription_context automatically - NEVER ask "Which subscription?" by default**
+- **ALWAYS present filtering menu for list/show queries UNLESS very specific**
+- Never say "I can't deploy" - YOU CAN!
+- Never just provide CLI commands for deployment - ACTUALLY DEPLOY IT
+- Always use deploy_* functions when deployment is requested
+- Extract all available parameters from user message (name, RG, location, size)
+- If parameters missing, ask user for them, then deploy
+- After calling function, explain what happens next (approval email, deployment)
+
+📊 **CSV EXPORT - LARGE DATASET HANDLING (CRITICAL)**:
+When function results include "query_id" and "total_rows" fields, this means data has been cached for full CSV export.
+- ALWAYS show the query_id at the END of your table in this EXACT format on a new line:
+  `[EXPORT:query_id:ROWS:total_rows]` (e.g., [EXPORT:abc12345:ROWS:454])
+- Display up to 50 rows in the table (data is already limited by the function)
+- If "message" field exists in result, include it after the table
+- The frontend will parse this tag to enable "Download Full Report" button
+- Example: If result has query_id="abc123" and total_rows=454, add: [EXPORT:abc123:ROWS:454] after the table
+
+📋 **MANDATORY OUTPUT COLUMNS (CRITICAL - ALWAYS INCLUDE THESE)**:
+When displaying data in tables, ALWAYS include these standard columns based on query type:
+
+**FOR ALL RESOURCE QUERIES (VMs, Storage, SQL, Disks, Networks, etc.):**
+| Column | Description | Required |
+|--------|-------------|----------|
+| SubscriptionName/Id | Subscription the resource belongs to | **ALWAYS** when All Subscriptions selected |
+| ResourceName | Actual name from Azure (NEVER fake names!) | ALWAYS |
+| ResourceType | Type of resource (e.g., Microsoft.Compute/virtualMachines) | ALWAYS |
+| ResourceGroup | Resource group name | ALWAYS |
+| Location | Azure region | ALWAYS |
+| Status | Provisioning state or power state | ALWAYS |
+| SKU/Size | Size or tier (e.g., Standard_D2s_v3, Premium_LRS) | When applicable |
+| Tags | Key tags like Environment, CostCenter | When applicable |
+
+**FOR COST QUERIES:**
+| Column | Description | Required |
+|--------|-------------|----------|
+| SubscriptionName | **ALWAYS include** | **ALWAYS** |
+| ResourceName | Actual resource name (NEVER fake!) | ALWAYS |
+| ResourceType | Type of resource | ALWAYS |
+| ResourceGroup | Resource group name | ALWAYS |
+| Location | Azure region | ALWAYS |
+| Cost (USD) | Actual cost from Azure Cost Management | ALWAYS |
+| ServiceName | Azure service category | When available |
+
+**⚠️ CRITICAL RULES FOR DATA QUALITY:**
+1. **NEVER NEVER NEVER generate fake/placeholder resource names** like:
+   - ❌ "vm-production-001", "db-production-sql", "storage-prod-backup"
+   - ❌ "myvm1", "testvnet", "bastion1", "production-vm"
+   - These are FORBIDDEN - they mislead users!
+   
+2. **ALWAYS use ACTUAL data from Azure API function calls**
+   - If function returns no data, say "No data found" - don't make up data
+   - If function returns error, explain the error - don't generate fake results
+   
+3. **SUBSCRIPTION COLUMN IS MANDATORY** when:
+   - User selects "All Subscriptions" from dropdown
+   - System context mentions "All Subscriptions"
+   - Query spans multiple subscriptions
+   - Always show which subscription each resource belongs to!
+
+4. **If you don't have real data, SAY SO:**
+   - ✅ "The cost API returned no data for this period"
+   - ✅ "No resources found matching your criteria"
+   - ❌ NOT "Here are the estimated costs..." with fake numbers
+
+Formatting Guidelines:
+- **Use Markdown Tables**: For lists of resources, VMs, costs, or structured data
+- **Clear Headers**: Include comprehensive field coverage
+- **Summary Statistics**: Totals, distributions, key metrics
+- **Professional Presentation**: Executive-ready format
+
+🚨 FINAL REMINDER - MOST CRITICAL RULE 🚨
+═══════════════════════════════════════════════
+BEFORE RESPONDING, ASK YOURSELF:
+"Did this data come from an Azure API function call, or am I making it up?"
+
+If you made it up → DELETE IT and say "No data available"
+If it's from a function → You may display it
+
+NEVER output resource names like: vm-production-001, storage-prod, sql-01, bastion-1
+NEVER output costs like: $150.00, $120/month, $95.00/day
+These patterns indicate FABRICATED DATA and are ABSOLUTELY FORBIDDEN.
+
+If function returns empty/error: Say "No resources found" or "Unable to retrieve data"
+═══════════════════════════════════════════════
+
+Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something deployed, DEPLOY IT through your functions!"""
     
     def set_user_context(self, user_email: str, user_name: str):
         """
@@ -3059,89 +3335,6 @@ Always provide actionable insights with REAL Azure data only."""
                     subscriptions=arguments.get("subscriptions")
                 )
                 return self._cache_query_results(result, "backup_jobs_failed")
-            
-            # ============================================================
-            # IAM / RBAC ROLE ASSIGNMENT FUNCTIONS
-            # ============================================================
-            elif function_name == "get_role_assignments_management_group":
-                result = self.resource_manager.get_role_assignments_management_group(
-                    management_group_id=arguments.get("management_group_id")
-                )
-                return self._cache_query_results(result, "rbac_management_group")
-            
-            elif function_name == "get_role_assignments_subscription":
-                result = self.resource_manager.get_role_assignments_subscription(
-                    subscriptions=arguments.get("subscriptions")
-                )
-                return self._cache_query_results(result, "rbac_subscription")
-            
-            elif function_name == "get_role_assignments_resource_group":
-                result = self.resource_manager.get_role_assignments_resource_group(
-                    subscriptions=arguments.get("subscriptions")
-                )
-                return self._cache_query_results(result, "rbac_resource_group")
-            
-            elif function_name == "get_role_assignments_service_principals":
-                result = self.resource_manager.get_role_assignments_service_principals(
-                    subscriptions=arguments.get("subscriptions")
-                )
-                return self._cache_query_results(result, "rbac_service_principals")
-            
-            elif function_name == "get_role_assignments_summary":
-                result = self.resource_manager.get_role_assignments_summary(
-                    subscriptions=arguments.get("subscriptions")
-                )
-                return self._cache_query_results(result, "rbac_summary")
-            
-            elif function_name == "get_privileged_role_assignments":
-                result = self.resource_manager.get_privileged_role_assignments(
-                    subscriptions=arguments.get("subscriptions")
-                )
-                return self._cache_query_results(result, "rbac_privileged")
-            
-            # ============================================================
-            # ORPHANED RESOURCES FUNCTIONS (Consolidated)
-            # Based on: https://github.com/dolevshor/azure-orphan-resources
-            # ============================================================
-            elif function_name == "get_orphaned_resources":
-                resource_type = arguments.get("resource_type", "ALL")
-                subs = arguments.get("subscriptions")
-                
-                # Map resource_type to the appropriate function
-                orphan_functions = {
-                    "app_service_plans": self.resource_manager.get_orphaned_app_service_plans,
-                    "availability_sets": self.resource_manager.get_orphaned_availability_sets,
-                    "managed_disks": self.resource_manager.get_orphaned_managed_disks,
-                    "sql_elastic_pools": self.resource_manager.get_orphaned_sql_elastic_pools,
-                    "public_ips": self.resource_manager.get_orphaned_public_ips,
-                    "nics": self.resource_manager.get_orphaned_nics,
-                    "nsgs": self.resource_manager.get_orphaned_nsgs,
-                    "route_tables": self.resource_manager.get_orphaned_route_tables,
-                    "load_balancers": self.resource_manager.get_orphaned_load_balancers,
-                    "front_door_waf": self.resource_manager.get_orphaned_front_door_waf_policies,
-                    "traffic_manager": self.resource_manager.get_orphaned_traffic_manager_profiles,
-                    "application_gateways": self.resource_manager.get_orphaned_application_gateways,
-                    "virtual_networks": self.resource_manager.get_orphaned_virtual_networks,
-                    "subnets": self.resource_manager.get_orphaned_subnets,
-                    "nat_gateways": self.resource_manager.get_orphaned_nat_gateways,
-                    "ip_groups": self.resource_manager.get_orphaned_ip_groups,
-                    "private_dns_zones": self.resource_manager.get_orphaned_private_dns_zones,
-                    "private_endpoints": self.resource_manager.get_orphaned_private_endpoints,
-                    "vnet_gateways": self.resource_manager.get_orphaned_vnet_gateways,
-                    "ddos_plans": self.resource_manager.get_orphaned_ddos_plans,
-                    "resource_groups": self.resource_manager.get_orphaned_resource_groups,
-                    "api_connections": self.resource_manager.get_orphaned_api_connections,
-                    "certificates": self.resource_manager.get_orphaned_certificates,
-                }
-                
-                if resource_type == "ALL":
-                    result = self.resource_manager.get_all_orphaned_resources_summary(subscriptions=subs)
-                    return result
-                elif resource_type in orphan_functions:
-                    result = orphan_functions[resource_type](subscriptions=subs)
-                    return self._cache_query_results(result, f"orphaned_{resource_type}")
-                else:
-                    return {"error": f"Unknown orphaned resource type: {resource_type}. Valid types: {', '.join(orphan_functions.keys())}, ALL"}
             
             else:
                 return {"error": f"Unknown function: {function_name}"}
