@@ -3306,8 +3306,15 @@
                     
                     const response = await Promise.race([
                         fetch(`/api/security-score/${securitySubId}`, { method: 'GET', headers }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 20000))
                     ]);
+                    
+                    // Graceful auth handling - don't redirect for widgets
+                    if (response.status === 401) {
+                        console.warn('🔒 Security widget: Auth failed');
+                        updateWidget('sidebarSecurityScore', 'N/A', 'sidebarSecuritySubtitle', 'Login required', 'securityCard', 'warning-dynamic');
+                        return;
+                    }
                     
                     if (response.ok) {
                         const data = await response.json();
@@ -3363,8 +3370,15 @@
                                 conversation_history: []
                             })
                         }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 25000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 35000))
                     ]);
+                    
+                    // Graceful auth handling - don't redirect for widgets
+                    if (response.status === 401) {
+                        console.warn('💰 Savings widget: Auth failed');
+                        updateWidget('sidebarSavings', 'N/A', 'sidebarSavingsSubtitle', 'Login required', 'savingsCard', 'warning-dynamic');
+                        return;
+                    }
                     
                     if (response.ok) {
                         const data = await response.json();
@@ -3428,8 +3442,15 @@
                                 conversation_history: []
                             })
                         }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 25000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 40000))
                     ]);
+                    
+                    // Graceful auth handling - don't redirect for widgets
+                    if (response.status === 401) {
+                        console.warn('📊 Resources widget: Auth failed');
+                        updateWidget('sidebarResources', 'N/A', 'sidebarResourcesSubtitle', 'Login required', 'resourcesCard', 'warning-dynamic');
+                        return;
+                    }
                     
                     if (response.ok) {
                         const data = await response.json();
