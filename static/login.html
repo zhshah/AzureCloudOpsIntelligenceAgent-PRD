@@ -79,7 +79,7 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Subtle background pattern */
+        /* Subtle background pattern - SIMPLIFIED for performance */
         body::before {
             content: '';
             position: absolute;
@@ -87,61 +87,25 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle at 30% 50%, rgba(0, 120, 212, 0.05) 0%, transparent 50%),
-                        radial-gradient(circle at 70% 70%, rgba(0, 183, 195, 0.05) 0%, transparent 50%),
-                        radial-gradient(circle at 50% 20%, rgba(92, 45, 145, 0.03) 0%, transparent 50%);
-            animation: backgroundFloat 20s ease-in-out infinite;
+            background: radial-gradient(circle at 30% 50%, rgba(0, 120, 212, 0.03) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 70%, rgba(0, 183, 195, 0.03) 0%, transparent 50%);
+            /* Animation disabled for performance */
             pointer-events: none;
         }
 
-        @keyframes backgroundFloat {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            33% { transform: translate(5%, -5%) rotate(120deg); }
-            66% { transform: translate(-5%, 5%) rotate(240deg); }
-        }
+        /* Background animation removed for performance */
 
-        /* Floating particles - lighter */
+        /* Floating particles - DISABLED for performance */
         .particles {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            pointer-events: none;
+            display: none; /* Disabled to improve login speed */
         }
-
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: var(--primary);
-            border-radius: 50%;
-            opacity: 0.15;
-            animation: particleFloat 15s infinite ease-in-out;
-        }
-
-        @keyframes particleFloat {
-            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
-            10% { opacity: 0.15; }
-            90% { opacity: 0.15; }
-            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
-        }
-
-        .particle:nth-child(1) { left: 10%; animation-delay: 0s; animation-duration: 12s; }
-        .particle:nth-child(2) { left: 20%; animation-delay: 2s; animation-duration: 15s; }
-        .particle:nth-child(3) { left: 30%; animation-delay: 4s; animation-duration: 10s; }
-        .particle:nth-child(4) { left: 40%; animation-delay: 1s; animation-duration: 13s; }
-        .particle:nth-child(5) { left: 50%; animation-delay: 3s; animation-duration: 11s; }
-        .particle:nth-child(6) { left: 60%; animation-delay: 5s; animation-duration: 14s; }
-        .particle:nth-child(7) { left: 70%; animation-delay: 2s; animation-duration: 12s; }
-        .particle:nth-child(8) { left: 80%; animation-delay: 4s; animation-duration: 16s; }
-        .particle:nth-child(9) { left: 90%; animation-delay: 1s; animation-duration: 13s; }
 
         /* Main login container */
         .login-container {
             position: relative;
             z-index: 10;
             width: 100%;
-            max-width: 480px;
+            max-width: 580px;
             padding: 24px;
             animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -196,7 +160,7 @@
             padding: 18px;
             box-shadow: var(--shadow-primary);
             position: relative;
-            animation: logoFloat 3s ease-in-out infinite;
+            /* Animation reduced for performance */
         }
 
         .logo svg {
@@ -305,20 +269,20 @@
 
         .feature-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
         }
 
         .feature-item {
             background: var(--surface-secondary);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
-            padding: 16px;
+            padding: 12px 8px;
             display: flex;
             flex-direction: column;
             align-items: center;
             text-align: center;
-            gap: 8px;
+            gap: 6px;
             transition: all 0.2s ease;
             position: relative;
             overflow: hidden;
@@ -344,17 +308,22 @@
         }
 
         .feature-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius-sm);
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
             box-shadow: var(--shadow-sm);
             position: relative;
             z-index: 1;
             transition: transform 0.2s;
+        }
+
+        .feature-icon img {
+            width: 24px;
+            height: 24px;
+            filter: brightness(0) invert(1);
         }
 
         .feature-item:hover .feature-icon {
@@ -385,11 +354,35 @@
             background: linear-gradient(135deg, #0078D4 0%, #106EBE 100%);
         }
 
+        .feature-icon.landingzone {
+            background: linear-gradient(135deg, #00A4EF 0%, #0078D4 100%);
+        }
+
+        .feature-icon.waf {
+            background: linear-gradient(135deg, #50E6FF 0%, #00B7C3 100%);
+        }
+
+        .feature-icon.performance {
+            background: linear-gradient(135deg, #FF6B6B 0%, #E74856 100%);
+        }
+
+        .feature-icon.governance {
+            background: linear-gradient(135deg, #773ADC 0%, #5C2D91 100%);
+        }
+
+        .feature-icon.identity {
+            background: linear-gradient(135deg, #00B294 0%, #107C10 100%);
+        }
+
+        .feature-icon.audit {
+            background: linear-gradient(135deg, #FFB900 0%, #FF8C00 100%);
+        }
+
         .feature-text {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--text-secondary);
-            line-height: 1.3;
+            line-height: 1.2;
             position: relative;
             z-index: 1;
         }
@@ -502,8 +495,26 @@
             }
 
             .feature-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 8px;
+            }
+            
+            .feature-item {
+                padding: 10px 6px;
+            }
+            
+            .feature-icon {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .feature-icon img {
+                width: 20px;
+                height: 20px;
+            }
+            
+            .feature-text {
+                font-size: 9px;
             }
         }
 
@@ -516,6 +527,15 @@
                 width: 80px;
                 height: 80px;
                 padding: 16px;
+            }
+            
+            .feature-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            
+            .feature-text {
+                font-size: 10px;
             }
         }
     </style>
@@ -550,14 +570,14 @@
                 <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px; line-height: 1.5;">Ask your Azure estate. Get instant cost, security & optimization insights</p>
             </div>
 
-            <button class="sign-in-button" onclick="signIn()">
+            <button class="sign-in-button" onclick="signIn()" id="signInBtn" disabled style="opacity: 0.7;">
                 <svg class="microsoft-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23">
                     <rect width="11" height="11" fill="#F25022"/>
                     <rect x="12" width="11" height="11" fill="#7FBA00"/>
                     <rect y="12" width="11" height="11" fill="#00A4EF"/>
                     <rect x="12" y="12" width="11" height="11" fill="#FFB900"/>
                 </svg>
-                Sign in with Microsoft
+                <span id="signInBtnText">Initializing...</span>
             </button>
 
             <div class="loading" id="loading">
@@ -568,31 +588,39 @@
             <div class="error-message" id="errorMessage"></div>
 
             <div class="features">
-                <p class="features-title">Ask your Azure estate. Get instant cost, security & optimization insights</p>
+                <p class="features-title">Empowering Platform Teams, Cloud Architects & Operations with AI-driven Azure visibility</p>
                 <div class="feature-grid">
                     <div class="feature-item">
-                        <div class="feature-icon security">🔒</div>
-                        <p class="feature-text">Security & Compliance</p>
+                        <div class="feature-icon landingzone"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" alt="Landing Zone"></div>
+                        <p class="feature-text">Landing Zone<br>Assessment</p>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon cost">💰</div>
-                        <p class="feature-text">Cost Optimization</p>
+                        <div class="feature-icon waf"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF"></div>
+                        <p class="feature-text">Well-Architected<br>Framework</p>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon ai">🤖</div>
-                        <p class="feature-text">AI-Powered Insights</p>
+                        <div class="feature-icon security"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security"></div>
+                        <p class="feature-text">Security &<br>Compliance</p>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon monitoring">📈</div>
-                        <p class="feature-text">Real-time Monitoring</p>
+                        <div class="feature-icon performance"><img src="/Icons/devops/02423-icon-service-Load-Testing.svg" alt="Performance"></div>
+                        <p class="feature-text">Performance<br>Insights</p>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon automation">⚡</div>
-                        <p class="feature-text">Smart Automation</p>
+                        <div class="feature-icon monitoring"><img src="/Icons/monitor/00001-icon-service-Monitor.svg" alt="Monitor"></div>
+                        <p class="feature-text">Real-time<br>Monitoring</p>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon compliance">✅</div>
-                        <p class="feature-text">Multi-Subscription</p>
+                        <div class="feature-icon governance"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" alt="Policy"></div>
+                        <p class="feature-text">Governance<br>& Policy</p>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon identity"><img src="/Icons/identity/10235-icon-service-Identity-Governance.svg" alt="Identity"></div>
+                        <p class="feature-text">Identity &<br>Access</p>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon audit"><img src="/Icons/management + governance/00007-icon-service-Activity-Log.svg" alt="Audit"></div>
+                        <p class="feature-text">Auditability<br>& Logs</p>
                     </div>
                 </div>
             </div>
@@ -608,10 +636,11 @@
         </div>
     </div>
 
-    <script src="https://alcdn.msauth.net/browser/2.28.0/js/msal-browser.min.js"></script>
+    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
     <script>
         // MSAL Configuration - Fetched dynamically from backend
         let msalInstance = null;
+        let msalReady = false;
         
         const loginRequest = {
             scopes: ['openid', 'profile', 'email', 'User.Read']
@@ -619,10 +648,34 @@
 
         // Initialize authentication by fetching config from backend
         async function initializeAuth() {
+            const signInBtn = document.getElementById('signInBtn');
+            const signInBtnText = document.getElementById('signInBtnText');
+            
+            // ========== LOOP PREVENTION: Check if already logged in ==========
+            const existingLoginComplete = sessionStorage.getItem('loginComplete');
+            const existingUserInfo = sessionStorage.getItem('userInfo');
+            const existingToken = sessionStorage.getItem('accessToken');
+            
+            if (existingLoginComplete && existingUserInfo && existingToken) {
+                console.log(' Session valid, redirecting to main page...');
+                window.location.replace('/');
+                return; // Stop initialization
+            }
+            // =================================================================
+            
             try {
+                // Check if MSAL is already loaded (should be immediate if script loaded)
+                if (typeof msal === 'undefined') {
+                    // Quick single wait, not multiple attempts
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    if (typeof msal === 'undefined') {
+                        throw new Error('Authentication library not loaded. Please refresh.');
+                    }
+                }
+                
                 const response = await fetch('/api/auth-config');
                 if (!response.ok) {
-                    throw new Error('Authentication not configured. Contact your administrator.');
+                    throw new Error('Authentication not configured');
                 }
                 const authConfig = await response.json();
                 
@@ -630,34 +683,52 @@
                     auth: {
                         clientId: authConfig.clientId,
                         authority: authConfig.authority,
-                        redirectUri: window.location.origin + '/login.html'
+                        redirectUri: window.location.origin + '/login.html',
+                        navigateToLoginRequestUrl: true
                     },
                     cache: {
                         cacheLocation: 'sessionStorage',
                         storeAuthStateInCookie: true
+                    },
+                    system: {
+                        loggerOptions: {
+                            logLevel: msal.LogLevel.Warning
+                        }
                     }
                 };
                 
                 msalInstance = new msal.PublicClientApplication(msalConfig);
                 
-                await msalInstance.initialize();
+                // MSAL 2.x auto-initializes - enable the sign-in button immediately
+                signInBtn.disabled = false;
+                signInBtn.style.opacity = '1';
+                signInBtnText.textContent = 'Sign in with Microsoft';
+                msalReady = true;
+                
+                // Handle redirect response (from login callback)
                 const redirectResponse = await msalInstance.handleRedirectPromise();
                 
                 if (redirectResponse) {
                     handleLoginSuccess(redirectResponse);
                 } else {
+                    // Check for existing session
                     const accounts = msalInstance.getAllAccounts();
                     if (accounts.length > 0) {
                         acquireTokenSilent();
                     }
                 }
             } catch (error) {
+                console.error('Auth error:', error);
                 handleLoginError(error);
             }
         }
 
-        // Start initialization
-        initializeAuth();
+        // Start initialization when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeAuth);
+        } else {
+            initializeAuth();
+        };
 
         async function signIn() {
             if (!msalInstance) {
@@ -699,8 +770,6 @@
         }
 
         function handleLoginSuccess(response) {
-            console.log('✅ Login successful:', response);
-            
             const userInfo = {
                 name: response.account.name || response.account.username,
                 email: response.account.username,
@@ -712,9 +781,8 @@
             sessionStorage.setItem('accessToken', response.accessToken);
             sessionStorage.setItem('loginComplete', 'true');
             
-            setTimeout(() => {
-                window.location.replace('/');
-            }, 100);
+            // Immediate redirect
+            window.location.replace('/');
         }
 
         function handleLoginError(error) {
@@ -722,9 +790,28 @@
             document.getElementById('loading').classList.remove('active');
             
             const errorMessage = document.getElementById('errorMessage');
-            errorMessage.textContent = error.message || 'Failed to sign in. Please try again.';
+            let message = error.message || 'Failed to sign in. Please try again.';
+            
+            // Provide more helpful error messages
+            if (message.includes('MSAL library')) {
+                message = 'Authentication library failed to load. Please refresh the page.';
+            } else if (message.includes('AADSTS')) {
+                message = 'Azure AD error: ' + message + '. Please ensure the redirect URI (http://localhost:8000/login.html) is configured in your Azure App Registration.';
+            }
+            
+            errorMessage.textContent = message;
             errorMessage.classList.add('active');
+            
+            // Keep button as Sign in with Microsoft - user can try again
+            const signInBtn = document.getElementById('signInBtn');
+            const signInBtnText = document.getElementById('signInBtnText');
+            if (signInBtn) {
+                signInBtnText.textContent = 'Sign in with Microsoft';
+                signInBtn.disabled = false;
+                signInBtn.style.opacity = '1';
+            }
         }
+
     </script>
 </body>
 </html>

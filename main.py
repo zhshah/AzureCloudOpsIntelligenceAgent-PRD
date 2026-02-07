@@ -60,16 +60,15 @@ class ChatResponse(BaseModel):
     conversation_history: List[Dict[str, str]]
 
 
-@app.get("/")
-async def read_root(user: Dict[str, Any] = Depends(get_current_user_optional)):
-    """Serve the main chat interface (PROTECTED - requires authentication)"""
-    # Redirect to login if not authenticated
-    if not user:
-        return RedirectResponse(url="/login.html", status_code=307)
-    
-    # Serve the main page if authenticated
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    """
+    Serve the main chat interface.
+    Authentication is handled client-side after MSAL redirect.
+    The JavaScript in index.html will redirect to login if needed.
+    """
     with open("static/index.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+        return f.read()
 
 
 @app.get("/login.html", response_class=HTMLResponse)
