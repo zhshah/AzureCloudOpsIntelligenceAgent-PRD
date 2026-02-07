@@ -3429,7 +3429,7 @@
                 }
             })());
 
-            // Widget 3: Resources (SLOW - Keep simple)
+            // Widget 3: Resources (FAST - Direct API, no OpenAI)
             promises.push((async () => {
                 if (widgetCache.resources.loading) return;
                 
@@ -3439,57 +3439,57 @@
                     
                     // Check cache
                     if (isCacheValid('resources')) {
-                        console.log('📦 Resources: Using cache');
+                        console.log('\u{1F4E6} Resources: Using cache');
                         const cached = widgetCache.resources.data;
                         updateWidget('sidebarResources', cached.value, 'sidebarResourcesSubtitle', cached.subtitle, 'resourcesCard', cached.cardClass);
                         return;
                     }
                     
+                    let resourceSubId = subscriptionId;
+                    if (resourceSubId.startsWith('mg:') || resourceSubId === 'all' || resourceSubId === 'current') {
+                        const storedSubs = sessionStorage.getItem('azureSubscriptions');
+                        if (storedSubs) {
+                            const subs = JSON.parse(storedSubs);
+                            resourceSubId = subs[0]?.id || subs[0]?.subscriptionId || 'current';
+                        }
+                    }
+                    
                     const response = await Promise.race([
-                        fetch('/api/chat', {
-                            method: 'POST',
-                            headers,
-                            body: JSON.stringify({
-                                message: 'How many total resources in subscription? Reply only with number.',
-                                subscription_context: subscriptionId === 'all' || subscriptionId === 'current' ? null : subscriptionId,
-                                conversation_history: []
-                            })
-                        }),
+                        fetch(`/api/resource-count/${resourceSubId}`, { method: 'GET', headers }),
                         new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000))
                     ]);
                     
-                    // Graceful auth handling - don't redirect for widgets
                     if (response.status === 401) {
-                        console.warn('📊 Resources widget: Auth failed');
+                        console.warn('Resources widget: Auth failed');
                         updateWidget('sidebarResources', 'N/A', 'sidebarResourcesSubtitle', 'Login required', 'resourcesCard', 'warning-dynamic');
                         return;
                     }
                     
                     if (response.ok) {
                         const data = await response.json();
-                        const countMatch = data.response?.match(/(\d+)/);
                         
                         let value, subtitle, cardClass;
-                        if (countMatch) {
-                            value = countMatch[1];
-                            subtitle = 'In current subscription';
+                        if (data.count !== null && data.count !== undefined) {
+                            value = data.count.toString();
+                            subtitle = 'Total resources';
                             cardClass = 'success-dynamic';
+                            const headerEl = document.getElementById('resourceCount');
+                            if (headerEl) headerEl.textContent = value;
                         } else {
                             value = 'Check';
                             subtitle = 'Click to view';
                             cardClass = 'warning-dynamic';
                         }
                         
-                        // Cache result
                         widgetCache.resources.data = { value, subtitle, cardClass };
                         widgetCache.resources.timestamp = Date.now();
                         
                         updateWidget('sidebarResources', value, 'sidebarResourcesSubtitle', subtitle, 'resourcesCard', cardClass);
                     }
                     
-                    console.log(`⚡ Resources loaded in ${Math.round(performance.now() - t0)}ms`);
+                    console.log(`Resources loaded in ${Math.round(performance.now() - t0)}ms`);
                 } catch (e) {
-                    console.error('📦 Resources error:', e.message);
+                    console.error('Resources error:', e.message);
                     updateWidget('sidebarResources', 'N/A', 'sidebarResourcesSubtitle', 'Timeout', 'resourcesCard', 'warning-dynamic');
                 } finally {
                     widgetCache.resources.loading = false;

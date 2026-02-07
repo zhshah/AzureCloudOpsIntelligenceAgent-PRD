@@ -264,6 +264,64 @@ async def get_security_score(
         return {"error": str(e), "score": None}
 
 
+@app.get("/api/resource-count/{subscription_id}")
+async def get_resource_count(subscription_id: str, req: Request = None):
+    """Get total resource count directly via Azure Resource Graph - fast, no OpenAI"""
+    try:
+        from azure.identity import DefaultAzureCredential
+        import requests as http_requests
+        
+        credential = DefaultAzureCredential()
+        
+        if subscription_id in ['all', 'current', 'none', 'loading']:
+            subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID')
+        
+        if not subscription_id:
+            return {"count": None, "error": "No subscription ID"}
+        
+        # Strip mg: prefix
+        if subscription_id.startswith('mg:'):
+            subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID', subscription_id.replace('mg:', ''))
+        
+        token = credential.get_token("https://management.azure.com/.default")
+        
+        api_url = "https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01"
+        headers = {
+            "Authorization": f"Bearer {token.token}",
+            "Content-Type": "application/json"
+        }
+        body = {
+            "subscriptions": [subscription_id],
+            "query": "Resources | summarize totalCount=count()"
+        }
+        
+        response = http_requests.post(api_url, headers=headers, json=body, timeout=45)
+        
+        print(f"📦 Resource Count API Response: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            # Resource Graph returns data as a list of dicts
+            records = data.get("data", [])
+            if isinstance(records, list) and len(records) > 0:
+                total = records[0].get("totalCount", 0)
+            else:
+                # Fallback for table format
+                rows = records.get("rows", []) if isinstance(records, dict) else []
+                total = rows[0][0] if rows else 0
+            print(f"📦 Total Resources: {total}")
+            return {"count": total, "subscriptionId": subscription_id}
+        else:
+            print(f"📦 Resource Count Error: {response.text}")
+            return {"count": None, "error": f"API error: {response.status_code}"}
+            
+    except Exception as e:
+        print(f"Error fetching resource count: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"count": None, "error": str(e)}
+
+
 @app.get("/api/export-csv/{query_id}")
 async def export_csv(
     query_id: str,
