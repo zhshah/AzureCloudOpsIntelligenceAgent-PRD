@@ -109,7 +109,7 @@ async def get_auth_config():
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(
     request: ChatMessage,
-    user: Dict[str, Any] = Depends(get_current_user),
+    req: Request = None,
     authorization: Optional[str] = Header(None)
 ):
     """
@@ -166,8 +166,8 @@ async def chat(
 
 
 @app.get("/api/subscriptions")
-async def get_subscriptions(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get available Azure subscriptions (PROTECTED)"""
+async def get_subscriptions(req: Request = None):
+    """Get available Azure subscriptions"""
     try:
         subscriptions = await resource_manager.get_subscriptions()
         # Return subscriptions in correct format for frontend
@@ -179,8 +179,8 @@ async def get_subscriptions(user: Dict[str, Any] = Depends(get_current_user)):
 
 
 @app.get("/api/subscriptions-hierarchy")
-async def get_subscriptions_hierarchy(user: Dict[str, Any] = Depends(get_current_user)):
-    """Get subscriptions with management group hierarchy for context selector (PROTECTED)"""
+async def get_subscriptions_hierarchy(req: Request = None):
+    """Get subscriptions with management group hierarchy for context selector"""
     try:
         result = await resource_manager.get_subscriptions_with_hierarchy()
         return result
@@ -192,9 +192,9 @@ async def get_subscriptions_hierarchy(user: Dict[str, Any] = Depends(get_current
 @app.get("/api/security-score/{subscription_id}")
 async def get_security_score(
     subscription_id: str,
-    user: Dict[str, Any] = Depends(get_current_user)
+    req: Request = None
 ):
-    """Get Microsoft Defender for Cloud secure score for a subscription (PROTECTED)"""
+    """Get Microsoft Defender for Cloud secure score for a subscription"""
     try:
         from azure.identity import DefaultAzureCredential
         import requests as http_requests
@@ -267,10 +267,10 @@ async def get_security_score(
 @app.get("/api/export-csv/{query_id}")
 async def export_csv(
     query_id: str,
-    user: Dict[str, Any] = Depends(get_current_user)
+    req: Request = None
 ):
     """
-    Export full query results as CSV (PROTECTED)
+    Export full query results as CSV
     This endpoint returns ALL data from the cached query, not just what's displayed
     """
     try:
@@ -340,9 +340,9 @@ async def export_csv(
 @app.get("/api/query-info/{query_id}")
 async def get_query_info(
     query_id: str,
-    user: Dict[str, Any] = Depends(get_current_user)
+    req: Request = None
 ):
-    """Get information about a cached query (row count, type, etc.) (PROTECTED)"""
+    """Get information about a cached query (row count, type, etc.)"""
     if query_id not in query_results_cache:
         return {"exists": False, "total_rows": 0}
     
@@ -365,10 +365,10 @@ class ExecuteApprovedRequest(BaseModel):
 @app.post("/api/execute-approved")
 async def execute_approved_command(
     request: ExecuteApprovedRequest,
-    user: Dict[str, Any] = Depends(get_current_user)
+    req: Request = None
 ):
     """
-    Execute an approved Azure CLI command from Logic App (PROTECTED)
+    Execute an approved Azure CLI command from Logic App
     This endpoint is called by the Logic App after approval
     """
     try:

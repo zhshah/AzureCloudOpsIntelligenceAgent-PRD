@@ -10,16 +10,24 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt import PyJWKClient
 import logging
+from dotenv import load_dotenv
+
+# Load .env BEFORE reading any environment variables
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 # Entra ID Configuration
 TENANT_ID = os.getenv("ENTRA_TENANT_ID") or os.getenv("AZURE_TENANT_ID", "8d7622f8-d815-4120-b5b8-bee841c23a1c")
-CLIENT_ID = os.getenv("ENTRA_APP_CLIENT_ID") or os.getenv("AZURE_CLIENT_ID")  # App Registration Client ID
 ISSUER = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
 JWKS_URI = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
 
 security = HTTPBearer()
+
+
+def _resolve_client_id() -> Optional[str]:
+    """Get the configured client ID each time to pick up .env changes."""
+    return os.getenv("ENTRA_APP_CLIENT_ID") or os.getenv("AZURE_CLIENT_ID")
 
 
 class AuthManager:
@@ -27,7 +35,9 @@ class AuthManager:
     
     def __init__(self):
         self.jwks_client = PyJWKClient(JWKS_URI)
-        self.client_id = CLIENT_ID
+        self.client_id = _resolve_client_id()
+        if not self.client_id:
+            logger.warning("ENTRA_APP_CLIENT_ID / AZURE_CLIENT_ID not configured")
         
     def validate_token(self, token: str) -> Dict[str, Any]:
         """
@@ -45,24 +55,55 @@ class AuthManager:
         try:
             # Get signing key from JWKS
             signing_key = self.jwks_client.get_signing_key_from_jwt(token)
-            
-            # Decode and validate token
-            # For ID tokens, audience should be our client_id
-            # For access tokens, audience might be MS Graph
+
+            # Allow common audiences issued for the same app registration
+            client_id = self.client_id or _resolve_client_id()
+            if client_id != self.client_id:
+                # Picked up new value dynamically after .env load
+                self.client_id = client_id
+
+            allowed_audiences = {
+                client_id,
+                f"api://{client_id}",
+                f"api://{client_id}/.default",
+                f"api://{client_id}/user_impersonation",
+                f"api://{client_id}/access_as_user",
+                "00000003-0000-0000-c000-000000000000",  # Microsoft Graph
+            }
+
+            additional = os.getenv("ADDITIONAL_ALLOWED_AUDIENCES", "")
+            for extra in (part.strip() for part in additional.split(",")):
+                if extra:
+                    allowed_audiences.add(extra)
+
+            allowed_audiences = {aud for aud in allowed_audiences if aud}
+
+            # Decode token with manual audience check so we can log the actual value if it mismatches
             payload = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                audience=[self.client_id, f"api://{self.client_id}", "00000003-0000-0000-c000-000000000000"],  # Allow our app, our API, or MS Graph
                 issuer=ISSUER,
-                options={"verify_exp": True}
+                options={"verify_exp": True, "verify_aud": False}
             )
-            
+
+            aud_claim = payload.get("aud")
+            if isinstance(aud_claim, str):
+                aud_values = {aud_claim}
+            else:
+                aud_values = set(aud_claim or [])
+
+            if not aud_values.intersection(allowed_audiences):
+                logger.error(f"Token audience not allowed: {aud_claim}")
+                raise HTTPException(status_code=401, detail="Invalid authentication token")
+
             return payload
-            
+
         except jwt.ExpiredSignatureError:
             logger.error("Token has expired")
             raise HTTPException(status_code=401, detail="Token has expired")
+        except HTTPException:
+            raise
         except jwt.InvalidTokenError as e:
             logger.error(f"Invalid token: {e}")
             raise HTTPException(status_code=401, detail="Invalid authentication token")
