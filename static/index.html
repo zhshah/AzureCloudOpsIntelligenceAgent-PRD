@@ -723,53 +723,62 @@
         }
 
         .welcome-state h2 {
-            font-size: 14px;
+            font-size: 18px;
             font-weight: 700;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             color: var(--text-primary);
         }
 
         .welcome-state p {
-            font-size: 11px;
+            font-size: 12px;
             color: var(--text-secondary);
-            margin-bottom: 8px;
+            margin-bottom: 20px;
             max-width: 700px;
-            line-height: 1.6;
+            line-height: 1.5;
         }
 
         .welcome-categories {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 0;
-            max-width: 1100px;
+            gap: 14px;
+            max-width: 1200px;
             width: 100%;
         }
 
         .welcome-category-card {
-            background: transparent;
-            border: none;
-            border-radius: 4px;
-            padding: 10px 14px;
+            background: #FFFFFF;
+            border: 1px solid #E8ECF0;
+            border-radius: 10px;
+            padding: 16px;
             text-align: left;
             cursor: pointer;
-            transition: background 0.15s ease;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
             display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: none;
+            flex-direction: column;
+            gap: 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
         }
 
         .welcome-category-card::before {
-            display: none;
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+            transform: scaleX(0);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: left;
         }
 
         .welcome-category-card:hover {
-            background: #E8F4FD;
-            border-color: transparent;
-            transform: none;
-            box-shadow: none;
+            border-color: #D0E4F5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 120, 212, 0.12), 0 1px 4px rgba(0, 0, 0, 0.04);
+            background: #FAFCFF;
         }
 
         .welcome-category-card:hover .welcome-category-title {
@@ -777,38 +786,51 @@
         }
 
         .welcome-category-card:hover::before {
-            display: none;
+            transform: scaleX(1);
+        }
+
+        .welcome-category-card:hover .welcome-category-icon {
+            transform: scale(1.08);
         }
 
         .welcome-category-icon {
             font-size: 20px;
-            margin-bottom: 0;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 20px;
-            height: 20px;
+            width: 36px;
+            height: 36px;
             flex-shrink: 0;
+            background: #F0F6FC;
+            border-radius: 8px;
+            padding: 6px;
+            transition: transform 0.25s ease;
         }
 
         .welcome-category-icon img {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             object-fit: contain;
         }
 
         .welcome-category-title {
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
             color: var(--text-primary);
-            margin-bottom: 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            margin-bottom: 4px;
+            transition: color 0.2s ease;
+            line-height: 1.3;
         }
 
         .welcome-category-desc {
-            display: none;
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .welcome-category-count {
@@ -1270,6 +1292,7 @@
 
             .welcome-categories {
                 grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
             }
         }
 
@@ -2878,7 +2901,7 @@
                     <h2>Azure CloudOps Intelligence Agent</h2>
                     <p>Select a category to get started or use the chat to ask questions.</p>
                     
-                    <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; padding-left: 14px;">Quick Actions</div>
+                    <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; padding-left: 2px;">Quick Actions</div>
                     <div class="welcome-categories">
                         <div class="welcome-category-card" onclick="showCategory('entraid')">
                             <span class="welcome-category-icon"><img src="/Icons/identity/10235-icon-service-Identity-Governance.svg" alt="Entra ID"></span>
