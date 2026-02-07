@@ -1445,7 +1445,7 @@
                             <div class="category-icon"><img src="/Icons/identity/10235-icon-service-Identity-Governance.svg" alt="Entra ID"></div>
                             <div class="category-name">Entra ID (Azure AD)</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-entraid">
                         <div class="prompt-item" onclick="quickPrompt('Show Entra ID tenant overview. Include: Total Users, Guest Users, Groups, App Registrations, Enterprise Applications, Devices, Conditional Access Policies, License Summary.')">
@@ -1514,7 +1514,7 @@
                             <div class="category-icon"><img src="/Icons/identity/10340-icon-service-Entra-Identity-Roles-and-Administrators.svg" alt="IAM"></div>
                             <div class="category-name">Access Control (IAM)</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-iam">
                         <div class="prompt-item" onclick="quickPrompt('List ALL Active (Permanent) role assignments at Management Group level. These are always-on privileged access assignments that pose security risk. Include: Principal Name, Principal Type (User/Group/ServicePrincipal), Role Name, Role Type (BuiltIn/Custom), Scope (Management Group Name), Assignment Type (Active/Eligible), Created Date, Created By. Focus on privileged roles: Owner, Contributor, User Access Administrator. Flag any concerning patterns.')">
@@ -1551,7 +1551,7 @@
                             <div class="category-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" alt="Landing Zone"></div>
                             <div class="category-name">Landing Zone (CAF)</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-landingzone">
                         <!-- Landing Zone Overview -->
@@ -1668,7 +1668,7 @@
                             <div class="category-icon"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF"></div>
                             <div class="category-name">Well-Architected Framework</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-waf">
                         <div class="prompt-item" onclick="quickPrompt('Perform a comprehensive Azure Well-Architected Framework (WAF) assessment. Analyze resources against all 5 pillars: Reliability, Security, Cost Optimization, Operational Excellence, and Performance Efficiency. For each pillar provide: 1) Current state, 2) Identified gaps, 3) Risk level, 4) Top 3 recommendations.')">
@@ -1713,7 +1713,7 @@
                             <div class="category-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" alt="Networking"></div>
                             <div class="category-name">Networking</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-networking">
                         <!-- Virtual Networks -->
@@ -1883,7 +1883,7 @@
                             <div class="category-icon"><img src="/Icons/networking/00427-icon-service-Private-Link.svg" alt="Private Link"></div>
                             <div class="category-name">Azure Private Link</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-privatelink">
                         <!-- Private Endpoints Inventory -->
@@ -1958,7 +1958,7 @@
                             <div class="category-icon"><img src="/Icons/networking/10064-icon-service-DNS-Zones.svg" alt="Private DNS"></div>
                             <div class="category-name">Private DNS Zones</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-privatedns">
                         <!-- DNS Zone Inventory -->
@@ -2033,7 +2033,7 @@
                             <div class="category-icon"><img src="/Icons/compute/10021-icon-service-Virtual-Machine.svg" alt="Virtual Machines"></div>
                             <div class="category-name">Virtual Machines</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-virtualmachines">
                         <div class="prompt-item" onclick="quickPrompt('List ALL Virtual Machines in my subscription. Include: VM Name, Resource Group, Location, VM Size, OS Type, Power State, Private IP, Public IP, Availability Zone, Availability Set, Tags.')">
@@ -2105,7 +2105,7 @@
                             <div class="category-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Resources"></div>
                             <div class="category-name">Resource Management</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-resources">
                         <div class="prompt-item" onclick="quickPrompt('List ALL resources in my current subscription with comprehensive details. Show table with columns: Resource Name, Resource Type, Resource Group, Subscription, Location, SKU/Size, Status, Tags. Include all resource properties available. Do not show any imaginary or placeholder values - only actual data from Azure.')">
@@ -2142,7 +2142,7 @@
                             <div class="category-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Cost"></div>
                             <div class="category-name">Cost Optimization</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-cost">
                         <div class="prompt-item" onclick="quickPrompt('Show my current month Azure costs breakdown. Include: Total Cost, Cost by Service, Cost by Resource Group, Top 10 most expensive resources with ACTUAL resource names and costs from Azure Cost Management. Do not show any placeholder or estimated values.')">
@@ -2183,7 +2183,7 @@
                             <div class="category-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security"></div>
                             <div class="category-name">Security & Compliance</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-security">
                         <div class="prompt-item" onclick="quickPrompt('Show Microsoft Defender for Cloud security recommendations for my subscription. Include: Recommendation, Severity (Critical/High/Medium/Low), Affected Resources Count, Category (Compute/Network/Data/Identity), Remediation Steps. Only show actual recommendations from Defender for Cloud.')">
@@ -2224,7 +2224,7 @@
                             <div class="category-icon"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" alt="Policy"></div>
                             <div class="category-name">Azure Policy & Governance</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-policy">
                         <div class="prompt-item" onclick="quickPrompt('Show Azure Policy compliance dashboard. Include: Policy Assignment Name, Definition Name, Compliance State, Compliant Resources, Non-Compliant Resources, Compliance %, Scope, Enforcement Mode. Only show actual data from Azure Policy.')">
@@ -2257,7 +2257,7 @@
                             <div class="category-icon"><img src="/Icons/management + governance/00001-icon-service-Monitor.svg" alt="Monitoring"></div>
                             <div class="category-name">Monitoring & Alerts</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-monitoring">
                         <div class="prompt-item" onclick="quickPrompt('Show ALL active alerts in my subscription. I want to filter by: 1) Subscription level, 2) Resource Group level (ask which), 3) Resource level (ask which). Show: Alert Name, Severity, Resource, Triggered Time, Status, Description. Group by severity (Critical first).')">
@@ -2314,7 +2314,7 @@
                             <div class="category-icon"><img src="/Icons/storage/00017-icon-service-Recovery-Services-Vaults.svg" alt="Backup"></div>
                             <div class="category-name">Azure Backup</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-backup">
                         <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines ENABLED with Azure Backup. Include: VM Name, Resource Group, Location, Backup Vault, Policy Name, Last Backup Date, Backup Status, Recovery Points, Protection State.')">
@@ -2375,7 +2375,7 @@
                             <div class="category-icon"><img src="/Icons/compute/00195-icon-service-Maintenance-Configuration.svg" alt="Updates"></div>
                             <div class="category-name">Update Management</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-updates">
                         <div class="prompt-item" onclick="quickPrompt('Show Azure VMs pending updates from Azure Update Manager. Include: VM Name, Resource Type, OS Type, Private IP, Resource Group, Subscription, Power State (Online/Offline), Pending Patches (Critical/Security/Other), Last Patch Installation Date. Get actual data from Update Manager.')">
@@ -2412,7 +2412,7 @@
                             <div class="category-icon"><img src="/Icons/general/10014-icon-service-Tag.svg" alt="Tags"></div>
                             <div class="category-name">Tags Management</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-tags">
                         <div class="prompt-item" onclick="quickPrompt('Show high-level tag inventory across my Azure environment. Include: Tag Name, Total Resources Using Tag, Unique Values Count, Most Common Values, Resource Types with Tag, Usage Percentage. Help me understand tag adoption across my subscription.')">
@@ -2445,7 +2445,7 @@
                             <div class="category-icon"><img src="/Icons/management + governance/00756-icon-service-Azure-Arc.svg" alt="Azure Arc"></div>
                             <div class="category-name">Azure Arc Management</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-arc">
                         <div class="prompt-item" onclick="quickPrompt('Show me ALL Azure Arc-enabled machines in my current subscription. Provide table: Machine Name, Resource Group, Subscription, OS Type, OS Version, Agent Status, Agent Version, Defender Status, Monitoring Status, Pending Updates, Last Status Change, Location, Compliance Status. Sort by compliance status.')">
@@ -2470,7 +2470,7 @@
                             <div class="category-icon"><img src="/Icons/management + governance/00022-icon-service-Automation-Accounts.svg" alt="Automation"></div>
                             <div class="category-name">AI & Automation</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-automation">
                         <div class="prompt-item" onclick="quickPrompt('Analyze my current subscription for automation opportunities focusing on ALL areas (Deployment, Backup, Scaling, Patching, Monitoring). Provide table: Task/Process, Current Method, Frequency, Time Spent per Week, Automation Tool Recommendation (Azure Automation/Logic Apps/Functions), Implementation Steps, Time Savings, Cost Savings, ROI %.')">
@@ -2499,7 +2499,7 @@
                             <div class="category-icon"><img src="/Icons/compute/10023-icon-service-Kubernetes-Services.svg" alt="AKS"></div>
                             <div class="category-name">Azure Kubernetes (AKS)</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-aks">
                         <div class="prompt-item" onclick="quickPrompt('List ALL AKS clusters in my subscription. Include: Cluster Name, Resource Group, Location, Kubernetes Version, Node Pools, Total Nodes, Status, Network Plugin, Monitoring Status.')">
@@ -2532,7 +2532,7 @@
                             <div class="category-icon"><img src="/Icons/compute/10034-icon-service-VM-Scale-Sets.svg" alt="VMSS"></div>
                             <div class="category-name">VM Scale Sets</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-vmss">
                         <div class="prompt-item" onclick="quickPrompt('List ALL Virtual Machine Scale Sets in my subscription. Include: VMSS Name, Resource Group, Location, SKU Size, Instance Count, Orchestration Mode, OS Type, Upgrade Policy, Status.')">
@@ -2561,7 +2561,7 @@
                             <div class="category-icon"><img src="/Icons/compute/10035-icon-service-App-Services.svg" alt="App Services"></div>
                             <div class="category-name">Azure App Services</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-appservices">
                         <div class="prompt-item" onclick="quickPrompt('List ALL App Services in my subscription. Include: App Name, Resource Group, Location, App Service Plan, SKU/Tier, Status, Type (Web App/Function/Container), Default Hostname, HTTPS Only, TLS Version.')">
@@ -2594,7 +2594,7 @@
                             <div class="category-icon"><img src="/Icons/databases/10130-icon-service-SQL-Database.svg" alt="SQL"></div>
                             <div class="category-name">Azure SQL PaaS</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-sql">
                         <div class="prompt-item" onclick="quickPrompt('List ALL Azure SQL Databases in my subscription. Include: Database Name, Server Name, Resource Group, Location, SKU/Tier, DTU/vCores, Max Size, Status, Backup Retention.')">
@@ -2635,7 +2635,7 @@
                             <div class="category-icon"><img src="/Icons/databases/10131-icon-service-Azure-Database-PostgreSQL-Server.svg" alt="PostgreSQL"></div>
                             <div class="category-name">PostgreSQL Servers</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-postgresql">
                         <div class="prompt-item" onclick="quickPrompt('List ALL Azure Database for PostgreSQL (Flexible) servers in my subscription. Include: Server Name, Resource Group, Location, Version, SKU/Tier, vCores, Storage GB, HA Mode, Status.')">
@@ -2664,7 +2664,7 @@
                             <div class="category-icon"><img src="/Icons/databases/10122-icon-service-Azure-Database-MySQL-Server.svg" alt="MySQL"></div>
                             <div class="category-name">MySQL Servers</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-mysql">
                         <div class="prompt-item" onclick="quickPrompt('List ALL Azure Database for MySQL servers in my subscription. Include: Server Name, Resource Group, Location, Version, SKU/Tier, vCores, Storage GB, Status.')">
@@ -2693,7 +2693,7 @@
                             <div class="category-icon"><img src="/Icons/databases/10121-icon-service-Azure-Cosmos-DB.svg" alt="Cosmos DB"></div>
                             <div class="category-name">Cosmos DB</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-cosmosdb">
                         <div class="prompt-item" onclick="quickPrompt('List ALL Cosmos DB accounts in my subscription. Include: Account Name, Resource Group, Location, API Type (SQL/MongoDB/Cassandra/Gremlin/Table), Consistency Level, Replication Regions, Status.')">
@@ -2722,7 +2722,7 @@
                             <div class="category-icon"><img src="/Icons/storage/10086-icon-service-Storage-Accounts.svg" alt="Storage"></div>
                             <div class="category-name">Storage Accounts</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-storage">
                         <div class="prompt-item" onclick="quickPrompt('List ALL Storage Accounts in my subscription. Include: Storage Account Name, Resource Group, Location, SKU/Tier, Kind (StorageV2/BlobStorage/etc), Status, Access Tier, Replication Type, Creation Date, Tags.')">
@@ -2775,7 +2775,7 @@
                             <div class="category-icon">🔌</div>
                             <div class="category-name">API Management</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-apim">
                         <div class="prompt-item" onclick="quickPrompt('List ALL API Management instances in my subscription. Include: APIM Name, Resource Group, Location, SKU/Tier, Capacity Units, Gateway URL, Status, VNet Mode.')">
@@ -2804,7 +2804,7 @@
                             <div class="category-icon"><img src="/Icons/general/10005-icon-service-Information.svg" alt="About"></div>
                             <div class="category-name">About</div>
                         </div>
-                        <div class="category-toggle">▼</div>
+                        <div class="category-toggle"></div>
                     </div>
                     <div class="category-prompts" id="category-about">
                         <div class="prompt-item" onclick="showAboutModal()">
