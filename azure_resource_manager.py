@@ -53,6 +53,84 @@ class AzureResourceManager:
             return subscriptions
         except Exception as e:
             return [{"error": str(e)}]
+
+    async def get_subscriptions_with_hierarchy(self) -> Dict[str, Any]:
+        """Get subscriptions along with management group hierarchy"""
+        try:
+            from azure.mgmt.managementgroups import ManagementGroupsAPI
+            from azure.identity import DefaultAzureCredential
+            
+            subscriptions = []
+            management_groups = []
+            
+            # Get all subscriptions first
+            for sub in self.sub_client.subscriptions.list():
+                if sub.state == "Enabled":
+                    subscriptions.append({
+                        "id": sub.subscription_id,
+                        "name": sub.display_name,
+                        "state": sub.state
+                    })
+            
+            # Try to get management groups hierarchy
+            try:
+                mg_client = ManagementGroupsAPI(DefaultAzureCredential())
+                
+                def build_hierarchy(mg_id, depth=0, max_depth=5):
+                    """Recursively build management group hierarchy"""
+                    if depth > max_depth:
+                        return None
+                    
+                    try:
+                        mg = mg_client.management_groups.get(mg_id, expand="children")
+                        mg_data = {
+                            "id": mg.name,
+                            "name": mg.display_name or mg.name,
+                            "type": "managementGroup",
+                            "children": []
+                        }
+                        
+                        if mg.children:
+                            for child in mg.children:
+                                if child.type == "/providers/Microsoft.Management/managementGroups":
+                                    child_mg = build_hierarchy(child.name, depth + 1)
+                                    if child_mg:
+                                        mg_data["children"].append(child_mg)
+                                elif child.type == "/subscriptions":
+                                    mg_data["children"].append({
+                                        "id": child.name,
+                                        "name": child.display_name or child.name,
+                                        "type": "subscription"
+                                    })
+                        
+                        return mg_data
+                    except Exception as e:
+                        print(f"Error getting management group {mg_id}: {e}")
+                        return None
+                
+                # Get root management groups
+                root_mgs = list(mg_client.management_groups.list())
+                for root_mg in root_mgs:
+                    mg_hierarchy = build_hierarchy(root_mg.name)
+                    if mg_hierarchy:
+                        management_groups.append(mg_hierarchy)
+                
+            except ImportError:
+                print("Management Groups SDK not installed, using subscriptions only")
+            except Exception as mg_error:
+                print(f"Could not fetch management groups: {mg_error}")
+            
+            return {
+                "subscriptions": subscriptions,
+                "managementGroups": management_groups
+            }
+        except Exception as e:
+            print(f"Error in get_subscriptions_with_hierarchy: {e}")
+            return {
+                "subscriptions": [],
+                "managementGroups": [],
+                "error": str(e)
+            }
     
     def query_resources(self, query: str, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
         """

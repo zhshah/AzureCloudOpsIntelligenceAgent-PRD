@@ -170,6 +170,65 @@ async def get_subscriptions():
         return []
 
 
+@app.get("/api/subscriptions-hierarchy")
+async def get_subscriptions_hierarchy():
+    """Get subscriptions with management group hierarchy for context selector"""
+    try:
+        result = await resource_manager.get_subscriptions_with_hierarchy()
+        return result
+    except Exception as e:
+        print(f"Error fetching subscriptions hierarchy: {e}")
+        return {"subscriptions": [], "managementGroups": [], "error": str(e)}
+
+
+@app.get("/api/security-score/{subscription_id}")
+async def get_security_score(subscription_id: str):
+    """Get Microsoft Defender for Cloud secure score for a subscription"""
+    try:
+        from azure.identity import DefaultAzureCredential
+        from azure.mgmt.security import SecurityCenter
+        
+        credential = DefaultAzureCredential()
+        
+        # Handle special values
+        if subscription_id in ['all', 'current', 'none', 'loading']:
+            subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID')
+        
+        if not subscription_id:
+            return {"error": "No subscription ID provided", "score": None}
+        
+        # Remove mg: prefix if management group
+        if subscription_id.startswith('mg:'):
+            return {"error": "Security score requires a subscription, not management group", "score": None}
+        
+        security_client = SecurityCenter(credential, subscription_id, "")
+        
+        # Get secure scores
+        scores = list(security_client.secure_scores.list())
+        
+        if scores:
+            # Usually there's one score called 'ascScore'
+            main_score = scores[0]
+            current_score = main_score.current
+            max_score = main_score.max
+            percentage = (current_score / max_score * 100) if max_score > 0 else 0
+            
+            return {
+                "score": round(percentage, 1),
+                "current": current_score,
+                "max": max_score,
+                "subscriptionId": subscription_id
+            }
+        else:
+            return {"score": None, "error": "No security score data available"}
+            
+    except ImportError:
+        return {"error": "Azure Security SDK not installed", "score": None}
+    except Exception as e:
+        print(f"Error fetching security score: {e}")
+        return {"error": str(e), "score": None}
+
+
 @app.get("/api/export-csv/{query_id}")
 async def export_csv(query_id: str):
     """

@@ -1660,6 +1660,51 @@
                     </div>
                 </div>
 
+                <!-- Well-Architected Framework (WAF) Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('waf')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF"></div>
+                            <div class="category-name">Well-Architected Framework</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-waf">
+                        <div class="prompt-item" onclick="quickPrompt('Perform a comprehensive Azure Well-Architected Framework (WAF) assessment. Analyze resources against all 5 pillars: Reliability, Security, Cost Optimization, Operational Excellence, and Performance Efficiency. For each pillar provide: 1) Current state, 2) Identified gaps, 3) Risk level, 4) Top 3 recommendations.')">
+                            <span class="prompt-icon"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF" style="width:18px;height:18px;"></span>
+                            <span>Full WAF Assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF RELIABILITY pillar assessment. Focus on: VMs without Availability Zones/Sets, Single points of failure, Load balancer health probes, Backup coverage, Recovery Services Vault configuration, Disaster recovery geo-replication.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10004-icon-service-Service-Health.svg" alt="Reliability" style="width:18px;height:18px;"></span>
+                            <span>Reliability Assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF SECURITY pillar assessment. Focus on: Storage accounts with public access, Key Vaults security, NSGs with permissive rules, Resources without Private Endpoints, Privileged RBAC assignments, Defender for Cloud recommendations.')">
+                            <span class="prompt-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security" style="width:18px;height:18px;"></span>
+                            <span>Security Assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF COST OPTIMIZATION pillar assessment. Focus on: Resources without cost tags, Deallocated VMs, Orphaned disks, Unattached Public IPs, Reserved Instance opportunities, Over-provisioned VM sizes.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Cost" style="width:18px;height:18px;"></span>
+                            <span>Cost Optimization Assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF OPERATIONAL EXCELLENCE pillar assessment. Focus on: Naming convention compliance, Tagging standards, Policy compliance, Resources without diagnostic settings, VMs without Azure Monitor agent, Update Management compliance.')">
+                            <span class="prompt-icon"><img src="/Icons/management + governance/00001-icon-service-Monitor.svg" alt="OpEx" style="width:18px;height:18px;"></span>
+                            <span>Operational Excellence Assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF PERFORMANCE EFFICIENCY pillar assessment. Focus on: VM SKU appropriateness, App Service auto-scaling, SQL sizing analysis, Disk type optimization, Storage performance tiers, CDN coverage.')">
+                            <span class="prompt-icon"><img src="/Icons/devops/02423-icon-service-Load-Testing.svg" alt="Perf" style="width:18px;height:18px;"></span>
+                            <span>Performance Efficiency Assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Perform a targeted WAF review for a specific resource group. Ask me which resource group to analyze, then assess all resources against the 5 WAF pillars.')">
+                            <span class="prompt-icon">📁</span>
+                            <span>WAF Review by Resource Group</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Perform a WAF review for resources filtered by tag. Ask me which tag to filter by, then analyze those resources against all 5 WAF pillars.')">
+                            <span class="prompt-icon">🏷️</span>
+                            <span>WAF Review by Tag</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Networking Category -->
                 <div class="category-section">
                     <div class="category-header" onclick="toggleCategory('networking')">
@@ -2812,6 +2857,12 @@
                             <div class="welcome-category-desc">CAF assessment, Platform & Application LZ review</div>
                             <div class="welcome-category-count">22 Quick Actions</div>
                         </div>
+                        <div class="welcome-category-card" onclick="showCategory('waf')">
+                            <span class="welcome-category-icon"><img src="/Icons/management + governance/00003-icon-service-Advisor.svg" alt="WAF"></span>
+                            <div class="welcome-category-title">Well-Architected Framework</div>
+                            <div class="welcome-category-desc">Reliability, Security, Cost, Operations, Performance</div>
+                            <div class="welcome-category-count">8 Quick Actions</div>
+                        </div>
                         <div class="welcome-category-card" onclick="showCategory('networking')">
                             <span class="welcome-category-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" alt="Networking"></span>
                             <div class="welcome-category-title">Networking</div>
@@ -3259,51 +3310,68 @@
                 }
             })();
 
-            // Fetch Security
+            // Fetch Security Score from Defender for Cloud API
             (async () => {
                 try {
-                    console.log('🛡️ Fetching security...');
-                    const response = await fetchWithTimeout('/api/chat', {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify({
-                            message: 'How many security recommendations do I have in Defender for Cloud? Just reply with a number.',
-                            subscription_context: subscriptionId === 'all' || subscriptionId === 'current' ? null : subscriptionId,
-                            conversation_history: []
-                        })
-                    }, 40000);
+                    console.log('🛡️ Fetching security score...');
+                    
+                    // Use subscription ID, handle management group case
+                    let securitySubId = subscriptionId;
+                    if (securitySubId.startsWith('mg:') || securitySubId === 'all' || securitySubId === 'current') {
+                        const storedSubs = sessionStorage.getItem('azureSubscriptions');
+                        if (storedSubs) {
+                            const subs = JSON.parse(storedSubs);
+                            securitySubId = subs[0]?.id || subs[0]?.subscriptionId || 'current';
+                        } else {
+                            securitySubId = 'current';
+                        }
+                    }
+                    
+                    const response = await fetchWithTimeout(`/api/security-score/${securitySubId}`, {
+                        method: 'GET',
+                        headers: headers
+                    }, 30000);
                     
                     if (response.ok) {
                         const data = await response.json();
-                        console.log('🛡️ Security response:', data.response?.substring(0, 100));
+                        console.log('🛡️ Security score response:', data);
                         const el = document.getElementById('sidebarSecurityScore');
                         const subEl = document.getElementById('sidebarSecuritySubtitle');
                         const card = document.getElementById('securityCard');
                         
                         if (el) {
-                            const countMatch = data.response?.match(/\b(\d+)\b/);
-                            const zeroMatch = data.response?.toLowerCase().includes('no ') || 
-                                             data.response?.match(/\b0\b|zero|none/i);
-                            
-                            if (countMatch) {
-                                const count = parseInt(countMatch[1]);
-                                el.innerHTML = count + ' items';
-                                subEl.textContent = count > 10 ? 'Needs attention' : count > 0 ? 'Review recommended' : 'Good posture';
+                            if (data.score !== null && data.score !== undefined) {
+                                const score = data.score;
+                                el.innerHTML = score + '%';
+                                subEl.textContent = score >= 80 ? 'Strong posture' : score >= 60 ? 'Needs attention' : 'Critical issues';
                                 card.classList.remove('success-dynamic', 'warning-dynamic', 'danger-dynamic');
-                                card.classList.add(count > 10 ? 'warning-dynamic' : 'success-dynamic');
-                            } else if (zeroMatch) {
-                                el.innerHTML = '0 items';
-                                subEl.textContent = 'Excellent posture';
-                                card.classList.remove('warning-dynamic', 'danger-dynamic');
-                                card.classList.add('success-dynamic');
+                                card.classList.add(score >= 80 ? 'success-dynamic' : score >= 60 ? 'warning-dynamic' : 'danger-dynamic');
+                            } else if (data.error) {
+                                el.innerHTML = 'N/A';
+                                subEl.textContent = 'Enable Defender';
+                                card.classList.remove('success-dynamic', 'danger-dynamic');
+                                card.classList.add('warning-dynamic');
                             } else {
                                 el.innerHTML = 'Check';
                                 subEl.textContent = 'Click to review';
                             }
                         }
+                    } else {
+                        const el = document.getElementById('sidebarSecurityScore');
+                        const subEl = document.getElementById('sidebarSecuritySubtitle');
+                        if (el) {
+                            el.innerHTML = 'N/A';
+                            subEl.textContent = 'Click to check';
+                        }
                     }
                 } catch (err) {
-                    console.warn('🛡️ Security fetch error:', err.message);
+                    console.warn('🛡️ Security score fetch error:', err.message);
+                    const el = document.getElementById('sidebarSecurityScore');
+                    const subEl = document.getElementById('sidebarSecuritySubtitle');
+                    if (el) {
+                        el.innerHTML = 'N/A';
+                        subEl.textContent = 'Click to check';
+                    }
                 }
             })();
         }
@@ -3341,17 +3409,49 @@
         }
 
         function showCategory(categoryId) {
-            // Scroll to sidebar and open category
-            const categoryHeader = document.querySelector(`#category-${categoryId}`).previousElementSibling;
+            // Find the category section
+            const categoryPrompts = document.querySelector(`#category-${categoryId}`);
+            if (!categoryPrompts) return;
+            
+            const categoryHeader = categoryPrompts.previousElementSibling;
+            const categorySection = categoryHeader.parentElement;
+            
+            // If category is not expanded, expand it
             if (!categoryHeader.classList.contains('active')) {
                 categoryHeader.click();
             }
+            
+            // Scroll the sidebar to bring this category to the top
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar && categorySection) {
+                const sidebarRect = sidebar.getBoundingClientRect();
+                const sectionRect = categorySection.getBoundingClientRect();
+                const scrollOffset = sectionRect.top - sidebarRect.top + sidebar.scrollTop - 20;
+                
+                sidebar.scrollTo({
+                    top: scrollOffset,
+                    behavior: 'smooth'
+                });
+            }
+            
+            // Also scroll the main page to ensure sidebar is visible
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
             
             // Remove welcome state
             const welcomeState = document.querySelector('.welcome-state');
             if (welcomeState) {
                 welcomeState.remove();
             }
+            
+            // Highlight the category briefly
+            categorySection.style.transition = 'background-color 0.3s ease';
+            categorySection.style.backgroundColor = 'rgba(0, 120, 212, 0.1)';
+            setTimeout(() => {
+                categorySection.style.backgroundColor = '';
+            }, 1500);
         }
 
         function quickPrompt(prompt) {
@@ -3723,7 +3823,28 @@
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
 
-        // Load Azure Subscriptions
+        // Helper function to add hierarchical options to select
+        function addHierarchyOptions(parent, children, depth) {
+            const indent = '  '.repeat(depth);
+            children.forEach(child => {
+                const option = document.createElement('option');
+                if (child.type === 'managementGroup') {
+                    option.value = `mg:${child.id}`;
+                    option.textContent = `${indent}📁 ${child.name}`;
+                    option.style.fontWeight = 'bold';
+                } else {
+                    option.value = child.id;
+                    option.textContent = `${indent}🔑 ${child.name}`;
+                }
+                parent.appendChild(option);
+                
+                if (child.children && child.children.length > 0) {
+                    addHierarchyOptions(parent, child.children, depth + 1);
+                }
+            });
+        }
+
+        // Load Azure Subscriptions with Management Group Hierarchy
         async function loadAzureSubscriptions() {
             try {
                 const accessToken = sessionStorage.getItem('accessToken');
@@ -3732,56 +3853,93 @@
                     headers['Authorization'] = `Bearer ${accessToken}`;
                 }
 
-                // Call backend to get subscriptions
-                const response = await fetch('/api/subscriptions', {
+                const response = await fetch('/api/subscriptions-hierarchy', {
                     method: 'GET',
                     headers: headers
                 });
 
+                const select = document.getElementById('subscriptionSelect');
+                
                 if (response.ok) {
-                    const subscriptions = await response.json();
-                    const select = document.getElementById('subscriptionSelect');
+                    const data = await response.json();
+                    const subscriptions = data.subscriptions || [];
+                    const managementGroups = data.managementGroups || [];
                     
-                    // Clear loading option
                     select.innerHTML = '<option value="all">All Subscriptions</option>';
                     
-                    // Add real subscriptions
+                    // Add Management Groups section if available
+                    if (managementGroups && managementGroups.length > 0) {
+                        const mgOptGroup = document.createElement('optgroup');
+                        mgOptGroup.label = '📁 Management Groups';
+                        
+                        managementGroups.forEach(mg => {
+                            const option = document.createElement('option');
+                            option.value = `mg:${mg.id}`;
+                            option.textContent = `📁 ${mg.name}`;
+                            option.style.fontWeight = 'bold';
+                            mgOptGroup.appendChild(option);
+                            
+                            if (mg.children && mg.children.length > 0) {
+                                addHierarchyOptions(mgOptGroup, mg.children, 1);
+                            }
+                        });
+                        
+                        select.appendChild(mgOptGroup);
+                    }
+                    
+                    // Add Subscriptions section
                     if (subscriptions && subscriptions.length > 0) {
+                        const subOptGroup = document.createElement('optgroup');
+                        subOptGroup.label = '🔑 Subscriptions';
+                        
                         subscriptions.forEach((sub, index) => {
                             const option = document.createElement('option');
                             option.value = sub.id || sub.subscriptionId;
                             option.textContent = sub.displayName || sub.name;
-                            if (index === 0) option.selected = true; // Select first subscription by default
-                            select.appendChild(option);
+                            if (managementGroups.length === 0 && index === 0) {
+                                option.selected = true;
+                            }
+                            subOptGroup.appendChild(option);
                         });
                         
-                        // Store subscriptions in session for later use
+                        select.appendChild(subOptGroup);
                         sessionStorage.setItem('azureSubscriptions', JSON.stringify(subscriptions));
+                        sessionStorage.setItem('azureManagementGroups', JSON.stringify(managementGroups));
                         
-                        // Update insights for first subscription
                         if (subscriptions.length > 0) {
-                            updateInsightsForSubscription(subscriptions[0].id || subscriptions[0].subscriptionId);
-                            // Load sidebar live insights
-                            loadSidebarLiveInsights(subscriptions[0].id || subscriptions[0].subscriptionId);
+                            const firstSubId = subscriptions[0].id || subscriptions[0].subscriptionId;
+                            updateInsightsForSubscription(firstSubId);
+                            loadSidebarLiveInsights(firstSubId);
                         }
-                    } else {
-                        // No subscriptions found
+                    } else if (managementGroups.length === 0) {
                         select.innerHTML = '<option value="none">No subscriptions available</option>';
-                        // Still load insights with default context
                         loadSidebarLiveInsights('current');
                     }
                 } else {
-                    console.error('Failed to load subscriptions');
-                    const select = document.getElementById('subscriptionSelect');
-                    select.innerHTML = '<option value="current">Current Subscription</option>';
-                    // Load insights with default context
-                    loadSidebarLiveInsights('current');
+                    // Fallback to regular subscriptions endpoint
+                    const fallbackResponse = await fetch('/api/subscriptions', { headers });
+                    if (fallbackResponse.ok) {
+                        const subscriptions = await fallbackResponse.json();
+                        select.innerHTML = '<option value="all">All Subscriptions</option>';
+                        subscriptions.forEach((sub, index) => {
+                            const option = document.createElement('option');
+                            option.value = sub.id || sub.subscriptionId;
+                            option.textContent = sub.displayName || sub.name;
+                            if (index === 0) option.selected = true;
+                            select.appendChild(option);
+                        });
+                        if (subscriptions.length > 0) {
+                            loadSidebarLiveInsights(subscriptions[0].id || subscriptions[0].subscriptionId);
+                        }
+                    } else {
+                        select.innerHTML = '<option value="current">Current Subscription</option>';
+                        loadSidebarLiveInsights('current');
+                    }
                 }
             } catch (error) {
                 console.error('Error loading subscriptions:', error);
                 const select = document.getElementById('subscriptionSelect');
                 select.innerHTML = '<option value="current">Current Subscription</option>';
-                // Load insights with default context
                 loadSidebarLiveInsights('current');
             }
         }
