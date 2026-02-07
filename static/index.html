@@ -2794,152 +2794,162 @@
                     <p>Your intelligent assistant for comprehensive Azure infrastructure management. Manage resources, optimize costs, ensure security, monitor health, and explore Azure services. Select a category to get started or use the chat to ask questions.</p>
                     
                     <div class="welcome-categories">
-                        <!-- Foundational & Governance - First -->
-                        <div class="welcome-category-card" onclick="showCategory('landingzone')">
-                            <span class="welcome-category-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" alt="Landing Zone"></span>
-                            <div class="welcome-category-title">Landing Zone (CAF)</div>
-                            <div class="welcome-category-desc">CAF assessment, Platform & Application LZ review</div>
-                            <div class="welcome-category-count">22 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('security')">
-                            <span class="welcome-category-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security"></span>
-                            <div class="welcome-category-title">Security & Compliance</div>
-                            <div class="welcome-category-desc">Defender, Policy compliance, public access audit</div>
-                            <div class="welcome-category-count">7 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('policy')">
-                            <span class="welcome-category-icon"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" alt="Policy"></span>
-                            <div class="welcome-category-title">Azure Policy</div>
-                            <div class="welcome-category-desc">Policy compliance and exemptions</div>
-                            <div class="welcome-category-count">5 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('iam')">
-                            <span class="welcome-category-icon"><img src="/Icons/identity/10340-icon-service-Entra-Identity-Roles-and-Administrators.svg" alt="IAM"></span>
-                            <div class="welcome-category-title">Access Control (IAM)</div>
-                            <div class="welcome-category-desc">RBAC role assignments, privileged access audit</div>
-                            <div class="welcome-category-count">6 Quick Actions</div>
-                        </div>
-                        
-                        <!-- Networking - Core Infrastructure -->
-                        <div class="welcome-category-card" onclick="showCategory('networking')">
-                            <span class="welcome-category-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" alt="Networking"></span>
-                            <div class="welcome-category-title">Networking</div>
-                            <div class="welcome-category-desc">VNets, NSGs, Firewalls, Load Balancers, WAF, vWAN</div>
-                            <div class="welcome-category-count">32 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('privatelink')">
-                            <span class="welcome-category-icon"><img src="/Icons/networking/00427-icon-service-Private-Link.svg" alt="Private Link"></span>
-                            <div class="welcome-category-title">Azure Private Link</div>
-                            <div class="welcome-category-desc">Private endpoints, PaaS security, connections</div>
-                            <div class="welcome-category-count">14 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('privatedns')">
-                            <span class="welcome-category-icon"><img src="/Icons/networking/10064-icon-service-DNS-Zones.svg" alt="Private DNS"></span>
-                            <div class="welcome-category-title">Private DNS Zones</div>
-                            <div class="welcome-category-desc">DNS zones, VNet links, resolution issues</div>
-                            <div class="welcome-category-count">14 Quick Actions</div>
-                        </div>
-                        
-                        <!-- Resource & Cost Management -->
-                        <div class="welcome-category-card" onclick="showCategory('resources')">
-                            <span class="welcome-category-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Resources"></span>
-                            <div class="welcome-category-title">Resource Management</div>
-                            <div class="welcome-category-desc">Inventory, search, and filter Azure resources</div>
-                            <div class="welcome-category-count">6 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('cost')">
-                            <span class="welcome-category-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Cost"></span>
-                            <div class="welcome-category-title">Cost Optimization</div>
-                            <div class="welcome-category-desc">Cost analysis, comparisons, and savings opportunities</div>
-                            <div class="welcome-category-count">7 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('tags')">
-                            <span class="welcome-category-icon"><img src="/Icons/general/10014-icon-service-Tag.svg" alt="Tags"></span>
-                            <div class="welcome-category-title">Tags Management</div>
-                            <div class="welcome-category-desc">Tag inventory and compliance</div>
-                            <div class="welcome-category-count">5 Quick Actions</div>
-                        </div>
-                        
-                                                <div class="welcome-category-card" onclick="showCategory('virtualmachines')">
-                            <span class="welcome-category-icon"><img src="/Icons/compute/10021-icon-service-Virtual-Machine.svg" alt="Virtual Machines"></span>
-                            <div class="welcome-category-title">Virtual Machines</div>
-                            <div class="welcome-category-desc">VM health, backup, monitoring, cost optimization</div>
-                            <div class="welcome-category-count">15 Quick Actions</div>
-                        </div>
-                                                <!-- Compute & Applications -->
-                        <div class="welcome-category-card" onclick="showCategory('aks')">
-                            <span class="welcome-category-icon"><img src="/Icons/compute/10023-icon-service-Kubernetes-Services.svg" alt="AKS"></span>
-                            <div class="welcome-category-title">Azure Kubernetes</div>
-                            <div class="welcome-category-desc">AKS clusters, monitoring, security posture</div>
-                            <div class="welcome-category-count">5 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('appservices')">
-                            <span class="welcome-category-icon"><img src="/Icons/compute/10035-icon-service-App-Services.svg" alt="App Services"></span>
-                            <div class="welcome-category-title">App Services</div>
-                            <div class="welcome-category-desc">Web apps, monitoring, public access</div>
-                            <div class="welcome-category-count">5 Quick Actions</div>
-                        </div>
-                        
-                        <!-- Data & Storage -->
-                        <div class="welcome-category-card" onclick="showCategory('sql')">
-                            <span class="welcome-category-icon"><img src="/Icons/databases/10130-icon-service-SQL-Database.svg" alt="SQL"></span>
-                            <div class="welcome-category-title">Azure SQL PaaS</div>
-                            <div class="welcome-category-desc">SQL Database, Managed Instance optimization</div>
-                            <div class="welcome-category-count">7 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('storage')">
-                            <span class="welcome-category-icon"><img src="/Icons/storage/10086-icon-service-Storage-Accounts.svg" alt="Storage"></span>
-                            <div class="welcome-category-title">Storage Accounts</div>
-                            <div class="welcome-category-desc">Capacity, security, file shares, cost optimization</div>
-                            <div class="welcome-category-count">10 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('backup')">
-                            <span class="welcome-category-icon"><img src="/Icons/storage/00017-icon-service-Recovery-Services-Vaults.svg" alt="Backup"></span>
-                            <div class="welcome-category-title">Azure Backup</div>
-                            <div class="welcome-category-desc">VMs, disks, files, SQL backup protection status</div>
-                            <div class="welcome-category-count">12 Quick Actions</div>
-                        </div>
-                        
-                        <!-- Operations & Management -->
-                        <div class="welcome-category-card" onclick="showCategory('monitoring')">
-                            <span class="welcome-category-icon"><img src="/Icons/management + governance/00001-icon-service-Monitor.svg" alt="Monitoring"></span>
-                            <div class="welcome-category-title">Monitoring & Alerts</div>
-                            <div class="welcome-category-desc">Alerts, monitoring gaps, VM Insights status</div>
-                            <div class="welcome-category-count">11 Quick Actions</div>
-                        </div>
-                        
-                        <div class="welcome-category-card" onclick="showCategory('updates')">
-                            <span class="welcome-category-icon"><img src="/Icons/compute/00195-icon-service-Maintenance-Configuration.svg" alt="Updates"></span>
-                            <div class="welcome-category-title">Update Management</div>
-                            <div class="welcome-category-desc">VM and Arc machine patches and compliance</div>
-                            <div class="welcome-category-count">6 Quick Actions</div>
-                        </div>
-                        
-                        <!-- Identity & Hybrid -->
                         <div class="welcome-category-card" onclick="showCategory('entraid')">
                             <span class="welcome-category-icon"><img src="/Icons/identity/10235-icon-service-Identity-Governance.svg" alt="Entra ID"></span>
                             <div class="welcome-category-title">Entra ID (Azure AD)</div>
                             <div class="welcome-category-desc">Users, groups, apps, devices, conditional access</div>
                             <div class="welcome-category-count">14 Quick Actions</div>
                         </div>
-                        
+                        <div class="welcome-category-card" onclick="showCategory('iam')">
+                            <span class="welcome-category-icon"><img src="/Icons/identity/10340-icon-service-Entra-Identity-Roles-and-Administrators.svg" alt="IAM"></span>
+                            <div class="welcome-category-title">Access Control (IAM)</div>
+                            <div class="welcome-category-desc">RBAC role assignments, privileged access audit</div>
+                            <div class="welcome-category-count">6 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('landingzone')">
+                            <span class="welcome-category-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" alt="Landing Zone"></span>
+                            <div class="welcome-category-title">Landing Zone (CAF)</div>
+                            <div class="welcome-category-desc">CAF assessment, Platform & Application LZ review</div>
+                            <div class="welcome-category-count">22 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('networking')">
+                            <span class="welcome-category-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" alt="Networking"></span>
+                            <div class="welcome-category-title">Networking</div>
+                            <div class="welcome-category-desc">VNets, NSGs, Firewalls, Load Balancers, WAF, vWAN</div>
+                            <div class="welcome-category-count">32 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('privatelink')">
+                            <span class="welcome-category-icon"><img src="/Icons/networking/00427-icon-service-Private-Link.svg" alt="Private Link"></span>
+                            <div class="welcome-category-title">Azure Private Link</div>
+                            <div class="welcome-category-desc">Private endpoints, PaaS security, connections</div>
+                            <div class="welcome-category-count">14 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('privatedns')">
+                            <span class="welcome-category-icon"><img src="/Icons/networking/10064-icon-service-DNS-Zones.svg" alt="Private DNS"></span>
+                            <div class="welcome-category-title">Private DNS Zones</div>
+                            <div class="welcome-category-desc">DNS zones, VNet links, resolution issues</div>
+                            <div class="welcome-category-count">14 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('virtualmachines')">
+                            <span class="welcome-category-icon"><img src="/Icons/compute/10021-icon-service-Virtual-Machine.svg" alt="Virtual Machines"></span>
+                            <div class="welcome-category-title">Virtual Machines</div>
+                            <div class="welcome-category-desc">VM health, backup, monitoring, cost optimization</div>
+                            <div class="welcome-category-count">15 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('resources')">
+                            <span class="welcome-category-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Resources"></span>
+                            <div class="welcome-category-title">Resource Management</div>
+                            <div class="welcome-category-desc">Inventory, search, and filter Azure resources</div>
+                            <div class="welcome-category-count">6 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('cost')">
+                            <span class="welcome-category-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Cost"></span>
+                            <div class="welcome-category-title">Cost Optimization</div>
+                            <div class="welcome-category-desc">Cost analysis, comparisons, and savings opportunities</div>
+                            <div class="welcome-category-count">7 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('security')">
+                            <span class="welcome-category-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security"></span>
+                            <div class="welcome-category-title">Security & Compliance</div>
+                            <div class="welcome-category-desc">Defender, Policy compliance, public access audit</div>
+                            <div class="welcome-category-count">7 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('policy')">
+                            <span class="welcome-category-icon"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" alt="Policy"></span>
+                            <div class="welcome-category-title">Azure Policy</div>
+                            <div class="welcome-category-desc">Policy compliance and exemptions</div>
+                            <div class="welcome-category-count">5 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('monitoring')">
+                            <span class="welcome-category-icon"><img src="/Icons/management + governance/00001-icon-service-Monitor.svg" alt="Monitoring"></span>
+                            <div class="welcome-category-title">Monitoring & Alerts</div>
+                            <div class="welcome-category-desc">Alerts, monitoring gaps, VM Insights status</div>
+                            <div class="welcome-category-count">11 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('backup')">
+                            <span class="welcome-category-icon"><img src="/Icons/storage/00017-icon-service-Recovery-Services-Vaults.svg" alt="Backup"></span>
+                            <div class="welcome-category-title">Azure Backup</div>
+                            <div class="welcome-category-desc">VMs, disks, files, SQL backup protection status</div>
+                            <div class="welcome-category-count">12 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('updates')">
+                            <span class="welcome-category-icon"><img src="/Icons/compute/00195-icon-service-Maintenance-Configuration.svg" alt="Updates"></span>
+                            <div class="welcome-category-title">Update Management</div>
+                            <div class="welcome-category-desc">VM and Arc machine patches and compliance</div>
+                            <div class="welcome-category-count">6 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('tags')">
+                            <span class="welcome-category-icon"><img src="/Icons/general/10014-icon-service-Tag.svg" alt="Tags"></span>
+                            <div class="welcome-category-title">Tags Management</div>
+                            <div class="welcome-category-desc">Tag inventory and compliance</div>
+                            <div class="welcome-category-count">5 Quick Actions</div>
+                        </div>
                         <div class="welcome-category-card" onclick="showCategory('arc')">
                             <span class="welcome-category-icon"><img src="/Icons/management + governance/00756-icon-service-Azure-Arc.svg" alt="Arc"></span>
                             <div class="welcome-category-title">Azure Arc</div>
                             <div class="welcome-category-desc">Hybrid infrastructure management</div>
                             <div class="welcome-category-count">3 Quick Actions</div>
                         </div>
-                        
+                        <div class="welcome-category-card" onclick="showCategory('ai')">
+                            <span class="welcome-category-icon"><img src="/Icons/ai + machine learning/10165-icon-service-Azure-OpenAI.svg" alt="AI"></span>
+                            <div class="welcome-category-title">AI & Automation</div>
+                            <div class="welcome-category-desc">AI insights and automation workflows</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('aks')">
+                            <span class="welcome-category-icon"><img src="/Icons/compute/10023-icon-service-Kubernetes-Services.svg" alt="AKS"></span>
+                            <div class="welcome-category-title">Azure Kubernetes</div>
+                            <div class="welcome-category-desc">AKS clusters, monitoring, security posture</div>
+                            <div class="welcome-category-count">5 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('vmss')">
+                            <span class="welcome-category-icon"><img src="/Icons/compute/10034-icon-service-VM-Scale-Sets.svg" alt="VMSS"></span>
+                            <div class="welcome-category-title">VM Scale Sets</div>
+                            <div class="welcome-category-desc">Scale set monitoring and configuration</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('appservices')">
+                            <span class="welcome-category-icon"><img src="/Icons/compute/10035-icon-service-App-Services.svg" alt="App Services"></span>
+                            <div class="welcome-category-title">App Services</div>
+                            <div class="welcome-category-desc">Web apps, monitoring, public access</div>
+                            <div class="welcome-category-count">5 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('sql')">
+                            <span class="welcome-category-icon"><img src="/Icons/databases/10130-icon-service-SQL-Database.svg" alt="SQL"></span>
+                            <div class="welcome-category-title">Azure SQL PaaS</div>
+                            <div class="welcome-category-desc">SQL Database, Managed Instance optimization</div>
+                            <div class="welcome-category-count">7 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('postgresql')">
+                            <span class="welcome-category-icon"><img src="/Icons/databases/10131-icon-service-Azure-Database-PostgreSQL-Server.svg" alt="PostgreSQL"></span>
+                            <div class="welcome-category-title">PostgreSQL Servers</div>
+                            <div class="welcome-category-desc">PostgreSQL flexible servers management</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('mysql')">
+                            <span class="welcome-category-icon"><img src="/Icons/databases/10122-icon-service-Azure-Database-MySQL-Server.svg" alt="MySQL"></span>
+                            <div class="welcome-category-title">MySQL Servers</div>
+                            <div class="welcome-category-desc">MySQL flexible servers management</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('cosmosdb')">
+                            <span class="welcome-category-icon"><img src="/Icons/databases/10121-icon-service-Azure-Cosmos-DB.svg" alt="Cosmos DB"></span>
+                            <div class="welcome-category-title">Cosmos DB</div>
+                            <div class="welcome-category-desc">NoSQL database optimization</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('storage')">
+                            <span class="welcome-category-icon"><img src="/Icons/storage/10086-icon-service-Storage-Accounts.svg" alt="Storage"></span>
+                            <div class="welcome-category-title">Storage Accounts</div>
+                            <div class="welcome-category-desc">Capacity, security, file shares, cost optimization</div>
+                            <div class="welcome-category-count">10 Quick Actions</div>
+                        </div>
+                        <div class="welcome-category-card" onclick="showCategory('apimanagement')">
+                            <span class="welcome-category-icon"><img src="/Icons/networking/10042-icon-service-API-Management-Services.svg" alt="API Management"></span>
+                            <div class="welcome-category-title">API Management</div>
+                            <div class="welcome-category-desc">API gateways and policies</div>
+                            <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
                         <div class="welcome-category-card" onclick="showAboutModal()">
                             <span class="welcome-category-icon"><img src="/Icons/general/10005-icon-service-Information.svg" alt="About"></span>
                             <div class="welcome-category-title">About</div>
