@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1474,6 +1474,78 @@
                     </div>
                 </div>
 
+                                <!-- Virtual Machines Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('virtualmachines')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/compute/10021-icon-service-Virtual-Machine.svg" alt="Virtual Machines"></div>
+                            <div class="category-name">Virtual Machines</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-virtualmachines">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Virtual Machines in my subscription. Include: VM Name, Resource Group, Location, VM Size, OS Type, Power State, Private IP, Public IP, Availability Zone, Availability Set, Tags.')">
+                            <span class="prompt-icon">💻</span>
+                            <span>All VMs inventory</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs STOPPED for 30+ days. Include: VM Name, Resource Group, VM Size, Days Stopped, Monthly Cost When Running.')">
+                            <span class="prompt-icon">💤</span>
+                            <span>VMs stopped 30+ days</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT Azure Backup enabled. Include: VM Name, Resource Group, OS Type, Backup Status, Risk Level.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>VMs without backup</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find stopped VMs with PREMIUM SSD disks still incurring costs. Include: VM Name, Days Stopped, Premium Disk Details, Monthly Wasted Cost.')">
+                            <span class="prompt-icon">💰</span>
+                            <span>Stopped VMs with Premium disks</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs using Standard HDD disks. Include: VM Name, Disk Name, Disk Type, Size, Performance Impact, Upgrade Recommendation.')">
+                            <span class="prompt-icon">💿</span>
+                            <span>VMs with HDD disks</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT Azure Monitor Agent installed. Include: VM Name, OS Type, Agent Status, Monitoring Gap.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>VMs without Azure Monitor Agent</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT Guest Agent or with unhealthy agent. Include: VM Name, Guest Agent Status, Last Heartbeat, Remediation.')">
+                            <span class="prompt-icon">🤖</span>
+                            <span>VMs without Guest Agent</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs with NO REDUNDANCY - not in Availability Zone and not in Availability Set. Include: VM Name, Location, SLA Impact, Recommendation.')">
+                            <span class="prompt-icon">🎯</span>
+                            <span>VMs without redundancy</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VMs in Availability Sets. Include: Availability Set Name, Fault Domains, Update Domains, VM Count, VM Names.')">
+                            <span class="prompt-icon">📦</span>
+                            <span>VMs in Availability Sets</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VMs by Availability Zone. Include: Zone Number, VM Count, VM Names, Cross-Zone Distribution.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>VMs by Availability Zone</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs with PUBLIC IP directly attached. Include: VM Name, Public IP, Associated NSG, Open Ports, Security Risk.')">
+                            <span class="prompt-icon">🌍</span>
+                            <span>VMs with public IPs</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT NSG protection. Include: VM Name, NIC, Subnet, NSG Status, Risk Level.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>VMs without NSG</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs with pending CRITICAL patches. Include: VM Name, OS Type, Critical Patches, Security Patches, Last Patch Date.')">
+                            <span class="prompt-icon">🔧</span>
+                            <span>VMs with pending patches</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find OVERSIZED VMs with low CPU/Memory usage. Include: VM Name, Current Size, Avg CPU, Avg Memory, Recommended Size, Savings.')">
+                            <span class="prompt-icon">📉</span>
+                            <span>Oversized VMs (right-sizing)</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs with HIGH CPU over 80 percent. Include: VM Name, Size, vCPUs, Avg CPU, Peak CPU, Recommendation.')">
+                            <span class="prompt-icon">🔥</span>
+                            <span>VMs with high CPU</span>
+                        </div>
+                    </div>
+                </div>
                 <!-- Cost Optimization Category -->
                 <div class="category-section">
                     <div class="category-header" onclick="toggleCategory('cost')">
@@ -2795,7 +2867,13 @@
                             <div class="welcome-category-count">5 Quick Actions</div>
                         </div>
                         
-                        <!-- Compute & Applications -->
+                                                <div class="welcome-category-card" onclick="showCategory('virtualmachines')">
+                            <span class="welcome-category-icon"><img src="/Icons/compute/10021-icon-service-Virtual-Machine.svg" alt="Virtual Machines"></span>
+                            <div class="welcome-category-title">Virtual Machines</div>
+                            <div class="welcome-category-desc">VM health, backup, monitoring, cost optimization</div>
+                            <div class="welcome-category-count">15 Quick Actions</div>
+                        </div>
+                                                <!-- Compute & Applications -->
                         <div class="welcome-category-card" onclick="showCategory('aks')">
                             <span class="welcome-category-icon"><img src="/Icons/compute/10023-icon-service-Kubernetes-Services.svg" alt="AKS"></span>
                             <div class="welcome-category-title">Azure Kubernetes</div>
