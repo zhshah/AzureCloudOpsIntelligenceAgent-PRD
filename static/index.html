@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1437,687 +1437,6 @@
                     <span>🎯</span> Quick Actions
                 </h3>
 
-                <!-- Resource Management Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('resources')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Resources"></div>
-                            <div class="category-name">Resource Management</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-resources">
-                        <div class="prompt-item" onclick="quickPrompt('List ALL resources in my current subscription with comprehensive details. Show table with columns: Resource Name, Resource Type, Resource Group, Subscription, Location, SKU/Size, Status, Tags. Include all resource properties available. Do not show any imaginary or placeholder values - only actual data from Azure.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>All resources (full inventory)</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('I want to filter Azure resources. Present these filtering options with numbered choices: 1) Filter by Resource Group (ask which), 2) Filter by Resource Type (ask which type), 3) Filter by Location/Region (ask which), 4) Filter by Tag (ask tag name and value), 5) Filter by Subscription (if multiple). Wait for my selection, then show results in a table with: Resource Name, Type, Resource Group, Location, SKU, Status, Tags.')">
-                            <span class="prompt-icon">🔍</span>
-                            <span>Filter resources by criteria</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show me a summary of resources grouped by type. Include: Resource Type, Count, Primary Locations, Common Tags. Help me understand my resource distribution.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>Resource inventory summary</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Search for resources by name. Ask me what name or partial name to search for, then show matching resources with: Resource Name, Type, Resource Group, Location, Subscription, Status.')">
-                            <span class="prompt-icon">🔎</span>
-                            <span>Search resources by name</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show ALL Virtual Machines in my subscription with details: VM Name, Resource Group, Location, VM Size, OS Type, Power State, Private IP, Public IP (if any), Tags. Only show actual Azure data.')">
-                            <span class="prompt-icon">💻</span>
-                            <span>List all Virtual Machines</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show ALL Storage Accounts in my subscription with: Name, Resource Group, Location, SKU, Access Tier, Public Access status, Private Endpoint status, Replication Type, Tags.')">
-                            <span class="prompt-icon">💾</span>
-                            <span>List all Storage Accounts</span>
-                        </div>
-                    </div>
-                </div>
-
-                                <!-- Virtual Machines Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('virtualmachines')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/compute/10021-icon-service-Virtual-Machine.svg" alt="Virtual Machines"></div>
-                            <div class="category-name">Virtual Machines</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-virtualmachines">
-                        <div class="prompt-item" onclick="quickPrompt('List ALL Virtual Machines in my subscription. Include: VM Name, Resource Group, Location, VM Size, OS Type, Power State, Private IP, Public IP, Availability Zone, Availability Set, Tags.')">
-                            <span class="prompt-icon">💻</span>
-                            <span>All VMs inventory</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find VMs STOPPED for 30+ days. Include: VM Name, Resource Group, VM Size, Days Stopped, Monthly Cost When Running.')">
-                            <span class="prompt-icon">💤</span>
-                            <span>VMs stopped 30+ days</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT Azure Backup enabled. Include: VM Name, Resource Group, OS Type, Backup Status, Risk Level.')">
-                            <span class="prompt-icon">⚠️</span>
-                            <span>VMs without backup</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find stopped VMs with PREMIUM SSD disks still incurring costs. Include: VM Name, Days Stopped, Premium Disk Details, Monthly Wasted Cost.')">
-                            <span class="prompt-icon">💰</span>
-                            <span>Stopped VMs with Premium disks</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find VMs using Standard HDD disks. Include: VM Name, Disk Name, Disk Type, Size, Performance Impact, Upgrade Recommendation.')">
-                            <span class="prompt-icon">💿</span>
-                            <span>VMs with HDD disks</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT Azure Monitor Agent installed. Include: VM Name, OS Type, Agent Status, Monitoring Gap.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>VMs without Azure Monitor Agent</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT Guest Agent or with unhealthy agent. Include: VM Name, Guest Agent Status, Last Heartbeat, Remediation.')">
-                            <span class="prompt-icon">🤖</span>
-                            <span>VMs without Guest Agent</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find VMs with NO REDUNDANCY - not in Availability Zone and not in Availability Set. Include: VM Name, Location, SLA Impact, Recommendation.')">
-                            <span class="prompt-icon">🎯</span>
-                            <span>VMs without redundancy</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show VMs in Availability Sets. Include: Availability Set Name, Fault Domains, Update Domains, VM Count, VM Names.')">
-                            <span class="prompt-icon">📦</span>
-                            <span>VMs in Availability Sets</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show VMs by Availability Zone. Include: Zone Number, VM Count, VM Names, Cross-Zone Distribution.')">
-                            <span class="prompt-icon">🌐</span>
-                            <span>VMs by Availability Zone</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find VMs with PUBLIC IP directly attached. Include: VM Name, Public IP, Associated NSG, Open Ports, Security Risk.')">
-                            <span class="prompt-icon">🌍</span>
-                            <span>VMs with public IPs</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT NSG protection. Include: VM Name, NIC, Subnet, NSG Status, Risk Level.')">
-                            <span class="prompt-icon">🔓</span>
-                            <span>VMs without NSG</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find VMs with pending CRITICAL patches. Include: VM Name, OS Type, Critical Patches, Security Patches, Last Patch Date.')">
-                            <span class="prompt-icon">🔧</span>
-                            <span>VMs with pending patches</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find OVERSIZED VMs with low CPU/Memory usage. Include: VM Name, Current Size, Avg CPU, Avg Memory, Recommended Size, Savings.')">
-                            <span class="prompt-icon">📉</span>
-                            <span>Oversized VMs (right-sizing)</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find VMs with HIGH CPU over 80 percent. Include: VM Name, Size, vCPUs, Avg CPU, Peak CPU, Recommendation.')">
-                            <span class="prompt-icon">🔥</span>
-                            <span>VMs with high CPU</span>
-                        </div>
-                    </div>
-                </div>
-                <!-- Cost Optimization Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('cost')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Cost"></div>
-                            <div class="category-name">Cost Optimization</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-cost">
-                        <div class="prompt-item" onclick="quickPrompt('Show my current month Azure costs breakdown. Include: Total Cost, Cost by Service, Cost by Resource Group, Top 10 most expensive resources with ACTUAL resource names and costs from Azure Cost Management. Do not show any placeholder or estimated values.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>Current month costs overview</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Compare my Azure costs: Show this week vs last week, and this month vs last month comparison. Include: Period, Total Cost, Change (%), Top changing services, Resources with biggest cost increase. Use actual data from Azure Cost Management.')">
-                            <span class="prompt-icon">📈</span>
-                            <span>Compare costs (week/month)</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show my Azure cost trends for the last 3 months. Include monthly totals, cost by service category, and identify any unusual spending patterns or anomalies.')">
-                            <span class="prompt-icon">📆</span>
-                            <span>Cost trends (last 3 months)</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('I want to analyze costs by category. Present options: 1) By Subscription, 2) By Resource Group, 3) By Tag (CostCenter/Department/Environment), 4) By Service type, 5) By Location. Wait for my selection then show detailed breakdown with ACTUAL costs.')">
-                            <span class="prompt-icon">🏷️</span>
-                            <span>Costs by category/tag</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Find all cost savings opportunities in my subscription. Show ACTUAL resource names with: Resource Name, Type, Current Monthly Cost, Issue (deallocated VM/orphaned disk/unattached IP/oversized), Recommended Action, Potential Monthly Savings. Calculate total potential savings.')">
-                            <span class="prompt-icon">💡</span>
-                            <span>Cost savings opportunities</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure Advisor cost recommendations for my subscription. Include: Recommendation, Affected Resource, Impact Level, Estimated Monthly Savings, Implementation Steps. Only show actual recommendations from Azure Advisor.')">
-                            <span class="prompt-icon">🎯</span>
-                            <span>Azure Advisor cost recommendations</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('I want cost advisories at a specific level. Ask me: 1) Subscription level, 2) Resource Group level (ask which RG), 3) Resource level (ask which resource). Then show cost analysis and optimization recommendations for that scope.')">
-                            <span class="prompt-icon">🔍</span>
-                            <span>Cost advisories by scope</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Security & Compliance Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('security')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security"></div>
-                            <div class="category-name">Security & Compliance</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-security">
-                        <div class="prompt-item" onclick="quickPrompt('Show Microsoft Defender for Cloud security recommendations for my subscription. Include: Recommendation, Severity (Critical/High/Medium/Low), Affected Resources Count, Category (Compute/Network/Data/Identity), Remediation Steps. Only show actual recommendations from Defender for Cloud.')">
-                            <span class="prompt-icon">🛡️</span>
-                            <span>Defender for Cloud recommendations</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure Policy compliance status. I want to choose the scope: 1) Subscription level, 2) Resource Group level (ask which), 3) Resource level (ask which). Then show: Resource Name, Resource Type, Location, Resource Group, Compliance Status, Policy Name, Assignment Name, Last Evaluation Date. Only show actual policy compliance data.')">
-                            <span class="prompt-icon">📜</span>
-                            <span>Policy compliance by scope</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show all resources with PUBLIC ACCESS enabled. Include: Resource Name, Resource Type, Resource Group, Location, Public Access Type, Risk Level, Recommendation. Focus on Storage Accounts, SQL Servers, Key Vaults, Web Apps, and any PaaS service with public endpoint.')">
-                            <span class="prompt-icon">🌐</span>
-                            <span>Resources with public access</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show PaaS resources that are ELIGIBLE for Private Endpoints but do NOT have Private Endpoints configured. Include: Resource Name, Resource Type, Resource Group, Location, Current Network Access, Risk Level, Private Endpoint Recommendation.')">
-                            <span class="prompt-icon">🔐</span>
-                            <span>PaaS without Private Endpoints</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Review Network Security Groups (NSGs) security. Show: NSG Name, Associated Resources, Total Rules, Risky Rules (Any/Any or 0.0.0.0/0), Open Sensitive Ports (RDP 3389, SSH 22, SQL 1433), Risk Level, Recommendations.')">
-                            <span class="prompt-icon">🌐</span>
-                            <span>NSG security review</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show VMs without backup configured in Azure Backup. Include: VM Name, Resource Group, Location, Backup Status, Risk Level, Recommendation. Help me identify VMs that need backup protection.')">
-                            <span class="prompt-icon">💾</span>
-                            <span>VMs without backup</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show security compliance summary. Categorize findings by: 1) Defender for Cloud issues, 2) Azure Policy non-compliance, 3) Network security issues, 4) Data protection gaps. Include count and severity for each category.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>Security compliance summary</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Monitoring & Alerts Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('monitoring')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/management + governance/00001-icon-service-Monitor.svg" alt="Monitoring"></div>
-                            <div class="category-name">Monitoring & Alerts</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-monitoring">
-                        <div class="prompt-item" onclick="quickPrompt('Show ALL active alerts in my subscription. I want to filter by: 1) Subscription level, 2) Resource Group level (ask which), 3) Resource level (ask which). Show: Alert Name, Severity, Resource, Triggered Time, Status, Description. Group by severity (Critical first).')">
-                            <span class="prompt-icon">🔔</span>
-                            <span>Active alerts (with filters)</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines NOT enabled for Azure Monitor (missing Azure Monitor Agent or Log Analytics extension). Include: VM Name, Resource Group, OS Type, Power State, Agent Status, Recommendation.')">
-                            <span class="prompt-icon">💻</span>
-                            <span>VMs without Azure Monitor</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure Arc machines NOT enabled for Azure Monitor. Include: Machine Name, Resource Group, OS Type, Agent Status, Azure Monitor Extension Status, Recommendation.')">
-                            <span class="prompt-icon">🌐</span>
-                            <span>Arc machines without Azure Monitor</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines NOT enabled for VM Insights. Include: VM Name, Resource Group, OS Type, Power State, VM Insights Status, Dependency Agent Status, Recommendation.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>VMs without VM Insights</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure Arc machines NOT enabled for VM Insights. Include: Machine Name, Resource Group, OS Type, Status, VM Insights Status, Recommendation.')">
-                            <span class="prompt-icon">📈</span>
-                            <span>Arc machines without VM Insights</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines NOT enabled for Dependency Agent/extensions. Include: VM Name, Resource Group, OS Type, Dependency Agent Status, Map Feature Status, Recommendation.')">
-                            <span class="prompt-icon">🔗</span>
-                            <span>VMs without Dependency Agent</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure Arc machines NOT enabled for Dependency monitoring. Include: Machine Name, Resource Group, Status, Dependency Extension Status, Recommendation.')">
-                            <span class="prompt-icon">🔗</span>
-                            <span>Arc without Dependency Agent</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines NOT enabled for Change Tracking. Include: VM Name, Resource Group, OS Type, Change Tracking Status, Automation Account Association, Recommendation.')">
-                            <span class="prompt-icon">📝</span>
-                            <span>VMs without Change Tracking</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure Arc machines NOT enabled for Change Tracking. Include: Machine Name, Resource Group, OS Type, Status, Change Tracking Status, Recommendation.')">
-                            <span class="prompt-icon">📝</span>
-                            <span>Arc without Change Tracking</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machine Scale Sets NOT enabled for monitoring. Include: VMSS Name, Resource Group, Instance Count, Monitoring Status, Diagnostics Status, Recommendation.')">
-                            <span class="prompt-icon">⚖️</span>
-                            <span>VMSS without monitoring</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show AKS clusters NOT enabled for monitoring (Container Insights). Include: AKS Name, Resource Group, Node Count, Monitoring Status, Log Analytics Workspace, Recommendation.')">
-                            <span class="prompt-icon">☸️</span>
-                            <span>AKS without monitoring</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tags Management Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('tags')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/general/10014-icon-service-Tag.svg" alt="Tags"></div>
-                            <div class="category-name">Tags Management</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-tags">
-                        <div class="prompt-item" onclick="quickPrompt('Show high-level tag inventory across my Azure environment. Include: Tag Name, Total Resources Using Tag, Unique Values Count, Most Common Values, Resource Types with Tag, Usage Percentage. Help me understand tag adoption across my subscription.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>Tag inventory overview</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('I want to search resources by tag. Ask me to provide the tag name and optionally the value. Support different formats like: Environment=Production, tag:Environment Production, or just Environment:Production. Then show matching resources with: Resource Name, Type, Resource Group, Location, All Tags, Status.')">
-                            <span class="prompt-icon">🔍</span>
-                            <span>Search by tag (smart search)</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show resources MISSING required tags. Check for resources that SUPPORT tagging but do not have: Environment, CostCenter, Owner/ApplicationOwner tags. Include: Resource Name, Type, Resource Group, Location, Existing Tags, Missing Tags, Tagging Supported.')">
-                            <span class="prompt-icon">⚠️</span>
-                            <span>Resources missing tags</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show tag compliance analysis. For each required tag (Environment, CostCenter, Owner), show: Tag Name, Compliant Resources, Non-Compliant Resources, Compliance %, Top Non-Compliant Resource Types. Calculate overall tag compliance score.')">
-                            <span class="prompt-icon">✅</span>
-                            <span>Tag compliance analysis</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show all unique tag values for a specific tag. Ask me which tag to analyze (e.g., Environment, CostCenter, Department), then show: Tag Value, Resource Count, Resource Types, Primary Locations.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>Tag values breakdown</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Azure Policy Compliance Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('policy')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" alt="Policy"></div>
-                            <div class="category-name">Azure Policy & Governance</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-policy">
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure Policy compliance dashboard. Include: Policy Assignment Name, Definition Name, Compliance State, Compliant Resources, Non-Compliant Resources, Compliance %, Scope, Enforcement Mode. Only show actual data from Azure Policy.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>Policy compliance dashboard</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show non-compliant resources with policy details. Include: Resource Name, Resource Type, Location, Resource Group, Subscription, Compliance Status, Policy Name, Assignment Name, Last Evaluation Date, Remediation Available. Only show actual Azure data.')">
-                            <span class="prompt-icon">⚠️</span>
-                            <span>Non-compliant resources</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show all policies that are NOT compliant (have non-compliant resources). Include: Policy Name, Non-Compliant Count, Severity, Category, Enforcement Mode, Remediation Type, Priority to Fix.')">
-                            <span class="prompt-icon">❌</span>
-                            <span>Policies not compliant</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show actual Azure Policy exemptions. Include: Exemption Name, Scope/Level of Exemption, Creation Date, Created By (if available), Expiration Date, Exemption Category, Policy Being Exempted, Justification/Description. Only show real exemptions from Azure, no placeholder data.')">
-                            <span class="prompt-icon">🚫</span>
-                            <span>Policy exemptions audit</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show policy compliance by scope. Ask me: 1) Subscription level, 2) Resource Group level (ask which), 3) Management Group level. Then show policies affecting that scope with compliance status.')">
-                            <span class="prompt-icon">🔍</span>
-                            <span>Policy compliance by scope</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Update Management Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('updates')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/compute/00195-icon-service-Maintenance-Configuration.svg" alt="Updates"></div>
-                            <div class="category-name">Update Management</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-updates">
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure VMs pending updates from Azure Update Manager. Include: VM Name, Resource Type, OS Type, Private IP, Resource Group, Subscription, Power State (Online/Offline), Pending Patches (Critical/Security/Other), Last Patch Installation Date. Get actual data from Update Manager.')">
-                            <span class="prompt-icon">💻</span>
-                            <span>VM pending updates</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure Arc machines pending updates from Azure Update Manager. Include: Machine Name, Resource Type, OS Type, IP Address, Resource Group, Subscription, Status (Online/Offline), Pending Patches (Critical/Security/Other), Last Patch Installation Date.')">
-                            <span class="prompt-icon">🌐</span>
-                            <span>Arc machine pending updates</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show update compliance summary for ALL machines (Azure VMs and Arc servers) from Update Manager. Include: Machine Type, Total Count, Fully Updated, Pending Critical, Pending Security, Pending Other, Reboot Required, Compliance %, Last Assessment Date. Calculate overall compliance score.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>Update compliance summary</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show VMs requiring reboot after patch installation. Include: VM Name, Resource Type, OS Type, Resource Group, Reboot Reason, Pending Updates Requiring Reboot, Last Boot Time, Uptime Days, Priority Level.')">
-                            <span class="prompt-icon">🔄</span>
-                            <span>VMs pending reboot</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Arc servers requiring reboot. Include: Server Name, Resource Type, OS Type, Resource Group, Status, Reboot Reason, Last Boot Time, Priority Level.')">
-                            <span class="prompt-icon">🔁</span>
-                            <span>Arc servers pending reboot</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show machines with failed update installations. Include: Machine Name, Type, Resource Group, Failed Update Name, Failure Reason, Attempted Date, Retry Count, Recommended Action, Impact Level.')">
-                            <span class="prompt-icon">❌</span>
-                            <span>Failed update installations</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Azure Arc / Hybrid Management Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('arc')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/management + governance/00756-icon-service-Azure-Arc.svg" alt="Azure Arc"></div>
-                            <div class="category-name">Azure Arc Management</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-arc">
-                        <div class="prompt-item" onclick="quickPrompt('Show me ALL Azure Arc-enabled machines in my current subscription. Provide table: Machine Name, Resource Group, Subscription, OS Type, OS Version, Agent Status, Agent Version, Defender Status, Monitoring Status, Pending Updates, Last Status Change, Location, Compliance Status. Sort by compliance status.')">
-                            <span class="prompt-icon">💻</span>
-                            <span>Arc-enabled machines</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show me ALL Azure Arc-enabled SQL Servers in my current subscription. Provide table: SQL Server Name, Resource Group, SQL Version, Edition, Location, Database Count, Status, Patch Level, License Type, Last Inventory Upload, Compliance Status. Sort by SQL Server name.')">
-                            <span class="prompt-icon">🗄️</span>
-                            <span>Arc-enabled SQL Servers</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show me ALL Azure Arc machines with agent not reporting or disconnected in my current subscription. Provide table: Machine Name, Resource Group, OS Type, Agent Status, Agent Version, Last Status Change, Days Since Last Report, Location, Issue Level, Recommended Action. Sort by days since last report descending.')">
-                            <span class="prompt-icon">⚠️</span>
-                            <span>Arc agents not reporting</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- AI & Automation Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('automation')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/management + governance/00022-icon-service-Automation-Accounts.svg" alt="Automation"></div>
-                            <div class="category-name">AI & Automation</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-automation">
-                        <div class="prompt-item" onclick="quickPrompt('Analyze my current subscription for automation opportunities focusing on ALL areas (Deployment, Backup, Scaling, Patching, Monitoring). Provide table: Task/Process, Current Method, Frequency, Time Spent per Week, Automation Tool Recommendation (Azure Automation/Logic Apps/Functions), Implementation Steps, Time Savings, Cost Savings, ROI %.')">
-                            <span class="prompt-icon">💡</span>
-                            <span>Automation suggestions</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('I want to set up auto-scaling. Ask me: 1) Which resource (VM Scale Set/App Service/AKS)? 2) Resource group? 3) Scaling metric (CPU/Memory/Requests)? 4) Min/Max instances? Then configure auto-scaling rules.')">
-                            <span class="prompt-icon">📈</span>
-                            <span>Auto-scaling rules</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('I want to generate Infrastructure as Code. Ask me: 1) Template type (ARM/Bicep/Terraform)? 2) Which resources to include? 3) Export existing or create new? Then generate the template with best practices.')">
-                            <span class="prompt-icon">📄</span>
-                            <span>Generate IaC template</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Analyze ALL resources in my current subscription for the last 30 days using AI-driven optimization. Show table: Resource Name, Current SKU, Usage Pattern Analysis, AI-Recommended SKU, Performance Impact, Cost Impact $/month, Confidence %, Risk Level, Implementation Priority. Include total potential savings.')">
-                            <span class="prompt-icon">🎯</span>
-                            <span>AI optimization</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Azure App Services Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('appservices')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/compute/10035-icon-service-App-Services.svg" alt="App Services"></div>
-                            <div class="category-name">Azure App Services</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-appservices">
-                        <div class="prompt-item" onclick="quickPrompt('List ALL App Services in my subscription. Include: App Name, Resource Group, Location, App Service Plan, SKU/Tier, Status, Type (Web App/Function/Container), Default Hostname, HTTPS Only, TLS Version.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>List all App Services</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show App Services NOT connected to Application Insights. Include: App Name, Resource Group, Plan, Status, App Insights Status, Recommendation for enabling monitoring.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>App Services without App Insights</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show App Services with high CPU utilization. Include: App Name, Resource Group, Plan, Average CPU %, Peak CPU %, Duration, Impact on Performance, Scaling Recommendation.')">
-                            <span class="prompt-icon">⚡</span>
-                            <span>App Services high CPU</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show App Services with PUBLIC ACCESS enabled (no private endpoints or IP restrictions). Include: App Name, Resource Group, Plan, Public Access Status, Network Restrictions, Risk Level, Security Recommendation.')">
-                            <span class="prompt-icon">🔓</span>
-                            <span>App Services public access</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show App Services health and performance overview. Include: App Name, Status, HTTP Errors, Response Time, Requests/min, Plan Utilization %, Recommendations.')">
-                            <span class="prompt-icon">💚</span>
-                            <span>App Services health</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Azure Kubernetes Service Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('aks')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/compute/10023-icon-service-Kubernetes-Services.svg" alt="AKS"></div>
-                            <div class="category-name">Azure Kubernetes (AKS)</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-aks">
-                        <div class="prompt-item" onclick="quickPrompt('List ALL AKS clusters in my subscription. Include: Cluster Name, Resource Group, Location, Kubernetes Version, Node Pools, Total Nodes, Status, Network Plugin, Monitoring Status.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>List all AKS clusters</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show AKS clusters with PUBLIC API server access. Include: Cluster Name, Resource Group, API Server Access Mode, Authorized IP Ranges status, Network Type, Risk Level, Security Recommendation.')">
-                            <span class="prompt-icon">🔓</span>
-                            <span>AKS with public access</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show AKS clusters with PRIVATE API server access. Include: Cluster Name, Resource Group, Private Cluster Status, Private DNS Zone, VNet Integration, Security Posture.')">
-                            <span class="prompt-icon">🔐</span>
-                            <span>AKS with private access</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show AKS clusters NOT enabled for Container Insights monitoring. Include: Cluster Name, Resource Group, Monitoring Status, Log Analytics Workspace, Prometheus Metrics status, Recommendation.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>AKS without monitoring</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show AKS cluster resource utilization. Include: Cluster Name, CPU Utilization %, Memory Utilization %, Node Pool Status, Pod Count, Scaling Recommendations.')">
-                            <span class="prompt-icon">⚡</span>
-                            <span>AKS resource utilization</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Azure SQL PaaS Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('sql')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/databases/10130-icon-service-SQL-Database.svg" alt="SQL"></div>
-                            <div class="category-name">Azure SQL PaaS</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-sql">
-                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure SQL Databases in my subscription. Include: Database Name, Server Name, Resource Group, Location, SKU/Tier, DTU/vCores, Max Size, Status, Backup Retention.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>List SQL Databases</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure SQL Managed Instances in my subscription. Include: Instance Name, Resource Group, Location, SKU/Tier, vCores, Storage Size, Status, Subnet, Backup Configuration.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>List SQL Managed Instances</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show SQL Databases with low storage utilization (potential cost savings). Include: Database Name, Server, Max Size GB, Used Size GB, Utilization %, Potential Right-sizing, Cost Savings Estimate.')">
-                            <span class="prompt-icon">💾</span>
-                            <span>SQL low disk utilization</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show SQL Managed Instances with low storage utilization. Include: Instance Name, Provisioned Storage GB, Used Storage GB, Utilization %, Cost Optimization Recommendation.')">
-                            <span class="prompt-icon">💾</span>
-                            <span>SQL MI low disk utilization</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show SQL Databases with high CPU utilization. Include: Database Name, Server, DTU/vCore Usage %, Peak CPU %, Duration, Performance Tier, Scaling Recommendation.')">
-                            <span class="prompt-icon">⚡</span>
-                            <span>SQL high CPU utilization</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show SQL Managed Instances with high CPU utilization. Include: Instance Name, vCore Usage %, Peak CPU %, Duration, Current Tier, Scaling Recommendation.')">
-                            <span class="prompt-icon">⚡</span>
-                            <span>SQL MI high CPU utilization</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure SQL Databases with PUBLIC network access enabled. Include: Database Name, Server, Public Network Access, Firewall Rules, Private Endpoint Status, Risk Level, Security Recommendation.')">
-                            <span class="prompt-icon">🔓</span>
-                            <span>SQL public access enabled</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Virtual Machine Scale Sets Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('vmss')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/compute/10034-icon-service-VM-Scale-Sets.svg" alt="VMSS"></div>
-                            <div class="category-name">VM Scale Sets</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-vmss">
-                        <div class="prompt-item" onclick="quickPrompt('List ALL Virtual Machine Scale Sets in my subscription. Include: VMSS Name, Resource Group, Location, SKU Size, Instance Count, Orchestration Mode, OS Type, Upgrade Policy, Status.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>List all VMSS</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show VMSS scaling configuration. Include: VMSS Name, Min Instances, Max Instances, Current Instances, Autoscale Enabled, Scale Rules, Cooldown Period.')">
-                            <span class="prompt-icon">📈</span>
-                            <span>VMSS scaling configuration</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show VMSS with high CPU utilization. Include: VMSS Name, Resource Group, Instance Count, Average CPU %, Scaling Rule Status, Recommendation.')">
-                            <span class="prompt-icon">⚡</span>
-                            <span>VMSS high utilization</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show VMSS without diagnostics or monitoring enabled. Include: VMSS Name, Resource Group, Boot Diagnostics Status, Guest Metrics Status, Azure Monitor Agent Status, Recommendation.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>VMSS without monitoring</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PostgreSQL Servers Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('postgresql')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/databases/10131-icon-service-Azure-Database-PostgreSQL-Server.svg" alt="PostgreSQL"></div>
-                            <div class="category-name">PostgreSQL Servers</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-postgresql">
-                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure Database for PostgreSQL (Flexible) servers in my subscription. Include: Server Name, Resource Group, Location, Version, SKU/Tier, vCores, Storage GB, HA Mode, Status.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>List PostgreSQL servers</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show PostgreSQL servers with public network access. Include: Server Name, Resource Group, Public Access Status, Firewall Rules, Private Endpoint Status, SSL Mode, Risk Level.')">
-                            <span class="prompt-icon">🔓</span>
-                            <span>PostgreSQL public access</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show PostgreSQL servers performance metrics. Include: Server Name, CPU Utilization %, Memory Utilization %, Storage Utilization %, Connections, Recommendation.')">
-                            <span class="prompt-icon">⚡</span>
-                            <span>PostgreSQL performance</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show PostgreSQL servers without backup configured or with low backup retention. Include: Server Name, Backup Retention Days, Geo-Redundant Backup, Last Backup, Recommendation.')">
-                            <span class="prompt-icon">💾</span>
-                            <span>PostgreSQL backup status</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- MySQL Servers Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('mysql')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/databases/10122-icon-service-Azure-Database-MySQL-Server.svg" alt="MySQL"></div>
-                            <div class="category-name">MySQL Servers</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-mysql">
-                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure Database for MySQL servers in my subscription. Include: Server Name, Resource Group, Location, Version, SKU/Tier, vCores, Storage GB, Status.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>List MySQL servers</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show MySQL servers with public network access. Include: Server Name, Resource Group, Public Access Status, Firewall Rules, Private Endpoint Status, SSL Mode, Risk Level.')">
-                            <span class="prompt-icon">🔓</span>
-                            <span>MySQL public access</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show MySQL servers performance and utilization. Include: Server Name, CPU Utilization %, Memory Utilization %, Storage Utilization %, Active Connections, Recommendation.')">
-                            <span class="prompt-icon">⚡</span>
-                            <span>MySQL performance</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show MySQL servers backup configuration. Include: Server Name, Backup Retention Days, Geo-Redundant Backup, Last Backup Time, Recommendation.')">
-                            <span class="prompt-icon">💾</span>
-                            <span>MySQL backup status</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cosmos DB Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('cosmosdb')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/databases/10121-icon-service-Azure-Cosmos-DB.svg" alt="Cosmos DB"></div>
-                            <div class="category-name">Cosmos DB</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-cosmosdb">
-                        <div class="prompt-item" onclick="quickPrompt('List ALL Cosmos DB accounts in my subscription. Include: Account Name, Resource Group, Location, API Type (SQL/MongoDB/Cassandra/Gremlin/Table), Consistency Level, Replication Regions, Status.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>List Cosmos DB accounts</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Cosmos DB accounts with public network access. Include: Account Name, Resource Group, Public Access Status, Firewall Rules, Private Endpoint Status, VNet Filter, Risk Level.')">
-                            <span class="prompt-icon">🔓</span>
-                            <span>Cosmos DB public access</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Cosmos DB RU/s utilization and cost optimization opportunities. Include: Account Name, Database, Container, Provisioned RU/s, Used RU/s, Utilization %, Autoscale Status, Cost Optimization Recommendation.')">
-                            <span class="prompt-icon">💰</span>
-                            <span>Cosmos DB RU optimization</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Cosmos DB replication and backup configuration. Include: Account Name, Write Regions, Read Regions, Automatic Failover, Backup Type, Retention Period.')">
-                            <span class="prompt-icon">🔄</span>
-                            <span>Cosmos DB replication</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Storage Accounts Category -->
-                <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('storage')">
-                        <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/storage/10086-icon-service-Storage-Accounts.svg" alt="Storage"></div>
-                            <div class="category-name">Storage Accounts</div>
-                        </div>
-                        <div class="category-toggle">▼</div>
-                    </div>
-                    <div class="category-prompts" id="category-storage">
-                        <div class="prompt-item" onclick="quickPrompt('List ALL Storage Accounts in my subscription. Include: Storage Account Name, Resource Group, Location, SKU/Tier, Kind (StorageV2/BlobStorage/etc), Status, Access Tier, Replication Type, Creation Date, Tags.')">
-                            <span class="prompt-icon">📋</span>
-                            <span>Storage account summary</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Storage Accounts with PUBLIC ACCESS enabled (blob anonymous access). Include: Account Name, Resource Group, Location, Public Access Setting, Blob Public Access, Network Rule Default Action, Risk Level, Security Recommendation.')">
-                            <span class="prompt-icon">🔓</span>
-                            <span>Storage public access enabled</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Storage Accounts with PRIVATE ENDPOINTS configured. Include: Account Name, Resource Group, Private Endpoint Name, Private IP, VNet, Subnet, Connection Status, Approval Status.')">
-                            <span class="prompt-icon">🔐</span>
-                            <span>Storage with private endpoints</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show EMPTY Storage Accounts with no blobs, files, tables, or queues. Include: Account Name, Resource Group, Location, Total Capacity, Container Count, File Share Count, Created Date, Recommendation.')">
-                            <span class="prompt-icon">📭</span>
-                            <span>Empty storage accounts</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Storage Accounts NOT USED in the last 3 months (no transactions or changes). Include: Account Name, Resource Group, Last Activity Date, Last Transaction Date, Usage Pattern, Monthly Cost, Recommendation.')">
-                            <span class="prompt-icon">💤</span>
-                            <span>Unused storage accounts</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Storage Account capacity utilization sorted by size. Include: Account Name, Resource Group, Total Capacity (GB/TB), Blob Capacity, File Capacity, Table Capacity, Queue Capacity, Access Tier Distribution, Cost Estimate.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>Storage capacity wise</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure File Shares across storage accounts. Include: File Share Name, Storage Account, Resource Group, Quota (GB), Used Capacity (GB), Protocol (SMB/NFS), Access Tier, Snapshot Count.')">
-                            <span class="prompt-icon">📁</span>
-                            <span>File Shares inventory</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show File Shares configured with Active Directory authentication. Include: File Share Name, Storage Account, AD Join Status, Domain Name, Authentication Type (AD DS/Azure AD DS/Kerberos), RBAC Enabled, Permission Configuration.')">
-                            <span class="prompt-icon">🔑</span>
-                            <span>File Shares with AD auth</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Storage Accounts with Lifecycle Management policies configured. Include: Account Name, Resource Group, Policy Count, Rules Summary (Tier Down/Delete after X days), Affected Containers, Estimated Savings.')">
-                            <span class="prompt-icon">♻️</span>
-                            <span>Lifecycle management policies</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Storage Account cost optimization opportunities. Include: Account Name, Resource Group, Current Tier, Monthly Cost, Optimization Type (Tier Change/Lifecycle Policy/Delete Unused), Recommended Action, Estimated Monthly Savings.')">
-                            <span class="prompt-icon">💰</span>
-                            <span>Storage cost optimization</span>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Entra ID (Azure AD) Category -->
                 <div class="category-section">
                     <div class="category-header" onclick="toggleCategory('entraid')">
@@ -2224,63 +1543,119 @@
                     </div>
                 </div>
 
-                <!-- Azure Backup Category -->
+                <!-- Landing Zone Category -->
                 <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('backup')">
+                    <div class="category-header" onclick="toggleCategory('landingzone')">
                         <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/storage/00017-icon-service-Recovery-Services-Vaults.svg" alt="Backup"></div>
-                            <div class="category-name">Azure Backup</div>
+                            <div class="category-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" alt="Landing Zone"></div>
+                            <div class="category-name">Landing Zone (CAF)</div>
                         </div>
                         <div class="category-toggle">▼</div>
                     </div>
-                    <div class="category-prompts" id="category-backup">
-                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines ENABLED with Azure Backup. Include: VM Name, Resource Group, Location, Backup Vault, Policy Name, Last Backup Date, Backup Status, Recovery Points, Protection State.')">
-                            <span class="prompt-icon">✅</span>
-                            <span>VMs with backup enabled</span>
+                    <div class="category-prompts" id="category-landingzone">
+                        <!-- Landing Zone Overview -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform comprehensive Azure Landing Zone assessment based on Microsoft Cloud Adoption Framework (CAF). Analyze: Management Group hierarchy, Subscription organization, Policy assignments at each level, RBAC structure, Network topology (Hub-Spoke/vWAN), Identity integration, Governance maturity. Provide LZ readiness score with gaps and recommendations.')">
+                            <span class="prompt-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" style="width:16px;height:16px"></span>
+                            <span>Landing Zone assessment (CAF)</span>
                         </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines NOT ENABLED with Azure Backup. Include: VM Name, Resource Group, Location, OS Type, Power State, Created Date, Risk Level, Backup Recommendation.')">
-                            <span class="prompt-icon">⚠️</span>
-                            <span>VMs without backup</span>
+                        <div class="prompt-item" onclick="quickPrompt('Show complete Management Group hierarchy and structure. Include: Root Management Group, Child Management Groups at each level, Subscriptions under each MG, Policy Assignments inherited, RBAC roles inherited, Total resources per MG branch. Visualize hierarchy depth and breadth.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10011-icon-service-Management-Groups.svg" style="width:16px;height:16px"></span>
+                            <span>Management Group hierarchy</span>
                         </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure File Shares enabled for backup. Include: File Share Name, Storage Account, Resource Group, Backup Vault, Policy Name, Last Backup, Backup Status, Protected Size.')">
-                            <span class="prompt-icon">📁</span>
-                            <span>File Shares with backup</span>
+                        <div class="prompt-item" onclick="quickPrompt('Show Subscription organization and categorization. Include: Subscription Name, Management Group path, Environment type (Platform/Application), Purpose (Connectivity/Identity/Management/Workload), Total Resources, Cost (Last Month), Policy Compliance %, Owner.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10002-icon-service-Subscriptions.svg" style="width:16px;height:16px"></span>
+                            <span>Subscription organization review</span>
                         </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure File Shares NOT enabled for backup. Include: File Share Name, Storage Account, Resource Group, Size, Protocol, Created Date, Risk Assessment, Backup Recommendation.')">
-                            <span class="prompt-icon">📂</span>
-                            <span>File Shares without backup</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Managed Disks enabled for backup using Backup Vault. Include: Disk Name, Resource Group, Disk Type, Size GB, Backup Vault, Policy, Last Backup Date, Backup Status.')">
-                            <span class="prompt-icon">💿</span>
-                            <span>Managed Disks with backup</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Managed Disks NOT enabled for Azure Backup. Include: Disk Name, Resource Group, Disk Type, Size GB, Attached VM, OS/Data Disk, Created Date, Backup Recommendation.')">
-                            <span class="prompt-icon">💽</span>
-                            <span>Managed Disks without backup</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Shared Disks (multi-attach enabled). Include: Disk Name, Resource Group, Disk Type, Size GB, Max Shares, Attached VMs, Location, Backup Considerations.')">
-                            <span class="prompt-icon">🔗</span>
-                            <span>Shared disks inventory</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Storage Account Blobs enabled for backup. Include: Storage Account, Resource Group, Backup Vault, Containers Protected, Policy Name, Last Backup, Retention Days.')">
-                            <span class="prompt-icon">📦</span>
-                            <span>Blob backup status</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Azure SQL Databases enabled for long-term backup retention. Include: Database Name, Server, Resource Group, Backup Type, Retention Policy, Last Backup, Recovery Point Oldest/Latest.')">
-                            <span class="prompt-icon">🗄️</span>
-                            <span>SQL databases backup status</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show SQL Managed Instances backup status. Include: Instance Name, Resource Group, Backup Type (Full/Diff/Log), Retention Days, Last Backup, Geo-Redundant Backup, Recovery Point Status.')">
+                        <!-- Platform Landing Zone -->
+                        <div class="prompt-item" onclick="quickPrompt('Analyze PLATFORM Landing Zone components based on CAF. Review: Connectivity subscription (Hub VNet, Azure Firewall, VPN/ExpressRoute, DNS), Identity subscription (Domain Controllers, Azure AD Connect), Management subscription (Log Analytics, Automation, Backup). Show: Deployed resources, Configuration status, Best practice gaps, Recommendations.')">
                             <span class="prompt-icon">🏛️</span>
-                            <span>SQL MI backup status</span>
+                            <span>Platform Landing Zone review</span>
                         </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show summary of all Backup Vaults and Recovery Services Vaults. Include: Vault Name, Vault Type, Resource Group, Location, Protected Items Count, Backup Policies, Storage Redundancy, Soft Delete Enabled.')">
-                            <span class="prompt-icon">🏦</span>
-                            <span>Backup vaults summary</span>
+                        <div class="prompt-item" onclick="quickPrompt('Review CONNECTIVITY subscription (Hub). Analyze: Hub VNet configuration, Azure Firewall rules and policies, VPN Gateway connections, ExpressRoute circuits, Azure Bastion, Public IPs, DDoS Protection, DNS configuration, Peering to spoke VNets. Identify gaps vs CAF recommendations.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>Connectivity (Hub) subscription review</span>
                         </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show failed backup jobs in the last 7 days. Include: Job ID, Protected Item, Vault, Job Type, Start Time, End Time, Error Code, Error Message, Retry Recommendation.')">
-                            <span class="prompt-icon">❌</span>
-                            <span>Failed backup jobs</span>
+                        <div class="prompt-item" onclick="quickPrompt('Review IDENTITY subscription. Analyze: Domain Controller VMs, Azure AD Connect servers, Hybrid identity configuration, Private DNS zones for AD, Network connectivity to on-premises, Backup configuration, High availability setup. Score against CAF best practices.')">
+                            <span class="prompt-icon">🔐</span>
+                            <span>Identity subscription review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review MANAGEMENT subscription. Analyze: Log Analytics workspaces, Azure Automation accounts, Update Management configuration, Azure Monitor setup, Backup vaults, Azure Policy definitions, Blueprints. Assess centralized management capability.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Management subscription review</span>
+                        </div>
+                        <!-- Application Landing Zone -->
+                        <div class="prompt-item" onclick="quickPrompt('Analyze APPLICATION Landing Zone (Spoke) subscriptions. For each spoke subscription show: Spoke Name, Purpose/Workload, VNet and peering to Hub, NSGs configured, Route tables (UDRs), Policy compliance, Cost, Resource count, Owner, Security posture.')">
+                            <span class="prompt-icon">📱</span>
+                            <span>Application Landing Zones review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review specific Spoke subscription for Landing Zone compliance. Ask which subscription, then analyze: VNet configuration, Hub connectivity, NSG rules, Route table configuration, Policy compliance, Private endpoints usage, Backup protection, Tagging compliance, Cost governance.')">
+                            <span class="prompt-icon">🔍</span>
+                            <span>Single Spoke subscription review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Compare Application Landing Zones (spokes) against each other. Show: Consistency in VNet sizing, Common policy deviations, Security posture variations, Cost patterns, Tagging compliance differences, Best-in-class spoke identification, Standardization recommendations.')">
+                            <span class="prompt-icon">⚖️</span>
+                            <span>Spoke consistency comparison</span>
+                        </div>
+                        <!-- Policy & Governance -->
+                        <div class="prompt-item" onclick="quickPrompt('Analyze Landing Zone policy structure based on CAF. Show: Policies at Root MG (should be minimal), Policies at Platform MG, Policies at Landing Zones MG, Policies at individual subscriptions. Identify: Policy inheritance, Overlapping policies, Missing required policies, Policy effectiveness.')">
+                            <span class="prompt-icon"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" style="width:16px;height:16px"></span>
+                            <span>Landing Zone policy structure</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show required CAF policies NOT deployed. Compare deployed policies against CAF recommended policies for: Allowed locations, Allowed VM SKUs, Required tags, Network security (NSG on subnets), Encryption requirements, Backup requirements, Monitoring requirements. List missing policies with priority.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>Missing CAF recommended policies</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Analyze RBAC structure for Landing Zone. Show: RBAC assignments at Management Group level, Subscription level, Built-in vs Custom roles, Privileged role holders, Service Principal access, Break-glass account configuration, PIM usage. Identify least privilege violations.')">
+                            <span class="prompt-icon">👥</span>
+                            <span>Landing Zone RBAC structure</span>
+                        </div>
+                        <!-- Network Topology -->
+                        <div class="prompt-item" onclick="quickPrompt('Analyze Landing Zone network topology. Determine: Topology type (Hub-Spoke traditional, Hub-Spoke with Azure Firewall, Virtual WAN), Hub VNet(s), Spoke VNets, Peering configuration, Transit connectivity, On-premises connectivity, DNS architecture. Compare to CAF recommended topologies.')">
+                            <span class="prompt-icon">🔀</span>
+                            <span>Landing Zone network topology</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Validate Hub-Spoke network design. Check: Hub VNet address space, Spoke VNet address spaces, No overlapping CIDRs, Peering configuration (allow gateway transit), Route tables for traffic flow through firewall, DNS configuration, ExpressRoute/VPN gateway, Network segmentation.')">
+                            <span class="prompt-icon">✅</span>
+                            <span>Hub-Spoke design validation</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show network segmentation and security boundaries. Analyze: Subscription as security boundary, VNet as network boundary, Subnet as micro-segment, NSG placement, Azure Firewall rules, Application security groups (ASGs), Service endpoints, Private endpoints. Score segmentation maturity.')">
+                            <span class="prompt-icon">🛡️</span>
+                            <span>Network segmentation review</span>
+                        </div>
+                        <!-- Compliance & Security -->
+                        <div class="prompt-item" onclick="quickPrompt('Perform Landing Zone security baseline assessment. Check CAF security best practices: MFA enforcement, Conditional Access, Privileged Identity Management, Security Center/Defender configuration, Network security, Data encryption, Key management, Logging and monitoring, Incident response readiness.')">
+                            <span class="prompt-icon">🔒</span>
+                            <span>Security baseline assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Assess Landing Zone compliance readiness. Check: Regulatory compliance policies (HIPAA/PCI/SOC2/ISO27001), Data residency controls, Encryption requirements, Access controls, Audit logging, Backup and DR, Policy enforcement. Identify compliance gaps.')">
+                            <span class="prompt-icon">📜</span>
+                            <span>Compliance readiness assessment</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review Defender for Cloud coverage across Landing Zone. Show: Defender plans enabled (Servers/SQL/Storage/AppService/Containers/KeyVault), Coverage by subscription, Security score per subscription, Unprotected resources, Cost of full coverage, Priority recommendations.')">
+                            <span class="prompt-icon">🛡️</span>
+                            <span>Defender for Cloud coverage</span>
+                        </div>
+                        <!-- Operations & Monitoring -->
+                        <div class="prompt-item" onclick="quickPrompt('Review Landing Zone monitoring and logging configuration. Check: Centralized Log Analytics workspace, Activity log collection, Diagnostic settings on all resources, Azure Monitor alerts, Action groups, Workbooks/Dashboards, Application Insights, VM monitoring agents. Identify monitoring gaps.')">
+                            <span class="prompt-icon">📈</span>
+                            <span>Monitoring & logging review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review Landing Zone backup and disaster recovery. Analyze: Backup policies per subscription/workload, Recovery Services vaults, Backup compliance, DR strategy (Azure Site Recovery), Cross-region replication, RPO/RTO defined, DR testing schedule. Identify protection gaps.')">
+                            <span class="prompt-icon">💾</span>
+                            <span>Backup & DR review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review Landing Zone cost governance. Analyze: Cost Management setup, Budgets per subscription/MG, Cost alerts, Tag-based cost allocation, Reserved Instances usage, Savings Plans, Orphaned resources, Right-sizing opportunities, Showback/chargeback readiness.')">
+                            <span class="prompt-icon">💰</span>
+                            <span>Cost governance review</span>
+                        </div>
+                        <!-- Landing Zone Maturity -->
+                        <div class="prompt-item" onclick="quickPrompt('Calculate Landing Zone maturity score. Assess each CAF pillar: 1) Identity (0-100), 2) Network (0-100), 3) Management (0-100), 4) Governance (0-100), 5) Security (0-100), 6) Platform automation (0-100). Provide overall maturity level (Initial/Developing/Defined/Managed/Optimized) with improvement roadmap.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Landing Zone maturity score</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Generate Landing Zone improvement roadmap. Based on current assessment, provide: Quick wins (< 1 week), Short-term improvements (1-4 weeks), Medium-term enhancements (1-3 months), Long-term transformation (3-6 months). Prioritize by: Security impact, Cost savings, Operational efficiency.')">
+                            <span class="prompt-icon">🗺️</span>
+                            <span>Landing Zone improvement roadmap</span>
                         </div>
                     </div>
                 </div>
@@ -2605,119 +1980,744 @@
                     </div>
                 </div>
 
-                <!-- Landing Zone Category -->
+                                <!-- Virtual Machines Category -->
                 <div class="category-section">
-                    <div class="category-header" onclick="toggleCategory('landingzone')">
+                    <div class="category-header" onclick="toggleCategory('virtualmachines')">
                         <div class="category-info">
-                            <div class="category-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" alt="Landing Zone"></div>
-                            <div class="category-name">Landing Zone (CAF)</div>
+                            <div class="category-icon"><img src="/Icons/compute/10021-icon-service-Virtual-Machine.svg" alt="Virtual Machines"></div>
+                            <div class="category-name">Virtual Machines</div>
                         </div>
                         <div class="category-toggle">▼</div>
                     </div>
-                    <div class="category-prompts" id="category-landingzone">
-                        <!-- Landing Zone Overview -->
-                        <div class="prompt-item" onclick="quickPrompt('Perform comprehensive Azure Landing Zone assessment based on Microsoft Cloud Adoption Framework (CAF). Analyze: Management Group hierarchy, Subscription organization, Policy assignments at each level, RBAC structure, Network topology (Hub-Spoke/vWAN), Identity integration, Governance maturity. Provide LZ readiness score with gaps and recommendations.')">
-                            <span class="prompt-icon"><img src="/Icons/new icons/029636048-icon-service-Landing-Zone.svg" style="width:16px;height:16px"></span>
-                            <span>Landing Zone assessment (CAF)</span>
+                    <div class="category-prompts" id="category-virtualmachines">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Virtual Machines in my subscription. Include: VM Name, Resource Group, Location, VM Size, OS Type, Power State, Private IP, Public IP, Availability Zone, Availability Set, Tags.')">
+                            <span class="prompt-icon">💻</span>
+                            <span>All VMs inventory</span>
                         </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show complete Management Group hierarchy and structure. Include: Root Management Group, Child Management Groups at each level, Subscriptions under each MG, Policy Assignments inherited, RBAC roles inherited, Total resources per MG branch. Visualize hierarchy depth and breadth.')">
-                            <span class="prompt-icon"><img src="/Icons/general/10011-icon-service-Management-Groups.svg" style="width:16px;height:16px"></span>
-                            <span>Management Group hierarchy</span>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs STOPPED for 30+ days. Include: VM Name, Resource Group, VM Size, Days Stopped, Monthly Cost When Running.')">
+                            <span class="prompt-icon">💤</span>
+                            <span>VMs stopped 30+ days</span>
                         </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show Subscription organization and categorization. Include: Subscription Name, Management Group path, Environment type (Platform/Application), Purpose (Connectivity/Identity/Management/Workload), Total Resources, Cost (Last Month), Policy Compliance %, Owner.')">
-                            <span class="prompt-icon"><img src="/Icons/general/10002-icon-service-Subscriptions.svg" style="width:16px;height:16px"></span>
-                            <span>Subscription organization review</span>
-                        </div>
-                        <!-- Platform Landing Zone -->
-                        <div class="prompt-item" onclick="quickPrompt('Analyze PLATFORM Landing Zone components based on CAF. Review: Connectivity subscription (Hub VNet, Azure Firewall, VPN/ExpressRoute, DNS), Identity subscription (Domain Controllers, Azure AD Connect), Management subscription (Log Analytics, Automation, Backup). Show: Deployed resources, Configuration status, Best practice gaps, Recommendations.')">
-                            <span class="prompt-icon">🏛️</span>
-                            <span>Platform Landing Zone review</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Review CONNECTIVITY subscription (Hub). Analyze: Hub VNet configuration, Azure Firewall rules and policies, VPN Gateway connections, ExpressRoute circuits, Azure Bastion, Public IPs, DDoS Protection, DNS configuration, Peering to spoke VNets. Identify gaps vs CAF recommendations.')">
-                            <span class="prompt-icon">🌐</span>
-                            <span>Connectivity (Hub) subscription review</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Review IDENTITY subscription. Analyze: Domain Controller VMs, Azure AD Connect servers, Hybrid identity configuration, Private DNS zones for AD, Network connectivity to on-premises, Backup configuration, High availability setup. Score against CAF best practices.')">
-                            <span class="prompt-icon">🔐</span>
-                            <span>Identity subscription review</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Review MANAGEMENT subscription. Analyze: Log Analytics workspaces, Azure Automation accounts, Update Management configuration, Azure Monitor setup, Backup vaults, Azure Policy definitions, Blueprints. Assess centralized management capability.')">
-                            <span class="prompt-icon">📊</span>
-                            <span>Management subscription review</span>
-                        </div>
-                        <!-- Application Landing Zone -->
-                        <div class="prompt-item" onclick="quickPrompt('Analyze APPLICATION Landing Zone (Spoke) subscriptions. For each spoke subscription show: Spoke Name, Purpose/Workload, VNet and peering to Hub, NSGs configured, Route tables (UDRs), Policy compliance, Cost, Resource count, Owner, Security posture.')">
-                            <span class="prompt-icon">📱</span>
-                            <span>Application Landing Zones review</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Review specific Spoke subscription for Landing Zone compliance. Ask which subscription, then analyze: VNet configuration, Hub connectivity, NSG rules, Route table configuration, Policy compliance, Private endpoints usage, Backup protection, Tagging compliance, Cost governance.')">
-                            <span class="prompt-icon">🔍</span>
-                            <span>Single Spoke subscription review</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Compare Application Landing Zones (spokes) against each other. Show: Consistency in VNet sizing, Common policy deviations, Security posture variations, Cost patterns, Tagging compliance differences, Best-in-class spoke identification, Standardization recommendations.')">
-                            <span class="prompt-icon">⚖️</span>
-                            <span>Spoke consistency comparison</span>
-                        </div>
-                        <!-- Policy & Governance -->
-                        <div class="prompt-item" onclick="quickPrompt('Analyze Landing Zone policy structure based on CAF. Show: Policies at Root MG (should be minimal), Policies at Platform MG, Policies at Landing Zones MG, Policies at individual subscriptions. Identify: Policy inheritance, Overlapping policies, Missing required policies, Policy effectiveness.')">
-                            <span class="prompt-icon"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" style="width:16px;height:16px"></span>
-                            <span>Landing Zone policy structure</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show required CAF policies NOT deployed. Compare deployed policies against CAF recommended policies for: Allowed locations, Allowed VM SKUs, Required tags, Network security (NSG on subnets), Encryption requirements, Backup requirements, Monitoring requirements. List missing policies with priority.')">
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT Azure Backup enabled. Include: VM Name, Resource Group, OS Type, Backup Status, Risk Level.')">
                             <span class="prompt-icon">⚠️</span>
-                            <span>Missing CAF recommended policies</span>
+                            <span>VMs without backup</span>
                         </div>
-                        <div class="prompt-item" onclick="quickPrompt('Analyze RBAC structure for Landing Zone. Show: RBAC assignments at Management Group level, Subscription level, Built-in vs Custom roles, Privileged role holders, Service Principal access, Break-glass account configuration, PIM usage. Identify least privilege violations.')">
-                            <span class="prompt-icon">👥</span>
-                            <span>Landing Zone RBAC structure</span>
-                        </div>
-                        <!-- Network Topology -->
-                        <div class="prompt-item" onclick="quickPrompt('Analyze Landing Zone network topology. Determine: Topology type (Hub-Spoke traditional, Hub-Spoke with Azure Firewall, Virtual WAN), Hub VNet(s), Spoke VNets, Peering configuration, Transit connectivity, On-premises connectivity, DNS architecture. Compare to CAF recommended topologies.')">
-                            <span class="prompt-icon">🔀</span>
-                            <span>Landing Zone network topology</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Validate Hub-Spoke network design. Check: Hub VNet address space, Spoke VNet address spaces, No overlapping CIDRs, Peering configuration (allow gateway transit), Route tables for traffic flow through firewall, DNS configuration, ExpressRoute/VPN gateway, Network segmentation.')">
-                            <span class="prompt-icon">✅</span>
-                            <span>Hub-Spoke design validation</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Show network segmentation and security boundaries. Analyze: Subscription as security boundary, VNet as network boundary, Subnet as micro-segment, NSG placement, Azure Firewall rules, Application security groups (ASGs), Service endpoints, Private endpoints. Score segmentation maturity.')">
-                            <span class="prompt-icon">🛡️</span>
-                            <span>Network segmentation review</span>
-                        </div>
-                        <!-- Compliance & Security -->
-                        <div class="prompt-item" onclick="quickPrompt('Perform Landing Zone security baseline assessment. Check CAF security best practices: MFA enforcement, Conditional Access, Privileged Identity Management, Security Center/Defender configuration, Network security, Data encryption, Key management, Logging and monitoring, Incident response readiness.')">
-                            <span class="prompt-icon">🔒</span>
-                            <span>Security baseline assessment</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Assess Landing Zone compliance readiness. Check: Regulatory compliance policies (HIPAA/PCI/SOC2/ISO27001), Data residency controls, Encryption requirements, Access controls, Audit logging, Backup and DR, Policy enforcement. Identify compliance gaps.')">
-                            <span class="prompt-icon">📜</span>
-                            <span>Compliance readiness assessment</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Review Defender for Cloud coverage across Landing Zone. Show: Defender plans enabled (Servers/SQL/Storage/AppService/Containers/KeyVault), Coverage by subscription, Security score per subscription, Unprotected resources, Cost of full coverage, Priority recommendations.')">
-                            <span class="prompt-icon">🛡️</span>
-                            <span>Defender for Cloud coverage</span>
-                        </div>
-                        <!-- Operations & Monitoring -->
-                        <div class="prompt-item" onclick="quickPrompt('Review Landing Zone monitoring and logging configuration. Check: Centralized Log Analytics workspace, Activity log collection, Diagnostic settings on all resources, Azure Monitor alerts, Action groups, Workbooks/Dashboards, Application Insights, VM monitoring agents. Identify monitoring gaps.')">
-                            <span class="prompt-icon">📈</span>
-                            <span>Monitoring & logging review</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Review Landing Zone backup and disaster recovery. Analyze: Backup policies per subscription/workload, Recovery Services vaults, Backup compliance, DR strategy (Azure Site Recovery), Cross-region replication, RPO/RTO defined, DR testing schedule. Identify protection gaps.')">
-                            <span class="prompt-icon">💾</span>
-                            <span>Backup & DR review</span>
-                        </div>
-                        <div class="prompt-item" onclick="quickPrompt('Review Landing Zone cost governance. Analyze: Cost Management setup, Budgets per subscription/MG, Cost alerts, Tag-based cost allocation, Reserved Instances usage, Savings Plans, Orphaned resources, Right-sizing opportunities, Showback/chargeback readiness.')">
+                        <div class="prompt-item" onclick="quickPrompt('Find stopped VMs with PREMIUM SSD disks still incurring costs. Include: VM Name, Days Stopped, Premium Disk Details, Monthly Wasted Cost.')">
                             <span class="prompt-icon">💰</span>
-                            <span>Cost governance review</span>
+                            <span>Stopped VMs with Premium disks</span>
                         </div>
-                        <!-- Landing Zone Maturity -->
-                        <div class="prompt-item" onclick="quickPrompt('Calculate Landing Zone maturity score. Assess each CAF pillar: 1) Identity (0-100), 2) Network (0-100), 3) Management (0-100), 4) Governance (0-100), 5) Security (0-100), 6) Platform automation (0-100). Provide overall maturity level (Initial/Developing/Defined/Managed/Optimized) with improvement roadmap.')">
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs using Standard HDD disks. Include: VM Name, Disk Name, Disk Type, Size, Performance Impact, Upgrade Recommendation.')">
+                            <span class="prompt-icon">💿</span>
+                            <span>VMs with HDD disks</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT Azure Monitor Agent installed. Include: VM Name, OS Type, Agent Status, Monitoring Gap.')">
                             <span class="prompt-icon">📊</span>
-                            <span>Landing Zone maturity score</span>
+                            <span>VMs without Azure Monitor Agent</span>
                         </div>
-                        <div class="prompt-item" onclick="quickPrompt('Generate Landing Zone improvement roadmap. Based on current assessment, provide: Quick wins (< 1 week), Short-term improvements (1-4 weeks), Medium-term enhancements (1-3 months), Long-term transformation (3-6 months). Prioritize by: Security impact, Cost savings, Operational efficiency.')">
-                            <span class="prompt-icon">🗺️</span>
-                            <span>Landing Zone improvement roadmap</span>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT Guest Agent or with unhealthy agent. Include: VM Name, Guest Agent Status, Last Heartbeat, Remediation.')">
+                            <span class="prompt-icon">🤖</span>
+                            <span>VMs without Guest Agent</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs with NO REDUNDANCY - not in Availability Zone and not in Availability Set. Include: VM Name, Location, SLA Impact, Recommendation.')">
+                            <span class="prompt-icon">🎯</span>
+                            <span>VMs without redundancy</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VMs in Availability Sets. Include: Availability Set Name, Fault Domains, Update Domains, VM Count, VM Names.')">
+                            <span class="prompt-icon">📦</span>
+                            <span>VMs in Availability Sets</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VMs by Availability Zone. Include: Zone Number, VM Count, VM Names, Cross-Zone Distribution.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>VMs by Availability Zone</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs with PUBLIC IP directly attached. Include: VM Name, Public IP, Associated NSG, Open Ports, Security Risk.')">
+                            <span class="prompt-icon">🌍</span>
+                            <span>VMs with public IPs</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs WITHOUT NSG protection. Include: VM Name, NIC, Subnet, NSG Status, Risk Level.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>VMs without NSG</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs with pending CRITICAL patches. Include: VM Name, OS Type, Critical Patches, Security Patches, Last Patch Date.')">
+                            <span class="prompt-icon">🔧</span>
+                            <span>VMs with pending patches</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find OVERSIZED VMs with low CPU/Memory usage. Include: VM Name, Current Size, Avg CPU, Avg Memory, Recommended Size, Savings.')">
+                            <span class="prompt-icon">📉</span>
+                            <span>Oversized VMs (right-sizing)</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find VMs with HIGH CPU over 80 percent. Include: VM Name, Size, vCPUs, Avg CPU, Peak CPU, Recommendation.')">
+                            <span class="prompt-icon">🔥</span>
+                            <span>VMs with high CPU</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Resource Management Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('resources')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Resources"></div>
+                            <div class="category-name">Resource Management</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-resources">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL resources in my current subscription with comprehensive details. Show table with columns: Resource Name, Resource Type, Resource Group, Subscription, Location, SKU/Size, Status, Tags. Include all resource properties available. Do not show any imaginary or placeholder values - only actual data from Azure.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>All resources (full inventory)</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('I want to filter Azure resources. Present these filtering options with numbered choices: 1) Filter by Resource Group (ask which), 2) Filter by Resource Type (ask which type), 3) Filter by Location/Region (ask which), 4) Filter by Tag (ask tag name and value), 5) Filter by Subscription (if multiple). Wait for my selection, then show results in a table with: Resource Name, Type, Resource Group, Location, SKU, Status, Tags.')">
+                            <span class="prompt-icon">🔍</span>
+                            <span>Filter resources by criteria</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show me a summary of resources grouped by type. Include: Resource Type, Count, Primary Locations, Common Tags. Help me understand my resource distribution.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Resource inventory summary</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Search for resources by name. Ask me what name or partial name to search for, then show matching resources with: Resource Name, Type, Resource Group, Location, Subscription, Status.')">
+                            <span class="prompt-icon">🔎</span>
+                            <span>Search resources by name</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show ALL Virtual Machines in my subscription with details: VM Name, Resource Group, Location, VM Size, OS Type, Power State, Private IP, Public IP (if any), Tags. Only show actual Azure data.')">
+                            <span class="prompt-icon">💻</span>
+                            <span>List all Virtual Machines</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show ALL Storage Accounts in my subscription with: Name, Resource Group, Location, SKU, Access Tier, Public Access status, Private Endpoint status, Replication Type, Tags.')">
+                            <span class="prompt-icon">💾</span>
+                            <span>List all Storage Accounts</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cost Optimization Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('cost')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/general/10019-icon-service-Cost-Management.svg" alt="Cost"></div>
+                            <div class="category-name">Cost Optimization</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-cost">
+                        <div class="prompt-item" onclick="quickPrompt('Show my current month Azure costs breakdown. Include: Total Cost, Cost by Service, Cost by Resource Group, Top 10 most expensive resources with ACTUAL resource names and costs from Azure Cost Management. Do not show any placeholder or estimated values.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Current month costs overview</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Compare my Azure costs: Show this week vs last week, and this month vs last month comparison. Include: Period, Total Cost, Change (%), Top changing services, Resources with biggest cost increase. Use actual data from Azure Cost Management.')">
+                            <span class="prompt-icon">📈</span>
+                            <span>Compare costs (week/month)</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show my Azure cost trends for the last 3 months. Include monthly totals, cost by service category, and identify any unusual spending patterns or anomalies.')">
+                            <span class="prompt-icon">📆</span>
+                            <span>Cost trends (last 3 months)</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('I want to analyze costs by category. Present options: 1) By Subscription, 2) By Resource Group, 3) By Tag (CostCenter/Department/Environment), 4) By Service type, 5) By Location. Wait for my selection then show detailed breakdown with ACTUAL costs.')">
+                            <span class="prompt-icon">🏷️</span>
+                            <span>Costs by category/tag</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find all cost savings opportunities in my subscription. Show ACTUAL resource names with: Resource Name, Type, Current Monthly Cost, Issue (deallocated VM/orphaned disk/unattached IP/oversized), Recommended Action, Potential Monthly Savings. Calculate total potential savings.')">
+                            <span class="prompt-icon">💡</span>
+                            <span>Cost savings opportunities</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure Advisor cost recommendations for my subscription. Include: Recommendation, Affected Resource, Impact Level, Estimated Monthly Savings, Implementation Steps. Only show actual recommendations from Azure Advisor.')">
+                            <span class="prompt-icon">🎯</span>
+                            <span>Azure Advisor cost recommendations</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('I want cost advisories at a specific level. Ask me: 1) Subscription level, 2) Resource Group level (ask which RG), 3) Resource level (ask which resource). Then show cost analysis and optimization recommendations for that scope.')">
+                            <span class="prompt-icon">🔍</span>
+                            <span>Cost advisories by scope</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security & Compliance Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('security')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security"></div>
+                            <div class="category-name">Security & Compliance</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-security">
+                        <div class="prompt-item" onclick="quickPrompt('Show Microsoft Defender for Cloud security recommendations for my subscription. Include: Recommendation, Severity (Critical/High/Medium/Low), Affected Resources Count, Category (Compute/Network/Data/Identity), Remediation Steps. Only show actual recommendations from Defender for Cloud.')">
+                            <span class="prompt-icon">🛡️</span>
+                            <span>Defender for Cloud recommendations</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure Policy compliance status. I want to choose the scope: 1) Subscription level, 2) Resource Group level (ask which), 3) Resource level (ask which). Then show: Resource Name, Resource Type, Location, Resource Group, Compliance Status, Policy Name, Assignment Name, Last Evaluation Date. Only show actual policy compliance data.')">
+                            <span class="prompt-icon">📜</span>
+                            <span>Policy compliance by scope</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show all resources with PUBLIC ACCESS enabled. Include: Resource Name, Resource Type, Resource Group, Location, Public Access Type, Risk Level, Recommendation. Focus on Storage Accounts, SQL Servers, Key Vaults, Web Apps, and any PaaS service with public endpoint.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>Resources with public access</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show PaaS resources that are ELIGIBLE for Private Endpoints but do NOT have Private Endpoints configured. Include: Resource Name, Resource Type, Resource Group, Location, Current Network Access, Risk Level, Private Endpoint Recommendation.')">
+                            <span class="prompt-icon">🔐</span>
+                            <span>PaaS without Private Endpoints</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Review Network Security Groups (NSGs) security. Show: NSG Name, Associated Resources, Total Rules, Risky Rules (Any/Any or 0.0.0.0/0), Open Sensitive Ports (RDP 3389, SSH 22, SQL 1433), Risk Level, Recommendations.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>NSG security review</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VMs without backup configured in Azure Backup. Include: VM Name, Resource Group, Location, Backup Status, Risk Level, Recommendation. Help me identify VMs that need backup protection.')">
+                            <span class="prompt-icon">💾</span>
+                            <span>VMs without backup</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show security compliance summary. Categorize findings by: 1) Defender for Cloud issues, 2) Azure Policy non-compliance, 3) Network security issues, 4) Data protection gaps. Include count and severity for each category.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Security compliance summary</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Azure Policy Compliance Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('policy')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" alt="Policy"></div>
+                            <div class="category-name">Azure Policy & Governance</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-policy">
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure Policy compliance dashboard. Include: Policy Assignment Name, Definition Name, Compliance State, Compliant Resources, Non-Compliant Resources, Compliance %, Scope, Enforcement Mode. Only show actual data from Azure Policy.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Policy compliance dashboard</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show non-compliant resources with policy details. Include: Resource Name, Resource Type, Location, Resource Group, Subscription, Compliance Status, Policy Name, Assignment Name, Last Evaluation Date, Remediation Available. Only show actual Azure data.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>Non-compliant resources</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show all policies that are NOT compliant (have non-compliant resources). Include: Policy Name, Non-Compliant Count, Severity, Category, Enforcement Mode, Remediation Type, Priority to Fix.')">
+                            <span class="prompt-icon">❌</span>
+                            <span>Policies not compliant</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show actual Azure Policy exemptions. Include: Exemption Name, Scope/Level of Exemption, Creation Date, Created By (if available), Expiration Date, Exemption Category, Policy Being Exempted, Justification/Description. Only show real exemptions from Azure, no placeholder data.')">
+                            <span class="prompt-icon">🚫</span>
+                            <span>Policy exemptions audit</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show policy compliance by scope. Ask me: 1) Subscription level, 2) Resource Group level (ask which), 3) Management Group level. Then show policies affecting that scope with compliance status.')">
+                            <span class="prompt-icon">🔍</span>
+                            <span>Policy compliance by scope</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monitoring & Alerts Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('monitoring')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/management + governance/00001-icon-service-Monitor.svg" alt="Monitoring"></div>
+                            <div class="category-name">Monitoring & Alerts</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-monitoring">
+                        <div class="prompt-item" onclick="quickPrompt('Show ALL active alerts in my subscription. I want to filter by: 1) Subscription level, 2) Resource Group level (ask which), 3) Resource level (ask which). Show: Alert Name, Severity, Resource, Triggered Time, Status, Description. Group by severity (Critical first).')">
+                            <span class="prompt-icon">🔔</span>
+                            <span>Active alerts (with filters)</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines NOT enabled for Azure Monitor (missing Azure Monitor Agent or Log Analytics extension). Include: VM Name, Resource Group, OS Type, Power State, Agent Status, Recommendation.')">
+                            <span class="prompt-icon">💻</span>
+                            <span>VMs without Azure Monitor</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure Arc machines NOT enabled for Azure Monitor. Include: Machine Name, Resource Group, OS Type, Agent Status, Azure Monitor Extension Status, Recommendation.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>Arc machines without Azure Monitor</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines NOT enabled for VM Insights. Include: VM Name, Resource Group, OS Type, Power State, VM Insights Status, Dependency Agent Status, Recommendation.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>VMs without VM Insights</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure Arc machines NOT enabled for VM Insights. Include: Machine Name, Resource Group, OS Type, Status, VM Insights Status, Recommendation.')">
+                            <span class="prompt-icon">📈</span>
+                            <span>Arc machines without VM Insights</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines NOT enabled for Dependency Agent/extensions. Include: VM Name, Resource Group, OS Type, Dependency Agent Status, Map Feature Status, Recommendation.')">
+                            <span class="prompt-icon">🔗</span>
+                            <span>VMs without Dependency Agent</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure Arc machines NOT enabled for Dependency monitoring. Include: Machine Name, Resource Group, Status, Dependency Extension Status, Recommendation.')">
+                            <span class="prompt-icon">🔗</span>
+                            <span>Arc without Dependency Agent</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines NOT enabled for Change Tracking. Include: VM Name, Resource Group, OS Type, Change Tracking Status, Automation Account Association, Recommendation.')">
+                            <span class="prompt-icon">📝</span>
+                            <span>VMs without Change Tracking</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure Arc machines NOT enabled for Change Tracking. Include: Machine Name, Resource Group, OS Type, Status, Change Tracking Status, Recommendation.')">
+                            <span class="prompt-icon">📝</span>
+                            <span>Arc without Change Tracking</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machine Scale Sets NOT enabled for monitoring. Include: VMSS Name, Resource Group, Instance Count, Monitoring Status, Diagnostics Status, Recommendation.')">
+                            <span class="prompt-icon">⚖️</span>
+                            <span>VMSS without monitoring</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show AKS clusters NOT enabled for monitoring (Container Insights). Include: AKS Name, Resource Group, Node Count, Monitoring Status, Log Analytics Workspace, Recommendation.')">
+                            <span class="prompt-icon">☸️</span>
+                            <span>AKS without monitoring</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Azure Backup Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('backup')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/storage/00017-icon-service-Recovery-Services-Vaults.svg" alt="Backup"></div>
+                            <div class="category-name">Azure Backup</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-backup">
+                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines ENABLED with Azure Backup. Include: VM Name, Resource Group, Location, Backup Vault, Policy Name, Last Backup Date, Backup Status, Recovery Points, Protection State.')">
+                            <span class="prompt-icon">✅</span>
+                            <span>VMs with backup enabled</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Virtual Machines NOT ENABLED with Azure Backup. Include: VM Name, Resource Group, Location, OS Type, Power State, Created Date, Risk Level, Backup Recommendation.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>VMs without backup</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure File Shares enabled for backup. Include: File Share Name, Storage Account, Resource Group, Backup Vault, Policy Name, Last Backup, Backup Status, Protected Size.')">
+                            <span class="prompt-icon">📁</span>
+                            <span>File Shares with backup</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure File Shares NOT enabled for backup. Include: File Share Name, Storage Account, Resource Group, Size, Protocol, Created Date, Risk Assessment, Backup Recommendation.')">
+                            <span class="prompt-icon">📂</span>
+                            <span>File Shares without backup</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Managed Disks enabled for backup using Backup Vault. Include: Disk Name, Resource Group, Disk Type, Size GB, Backup Vault, Policy, Last Backup Date, Backup Status.')">
+                            <span class="prompt-icon">💿</span>
+                            <span>Managed Disks with backup</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Managed Disks NOT enabled for Azure Backup. Include: Disk Name, Resource Group, Disk Type, Size GB, Attached VM, OS/Data Disk, Created Date, Backup Recommendation.')">
+                            <span class="prompt-icon">💽</span>
+                            <span>Managed Disks without backup</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Shared Disks (multi-attach enabled). Include: Disk Name, Resource Group, Disk Type, Size GB, Max Shares, Attached VMs, Location, Backup Considerations.')">
+                            <span class="prompt-icon">🔗</span>
+                            <span>Shared disks inventory</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Storage Account Blobs enabled for backup. Include: Storage Account, Resource Group, Backup Vault, Containers Protected, Policy Name, Last Backup, Retention Days.')">
+                            <span class="prompt-icon">📦</span>
+                            <span>Blob backup status</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure SQL Databases enabled for long-term backup retention. Include: Database Name, Server, Resource Group, Backup Type, Retention Policy, Last Backup, Recovery Point Oldest/Latest.')">
+                            <span class="prompt-icon">🗄️</span>
+                            <span>SQL databases backup status</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show SQL Managed Instances backup status. Include: Instance Name, Resource Group, Backup Type (Full/Diff/Log), Retention Days, Last Backup, Geo-Redundant Backup, Recovery Point Status.')">
+                            <span class="prompt-icon">🏛️</span>
+                            <span>SQL MI backup status</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show summary of all Backup Vaults and Recovery Services Vaults. Include: Vault Name, Vault Type, Resource Group, Location, Protected Items Count, Backup Policies, Storage Redundancy, Soft Delete Enabled.')">
+                            <span class="prompt-icon">🏦</span>
+                            <span>Backup vaults summary</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show failed backup jobs in the last 7 days. Include: Job ID, Protected Item, Vault, Job Type, Start Time, End Time, Error Code, Error Message, Retry Recommendation.')">
+                            <span class="prompt-icon">❌</span>
+                            <span>Failed backup jobs</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Update Management Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('updates')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/compute/00195-icon-service-Maintenance-Configuration.svg" alt="Updates"></div>
+                            <div class="category-name">Update Management</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-updates">
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure VMs pending updates from Azure Update Manager. Include: VM Name, Resource Type, OS Type, Private IP, Resource Group, Subscription, Power State (Online/Offline), Pending Patches (Critical/Security/Other), Last Patch Installation Date. Get actual data from Update Manager.')">
+                            <span class="prompt-icon">💻</span>
+                            <span>VM pending updates</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure Arc machines pending updates from Azure Update Manager. Include: Machine Name, Resource Type, OS Type, IP Address, Resource Group, Subscription, Status (Online/Offline), Pending Patches (Critical/Security/Other), Last Patch Installation Date.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>Arc machine pending updates</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show update compliance summary for ALL machines (Azure VMs and Arc servers) from Update Manager. Include: Machine Type, Total Count, Fully Updated, Pending Critical, Pending Security, Pending Other, Reboot Required, Compliance %, Last Assessment Date. Calculate overall compliance score.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Update compliance summary</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VMs requiring reboot after patch installation. Include: VM Name, Resource Type, OS Type, Resource Group, Reboot Reason, Pending Updates Requiring Reboot, Last Boot Time, Uptime Days, Priority Level.')">
+                            <span class="prompt-icon">🔄</span>
+                            <span>VMs pending reboot</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Arc servers requiring reboot. Include: Server Name, Resource Type, OS Type, Resource Group, Status, Reboot Reason, Last Boot Time, Priority Level.')">
+                            <span class="prompt-icon">🔁</span>
+                            <span>Arc servers pending reboot</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show machines with failed update installations. Include: Machine Name, Type, Resource Group, Failed Update Name, Failure Reason, Attempted Date, Retry Count, Recommended Action, Impact Level.')">
+                            <span class="prompt-icon">❌</span>
+                            <span>Failed update installations</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tags Management Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('tags')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/general/10014-icon-service-Tag.svg" alt="Tags"></div>
+                            <div class="category-name">Tags Management</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-tags">
+                        <div class="prompt-item" onclick="quickPrompt('Show high-level tag inventory across my Azure environment. Include: Tag Name, Total Resources Using Tag, Unique Values Count, Most Common Values, Resource Types with Tag, Usage Percentage. Help me understand tag adoption across my subscription.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Tag inventory overview</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('I want to search resources by tag. Ask me to provide the tag name and optionally the value. Support different formats like: Environment=Production, tag:Environment Production, or just Environment:Production. Then show matching resources with: Resource Name, Type, Resource Group, Location, All Tags, Status.')">
+                            <span class="prompt-icon">🔍</span>
+                            <span>Search by tag (smart search)</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show resources MISSING required tags. Check for resources that SUPPORT tagging but do not have: Environment, CostCenter, Owner/ApplicationOwner tags. Include: Resource Name, Type, Resource Group, Location, Existing Tags, Missing Tags, Tagging Supported.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>Resources missing tags</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show tag compliance analysis. For each required tag (Environment, CostCenter, Owner), show: Tag Name, Compliant Resources, Non-Compliant Resources, Compliance %, Top Non-Compliant Resource Types. Calculate overall tag compliance score.')">
+                            <span class="prompt-icon">✅</span>
+                            <span>Tag compliance analysis</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show all unique tag values for a specific tag. Ask me which tag to analyze (e.g., Environment, CostCenter, Department), then show: Tag Value, Resource Count, Resource Types, Primary Locations.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>Tag values breakdown</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Azure Arc / Hybrid Management Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('arc')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/management + governance/00756-icon-service-Azure-Arc.svg" alt="Azure Arc"></div>
+                            <div class="category-name">Azure Arc Management</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-arc">
+                        <div class="prompt-item" onclick="quickPrompt('Show me ALL Azure Arc-enabled machines in my current subscription. Provide table: Machine Name, Resource Group, Subscription, OS Type, OS Version, Agent Status, Agent Version, Defender Status, Monitoring Status, Pending Updates, Last Status Change, Location, Compliance Status. Sort by compliance status.')">
+                            <span class="prompt-icon">💻</span>
+                            <span>Arc-enabled machines</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show me ALL Azure Arc-enabled SQL Servers in my current subscription. Provide table: SQL Server Name, Resource Group, SQL Version, Edition, Location, Database Count, Status, Patch Level, License Type, Last Inventory Upload, Compliance Status. Sort by SQL Server name.')">
+                            <span class="prompt-icon">🗄️</span>
+                            <span>Arc-enabled SQL Servers</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show me ALL Azure Arc machines with agent not reporting or disconnected in my current subscription. Provide table: Machine Name, Resource Group, OS Type, Agent Status, Agent Version, Last Status Change, Days Since Last Report, Location, Issue Level, Recommended Action. Sort by days since last report descending.')">
+                            <span class="prompt-icon">⚠️</span>
+                            <span>Arc agents not reporting</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI & Automation Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('automation')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/management + governance/00022-icon-service-Automation-Accounts.svg" alt="Automation"></div>
+                            <div class="category-name">AI & Automation</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-automation">
+                        <div class="prompt-item" onclick="quickPrompt('Analyze my current subscription for automation opportunities focusing on ALL areas (Deployment, Backup, Scaling, Patching, Monitoring). Provide table: Task/Process, Current Method, Frequency, Time Spent per Week, Automation Tool Recommendation (Azure Automation/Logic Apps/Functions), Implementation Steps, Time Savings, Cost Savings, ROI %.')">
+                            <span class="prompt-icon">💡</span>
+                            <span>Automation suggestions</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('I want to set up auto-scaling. Ask me: 1) Which resource (VM Scale Set/App Service/AKS)? 2) Resource group? 3) Scaling metric (CPU/Memory/Requests)? 4) Min/Max instances? Then configure auto-scaling rules.')">
+                            <span class="prompt-icon">📈</span>
+                            <span>Auto-scaling rules</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('I want to generate Infrastructure as Code. Ask me: 1) Template type (ARM/Bicep/Terraform)? 2) Which resources to include? 3) Export existing or create new? Then generate the template with best practices.')">
+                            <span class="prompt-icon">📄</span>
+                            <span>Generate IaC template</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Analyze ALL resources in my current subscription for the last 30 days using AI-driven optimization. Show table: Resource Name, Current SKU, Usage Pattern Analysis, AI-Recommended SKU, Performance Impact, Cost Impact $/month, Confidence %, Risk Level, Implementation Priority. Include total potential savings.')">
+                            <span class="prompt-icon">🎯</span>
+                            <span>AI optimization</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Azure Kubernetes Service Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('aks')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/compute/10023-icon-service-Kubernetes-Services.svg" alt="AKS"></div>
+                            <div class="category-name">Azure Kubernetes (AKS)</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-aks">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL AKS clusters in my subscription. Include: Cluster Name, Resource Group, Location, Kubernetes Version, Node Pools, Total Nodes, Status, Network Plugin, Monitoring Status.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>List all AKS clusters</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show AKS clusters with PUBLIC API server access. Include: Cluster Name, Resource Group, API Server Access Mode, Authorized IP Ranges status, Network Type, Risk Level, Security Recommendation.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>AKS with public access</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show AKS clusters with PRIVATE API server access. Include: Cluster Name, Resource Group, Private Cluster Status, Private DNS Zone, VNet Integration, Security Posture.')">
+                            <span class="prompt-icon">🔐</span>
+                            <span>AKS with private access</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show AKS clusters NOT enabled for Container Insights monitoring. Include: Cluster Name, Resource Group, Monitoring Status, Log Analytics Workspace, Prometheus Metrics status, Recommendation.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>AKS without monitoring</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show AKS cluster resource utilization. Include: Cluster Name, CPU Utilization %, Memory Utilization %, Node Pool Status, Pod Count, Scaling Recommendations.')">
+                            <span class="prompt-icon">⚡</span>
+                            <span>AKS resource utilization</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Virtual Machine Scale Sets Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('vmss')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/compute/10034-icon-service-VM-Scale-Sets.svg" alt="VMSS"></div>
+                            <div class="category-name">VM Scale Sets</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-vmss">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Virtual Machine Scale Sets in my subscription. Include: VMSS Name, Resource Group, Location, SKU Size, Instance Count, Orchestration Mode, OS Type, Upgrade Policy, Status.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>List all VMSS</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VMSS scaling configuration. Include: VMSS Name, Min Instances, Max Instances, Current Instances, Autoscale Enabled, Scale Rules, Cooldown Period.')">
+                            <span class="prompt-icon">📈</span>
+                            <span>VMSS scaling configuration</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VMSS with high CPU utilization. Include: VMSS Name, Resource Group, Instance Count, Average CPU %, Scaling Rule Status, Recommendation.')">
+                            <span class="prompt-icon">⚡</span>
+                            <span>VMSS high utilization</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show VMSS without diagnostics or monitoring enabled. Include: VMSS Name, Resource Group, Boot Diagnostics Status, Guest Metrics Status, Azure Monitor Agent Status, Recommendation.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>VMSS without monitoring</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Azure App Services Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('appservices')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/compute/10035-icon-service-App-Services.svg" alt="App Services"></div>
+                            <div class="category-name">Azure App Services</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-appservices">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL App Services in my subscription. Include: App Name, Resource Group, Location, App Service Plan, SKU/Tier, Status, Type (Web App/Function/Container), Default Hostname, HTTPS Only, TLS Version.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>List all App Services</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show App Services NOT connected to Application Insights. Include: App Name, Resource Group, Plan, Status, App Insights Status, Recommendation for enabling monitoring.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>App Services without App Insights</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show App Services with high CPU utilization. Include: App Name, Resource Group, Plan, Average CPU %, Peak CPU %, Duration, Impact on Performance, Scaling Recommendation.')">
+                            <span class="prompt-icon">⚡</span>
+                            <span>App Services high CPU</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show App Services with PUBLIC ACCESS enabled (no private endpoints or IP restrictions). Include: App Name, Resource Group, Plan, Public Access Status, Network Restrictions, Risk Level, Security Recommendation.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>App Services public access</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show App Services health and performance overview. Include: App Name, Status, HTTP Errors, Response Time, Requests/min, Plan Utilization %, Recommendations.')">
+                            <span class="prompt-icon">💚</span>
+                            <span>App Services health</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Azure SQL PaaS Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('sql')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/databases/10130-icon-service-SQL-Database.svg" alt="SQL"></div>
+                            <div class="category-name">Azure SQL PaaS</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-sql">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure SQL Databases in my subscription. Include: Database Name, Server Name, Resource Group, Location, SKU/Tier, DTU/vCores, Max Size, Status, Backup Retention.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>List SQL Databases</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure SQL Managed Instances in my subscription. Include: Instance Name, Resource Group, Location, SKU/Tier, vCores, Storage Size, Status, Subnet, Backup Configuration.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>List SQL Managed Instances</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show SQL Databases with low storage utilization (potential cost savings). Include: Database Name, Server, Max Size GB, Used Size GB, Utilization %, Potential Right-sizing, Cost Savings Estimate.')">
+                            <span class="prompt-icon">💾</span>
+                            <span>SQL low disk utilization</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show SQL Managed Instances with low storage utilization. Include: Instance Name, Provisioned Storage GB, Used Storage GB, Utilization %, Cost Optimization Recommendation.')">
+                            <span class="prompt-icon">💾</span>
+                            <span>SQL MI low disk utilization</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show SQL Databases with high CPU utilization. Include: Database Name, Server, DTU/vCore Usage %, Peak CPU %, Duration, Performance Tier, Scaling Recommendation.')">
+                            <span class="prompt-icon">⚡</span>
+                            <span>SQL high CPU utilization</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show SQL Managed Instances with high CPU utilization. Include: Instance Name, vCore Usage %, Peak CPU %, Duration, Current Tier, Scaling Recommendation.')">
+                            <span class="prompt-icon">⚡</span>
+                            <span>SQL MI high CPU utilization</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Azure SQL Databases with PUBLIC network access enabled. Include: Database Name, Server, Public Network Access, Firewall Rules, Private Endpoint Status, Risk Level, Security Recommendation.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>SQL public access enabled</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PostgreSQL Servers Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('postgresql')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/databases/10131-icon-service-Azure-Database-PostgreSQL-Server.svg" alt="PostgreSQL"></div>
+                            <div class="category-name">PostgreSQL Servers</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-postgresql">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure Database for PostgreSQL (Flexible) servers in my subscription. Include: Server Name, Resource Group, Location, Version, SKU/Tier, vCores, Storage GB, HA Mode, Status.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>List PostgreSQL servers</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show PostgreSQL servers with public network access. Include: Server Name, Resource Group, Public Access Status, Firewall Rules, Private Endpoint Status, SSL Mode, Risk Level.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>PostgreSQL public access</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show PostgreSQL servers performance metrics. Include: Server Name, CPU Utilization %, Memory Utilization %, Storage Utilization %, Connections, Recommendation.')">
+                            <span class="prompt-icon">⚡</span>
+                            <span>PostgreSQL performance</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show PostgreSQL servers without backup configured or with low backup retention. Include: Server Name, Backup Retention Days, Geo-Redundant Backup, Last Backup, Recommendation.')">
+                            <span class="prompt-icon">💾</span>
+                            <span>PostgreSQL backup status</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MySQL Servers Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('mysql')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/databases/10122-icon-service-Azure-Database-MySQL-Server.svg" alt="MySQL"></div>
+                            <div class="category-name">MySQL Servers</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-mysql">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure Database for MySQL servers in my subscription. Include: Server Name, Resource Group, Location, Version, SKU/Tier, vCores, Storage GB, Status.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>List MySQL servers</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show MySQL servers with public network access. Include: Server Name, Resource Group, Public Access Status, Firewall Rules, Private Endpoint Status, SSL Mode, Risk Level.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>MySQL public access</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show MySQL servers performance and utilization. Include: Server Name, CPU Utilization %, Memory Utilization %, Storage Utilization %, Active Connections, Recommendation.')">
+                            <span class="prompt-icon">⚡</span>
+                            <span>MySQL performance</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show MySQL servers backup configuration. Include: Server Name, Backup Retention Days, Geo-Redundant Backup, Last Backup Time, Recommendation.')">
+                            <span class="prompt-icon">💾</span>
+                            <span>MySQL backup status</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cosmos DB Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('cosmosdb')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/databases/10121-icon-service-Azure-Cosmos-DB.svg" alt="Cosmos DB"></div>
+                            <div class="category-name">Cosmos DB</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-cosmosdb">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Cosmos DB accounts in my subscription. Include: Account Name, Resource Group, Location, API Type (SQL/MongoDB/Cassandra/Gremlin/Table), Consistency Level, Replication Regions, Status.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>List Cosmos DB accounts</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Cosmos DB accounts with public network access. Include: Account Name, Resource Group, Public Access Status, Firewall Rules, Private Endpoint Status, VNet Filter, Risk Level.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>Cosmos DB public access</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Cosmos DB RU/s utilization and cost optimization opportunities. Include: Account Name, Database, Container, Provisioned RU/s, Used RU/s, Utilization %, Autoscale Status, Cost Optimization Recommendation.')">
+                            <span class="prompt-icon">💰</span>
+                            <span>Cosmos DB RU optimization</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Cosmos DB replication and backup configuration. Include: Account Name, Write Regions, Read Regions, Automatic Failover, Backup Type, Retention Period.')">
+                            <span class="prompt-icon">🔄</span>
+                            <span>Cosmos DB replication</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Storage Accounts Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('storage')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/storage/10086-icon-service-Storage-Accounts.svg" alt="Storage"></div>
+                            <div class="category-name">Storage Accounts</div>
+                        </div>
+                        <div class="category-toggle">▼</div>
+                    </div>
+                    <div class="category-prompts" id="category-storage">
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Storage Accounts in my subscription. Include: Storage Account Name, Resource Group, Location, SKU/Tier, Kind (StorageV2/BlobStorage/etc), Status, Access Tier, Replication Type, Creation Date, Tags.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>Storage account summary</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Storage Accounts with PUBLIC ACCESS enabled (blob anonymous access). Include: Account Name, Resource Group, Location, Public Access Setting, Blob Public Access, Network Rule Default Action, Risk Level, Security Recommendation.')">
+                            <span class="prompt-icon">🔓</span>
+                            <span>Storage public access enabled</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Storage Accounts with PRIVATE ENDPOINTS configured. Include: Account Name, Resource Group, Private Endpoint Name, Private IP, VNet, Subnet, Connection Status, Approval Status.')">
+                            <span class="prompt-icon">🔐</span>
+                            <span>Storage with private endpoints</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show EMPTY Storage Accounts with no blobs, files, tables, or queues. Include: Account Name, Resource Group, Location, Total Capacity, Container Count, File Share Count, Created Date, Recommendation.')">
+                            <span class="prompt-icon">📭</span>
+                            <span>Empty storage accounts</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Storage Accounts NOT USED in the last 3 months (no transactions or changes). Include: Account Name, Resource Group, Last Activity Date, Last Transaction Date, Usage Pattern, Monthly Cost, Recommendation.')">
+                            <span class="prompt-icon">💤</span>
+                            <span>Unused storage accounts</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Storage Account capacity utilization sorted by size. Include: Account Name, Resource Group, Total Capacity (GB/TB), Blob Capacity, File Capacity, Table Capacity, Queue Capacity, Access Tier Distribution, Cost Estimate.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Storage capacity wise</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('List ALL Azure File Shares across storage accounts. Include: File Share Name, Storage Account, Resource Group, Quota (GB), Used Capacity (GB), Protocol (SMB/NFS), Access Tier, Snapshot Count.')">
+                            <span class="prompt-icon">📁</span>
+                            <span>File Shares inventory</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show File Shares configured with Active Directory authentication. Include: File Share Name, Storage Account, AD Join Status, Domain Name, Authentication Type (AD DS/Azure AD DS/Kerberos), RBAC Enabled, Permission Configuration.')">
+                            <span class="prompt-icon">🔑</span>
+                            <span>File Shares with AD auth</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Storage Accounts with Lifecycle Management policies configured. Include: Account Name, Resource Group, Policy Count, Rules Summary (Tier Down/Delete after X days), Affected Containers, Estimated Savings.')">
+                            <span class="prompt-icon">♻️</span>
+                            <span>Lifecycle management policies</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show Storage Account cost optimization opportunities. Include: Account Name, Resource Group, Current Tier, Monthly Cost, Optimization Type (Tier Change/Lifecycle Policy/Delete Unused), Recommended Action, Estimated Monthly Savings.')">
+                            <span class="prompt-icon">💰</span>
+                            <span>Storage cost optimization</span>
                         </div>
                     </div>
                 </div>
