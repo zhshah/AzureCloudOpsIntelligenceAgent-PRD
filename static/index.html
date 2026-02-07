@@ -3245,9 +3245,17 @@
             // Get authentication token for API calls
             const accessToken = sessionStorage.getItem('accessToken');
             const headers = { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`
+                'Content-Type': 'application/json'
             };
+            
+            // Only add Authorization header if token exists and is valid
+            if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
+                headers['Authorization'] = `Bearer ${accessToken}`;
+                console.log('🔑 Token added to widget requests');
+            } else {
+                console.error('❌ NO VALID TOKEN - Widgets will fail!');
+                console.error('Token value:', accessToken);
+            }
 
             // Helper to update widget UI
             function updateWidget(widgetId, value, subtitleId, subtitleText, cardId, cardClass) {
