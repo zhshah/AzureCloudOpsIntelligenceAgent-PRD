@@ -770,18 +770,33 @@
         }
 
         function handleLoginSuccess(response) {
+            console.log('✅ Login successful, storing tokens...');
+            
             const userInfo = {
                 name: response.account.name || response.account.username,
                 email: response.account.username,
                 id: response.account.localAccountId
             };
             
+            // Store user info
             sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
             localStorage.setItem('userInfo', JSON.stringify(userInfo));
-            sessionStorage.setItem('accessToken', response.accessToken);
+            
+            // Store BOTH tokens - ID token for authentication, access token for Graph API
+            if (response.idToken) {
+                sessionStorage.setItem('accessToken', response.idToken);  // Use ID token for backend auth
+                console.log('✅ ID token stored for authentication');
+            } else if (response.accessToken) {
+                sessionStorage.setItem('accessToken', response.accessToken);  // Fallback to access token
+                console.log('⚠️ Using access token (no ID token available)');
+            } else {
+                console.error('❌ No token received from MSAL!');
+            }
+            
             sessionStorage.setItem('loginComplete', 'true');
             
             // Immediate redirect
+            console.log('🔄 Redirecting to dashboard...');
             window.location.replace('/');
         }
 

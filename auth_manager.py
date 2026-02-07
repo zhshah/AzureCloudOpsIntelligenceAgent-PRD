@@ -14,8 +14,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Entra ID Configuration
-TENANT_ID = os.getenv("AZURE_TENANT_ID", "8d7622f8-d815-4120-b5b8-bee841c23a1c")
-CLIENT_ID = os.getenv("AZURE_CLIENT_ID")  # App Registration Client ID
+TENANT_ID = os.getenv("ENTRA_TENANT_ID") or os.getenv("AZURE_TENANT_ID", "8d7622f8-d815-4120-b5b8-bee841c23a1c")
+CLIENT_ID = os.getenv("ENTRA_APP_CLIENT_ID") or os.getenv("AZURE_CLIENT_ID")  # App Registration Client ID
 ISSUER = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
 JWKS_URI = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
 
@@ -47,11 +47,13 @@ class AuthManager:
             signing_key = self.jwks_client.get_signing_key_from_jwt(token)
             
             # Decode and validate token
+            # For ID tokens, audience should be our client_id
+            # For access tokens, audience might be MS Graph
             payload = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                audience=self.client_id,
+                audience=[self.client_id, f"api://{self.client_id}", "00000003-0000-0000-c000-000000000000"],  # Allow our app, our API, or MS Graph
                 issuer=ISSUER,
                 options={"verify_exp": True}
             )
