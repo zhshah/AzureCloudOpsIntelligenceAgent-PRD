@@ -1127,25 +1127,58 @@
         }
 
         .developer-info {
-            background: var(--surface-secondary);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 20px;
+            background: linear-gradient(135deg, #0078D4 0%, #106EBE 50%, #0058A0 100%);
+            border: none;
+            border-radius: var(--radius-lg);
+            padding: 24px 28px;
             margin-top: 16px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 120, 212, 0.25);
+        }
+
+        .developer-info .label {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 8px;
+            position: relative;
         }
 
         .developer-info .name {
-            font-size: 12px;
+            font-size: 24px;
             font-weight: 700;
-            color: var(--primary);
+            color: #ffffff;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            margin-bottom: 4px;
+            position: relative;
         }
 
         .developer-info .role {
-            font-size: 12px;
-            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.85);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
+            position: relative;
+        }
+
+        .developer-info .contact-links {
+            margin-top: 16px;
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            position: relative;
+        }
+
+        .developer-info .contact-links a {
+            color: rgba(255, 255, 255, 0.9) !important;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
         }
 
         /* Input Area - Modern Clean Style */
@@ -1267,12 +1300,12 @@
             </div>
             <div class="modal-body">
                 <div class="developer-info">
-                    <div class="role" style="font-size: 14px; margin-bottom: 5px;">Solution Accelerator Developed by:</div>
+                    <div class="label">Solution Accelerator Developed by</div>
                     <div class="name">Zahir Hussain Shah</div>
                     <div class="role">Senior Cloud Solution Architect</div>
-                    <div style="margin-top: 10px; font-size: 13px;">
-                        <div>📧 <a href="mailto:zahir@zahir.cloud" style="color: var(--accent-primary);">zahir@zahir.cloud</a></div>
-                        <div>🌐 <a href="https://www.zahir.cloud" target="_blank" style="color: var(--accent-primary);">www.zahir.cloud</a></div>
+                    <div class="contact-links">
+                        <a href="mailto:zahir@zahir.cloud">✉️ zahir@zahir.cloud</a>
+                        <a href="https://www.zahir.cloud" target="_blank">🌐 www.zahir.cloud</a>
                     </div>
                 </div>
 
@@ -1331,7 +1364,7 @@
             </div>
             <div class="brand-text">
                 <h1>Azure CloudOps Intelligence Agent</h1>
-                <p>AI-Powered Azure InfraOps & Management</p>
+                <p>Ask your Azure estate. Get instant cost, security & optimization insights</p>
             </div>
         </div>
         
@@ -2828,14 +2861,6 @@
         <div class="chat-area">
             <div class="chat-messages" id="chatContainer">
                 <div class="welcome-state">
-                    <div class="welcome-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23">
-                            <rect width="11" height="11" fill="#F25022"/>
-                            <rect x="12" width="11" height="11" fill="#7FBA00"/>
-                            <rect y="12" width="11" height="11" fill="#00A4EF"/>
-                            <rect x="12" y="12" width="11" height="11" fill="#FFB900"/>
-                        </svg>
-                    </div>
                     <h2>Welcome to Azure CloudOps Intelligence Agent</h2>
                     <p>Your intelligent assistant for comprehensive Azure infrastructure management. Manage resources, optimize costs, ensure security, monitor health, and explore Azure services. Select a category to get started or use the chat to ask questions.</p>
                     
@@ -3043,24 +3068,31 @@
                     console.error('Error parsing user info:', error);
                 }
             } else {
-                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                if (isLocal) {
-                    const demoUser = { name: 'Demo User', email: 'demo@localhost', id: 'demo' };
-                    sessionStorage.setItem('userInfo', JSON.stringify(demoUser));
-                    document.getElementById('userProfile').style.display = 'flex';
-                    document.getElementById('userName').textContent = demoUser.name;
-                    document.getElementById('userEmail').textContent = demoUser.email;
-                    document.getElementById('userAvatar').textContent = 'DU';
-                } else {
-                    window.location.replace('/login.html');
-                }
+                // Always redirect to login page if no user session
+                console.log('No user session, redirecting to login...');
+                window.location.replace('/login.html');
             }
         }
 
         function logout() {
+            console.log('🚪 Logging out...');
+            
+            // Clear all authentication data
             sessionStorage.clear();
             localStorage.clear();
-            window.location.replace('/login.html');
+            
+            // Clear widget cache if exists
+            if (typeof widgetCache !== 'undefined') {
+                widgetCache = {
+                    security: { data: null, timestamp: 0, loading: false },
+                    savings: { data: null, timestamp: 0, loading: false },
+                    resources: { data: null, timestamp: 0, loading: false }
+                };
+                isLoadingWidgets = false;
+            }
+            
+            // Redirect to login with cache buster
+            window.location.replace('/login.html?t=' + Date.now());
         }
 
         // Go to home/reload page
@@ -3185,180 +3217,257 @@
         }
 
         // Load sidebar live insights (Security Score, Savings, Resources) - with timeouts and graceful fallbacks
+        // Widget cache and loading state
+        let widgetCache = {
+            security: { data: null, timestamp: 0, loading: false },
+            savings: { data: null, timestamp: 0, loading: false },
+            resources: { data: null, timestamp: 0, loading: false }
+        };
+        const CACHE_DURATION = 60000; // 60 seconds
+        let isLoadingWidgets = false;
+
+        // Load sidebar live insights - OPTIMIZED with cache and parallel loading
         async function loadSidebarLiveInsights(subscriptionId) {
-            console.log('📊 Loading sidebar live insights for:', subscriptionId);
+            // Prevent multiple simultaneous calls
+            if (isLoadingWidgets) {
+                console.log('⏭️ Widget load already in progress, skipping...');
+                return;
+            }
             
-            // Use environment default if no subscription provided
+            isLoadingWidgets = true;
+            const startTime = performance.now();
+            console.log('📊 [START] Loading sidebar widgets for:', subscriptionId);
+            
             if (!subscriptionId || subscriptionId === 'loading' || subscriptionId === 'none') {
-                console.log('No subscription provided, using current context');
                 subscriptionId = 'current';
             }
             
-            const accessToken = sessionStorage.getItem('accessToken');
             const headers = { 'Content-Type': 'application/json' };
-            if (accessToken) {
-                headers['Authorization'] = `Bearer ${accessToken}`;
+
+            // Helper to update widget UI
+            function updateWidget(widgetId, value, subtitleId, subtitleText, cardId, cardClass) {
+                try {
+                    const el = document.getElementById(widgetId);
+                    const subEl = subtitleId ? document.getElementById(subtitleId) : null;
+                    const card = cardId ? document.getElementById(cardId) : null;
+                    
+                    if (el) {
+                        el.textContent = value;
+                        console.log(`✅ ${widgetId} = ${value}`);
+                    }
+                    if (subEl && subtitleText) subEl.textContent = subtitleText;
+                    if (card && cardClass) {
+                        card.classList.remove('success-dynamic', 'warning-dynamic', 'danger-dynamic');
+                        card.classList.add(cardClass);
+                    }
+                } catch (e) {
+                    console.error(`❌ Failed to update ${widgetId}:`, e);
+                }
             }
 
-            // Helper function to fetch with timeout
-            async function fetchWithTimeout(url, options, timeoutMs = 45000) {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-                try {
-                    const response = await fetch(url, { ...options, signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    return response;
-                } catch (err) {
-                    clearTimeout(timeoutId);
-                    throw err;
-                }
+            // Check cache
+            function isCacheValid(cacheKey) {
+                return widgetCache[cacheKey].data && 
+                       (Date.now() - widgetCache[cacheKey].timestamp) < CACHE_DURATION;
             }
 
-            // Fetch Resources - this one works reliably
-            (async () => {
-                try {
-                    console.log('📦 Fetching resource count...');
-                    const response = await fetchWithTimeout('/api/chat', {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify({
-                            message: 'How many total resources in my subscription? Just reply with a number.',
-                            subscription_context: subscriptionId === 'all' || subscriptionId === 'current' ? null : subscriptionId,
-                            conversation_history: []
-                        })
-                    }, 40000);
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        console.log('📦 Resource response:', data.response?.substring(0, 100));
-                        const countMatch = data.response?.match(/\b(\d+)\b/);
-                        const el = document.getElementById('sidebarResources');
-                        const subEl = document.getElementById('sidebarResourcesSubtitle');
-                        const card = document.getElementById('resourcesCard');
-                        
-                        if (countMatch && el) {
-                            el.innerHTML = countMatch[1];
-                            subEl.textContent = 'In current subscription';
-                            card.classList.remove('warning-dynamic', 'danger-dynamic');
-                            card.classList.add('success-dynamic');
-                        }
-                    }
-                } catch (err) {
-                    console.warn('📦 Resource fetch error:', err.message);
-                }
-            })();
+            // Show loading state for all
+            updateWidget('sidebarSecurityScore', '...', 'sidebarSecuritySubtitle', 'Loading', null, null);
+            updateWidget('sidebarSavings', '...', 'sidebarSavingsSubtitle', 'Loading', null, null);
+            updateWidget('sidebarResources', '...', 'sidebarResourcesSubtitle', 'Loading', null, null);
 
-            // Fetch Savings
-            (async () => {
-                try {
-                    console.log('💰 Fetching savings...');
-                    const response = await fetchWithTimeout('/api/chat', {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify({
-                            message: 'What is total potential monthly savings from Azure Advisor cost recommendations? Just give dollar amount like $123.',
-                            subscription_context: subscriptionId === 'all' || subscriptionId === 'current' ? null : subscriptionId,
-                            conversation_history: []
-                        })
-                    }, 40000);
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        console.log('💰 Savings response:', data.response?.substring(0, 100));
-                        const el = document.getElementById('sidebarSavings');
-                        const subEl = document.getElementById('sidebarSavingsSubtitle');
-                        const card = document.getElementById('savingsCard');
-                        
-                        if (el) {
-                            const savingsMatch = data.response?.match(/\$[\d,]+\.?\d*/);
-                            const zeroMatch = data.response?.toLowerCase().includes('no ') || 
-                                             data.response?.match(/\$0|zero|none/i);
-                            
-                            if (savingsMatch) {
-                                el.innerHTML = savingsMatch[0] + '/mo';
-                                subEl.textContent = 'Potential savings found';
-                                card.classList.remove('success-dynamic', 'danger-dynamic');
-                                card.classList.add('warning-dynamic');
-                            } else if (zeroMatch) {
-                                el.innerHTML = '$0';
-                                subEl.textContent = 'No savings opportunities';
-                                card.classList.remove('warning-dynamic', 'danger-dynamic');
-                                card.classList.add('success-dynamic');
-                            } else {
-                                el.innerHTML = 'Check';
-                                subEl.textContent = 'Click to analyze';
-                            }
-                        }
-                    }
-                } catch (err) {
-                    console.warn('💰 Savings fetch error:', err.message);
-                }
-            })();
+            // PARALLEL LOAD - All widgets load independently
+            const promises = [];
 
-            // Fetch Security Score from Defender for Cloud API
-            (async () => {
+            // Widget 1: Security Score (FAST - Direct API)
+            promises.push((async () => {
+                if (widgetCache.security.loading) return;
+                
                 try {
-                    console.log('🛡️ Fetching security score...');
+                    widgetCache.security.loading = true;
+                    const t0 = performance.now();
                     
-                    // Use subscription ID, handle management group case
+                    // Check cache
+                    if (isCacheValid('security')) {
+                        console.log('📦 Security: Using cache');
+                        const cached = widgetCache.security.data;
+                        updateWidget('sidebarSecurityScore', cached.value, 'sidebarSecuritySubtitle', cached.subtitle, 'securityCard', cached.cardClass);
+                        return;
+                    }
+                    
                     let securitySubId = subscriptionId;
                     if (securitySubId.startsWith('mg:') || securitySubId === 'all' || securitySubId === 'current') {
                         const storedSubs = sessionStorage.getItem('azureSubscriptions');
                         if (storedSubs) {
                             const subs = JSON.parse(storedSubs);
                             securitySubId = subs[0]?.id || subs[0]?.subscriptionId || 'current';
-                        } else {
-                            securitySubId = 'current';
                         }
                     }
                     
-                    const response = await fetchWithTimeout(`/api/security-score/${securitySubId}`, {
-                        method: 'GET',
-                        headers: headers
-                    }, 30000);
+                    const response = await Promise.race([
+                        fetch(`/api/security-score/${securitySubId}`, { method: 'GET', headers }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000))
+                    ]);
                     
                     if (response.ok) {
                         const data = await response.json();
-                        console.log('🛡️ Security score response:', data);
-                        const el = document.getElementById('sidebarSecurityScore');
-                        const subEl = document.getElementById('sidebarSecuritySubtitle');
-                        const card = document.getElementById('securityCard');
-                        
-                        if (el) {
-                            if (data.score !== null && data.score !== undefined) {
-                                const score = data.score;
-                                el.innerHTML = score + '%';
-                                subEl.textContent = score >= 80 ? 'Strong posture' : score >= 60 ? 'Needs attention' : 'Critical issues';
-                                card.classList.remove('success-dynamic', 'warning-dynamic', 'danger-dynamic');
-                                card.classList.add(score >= 80 ? 'success-dynamic' : score >= 60 ? 'warning-dynamic' : 'danger-dynamic');
-                            } else if (data.error) {
-                                el.innerHTML = 'N/A';
-                                subEl.textContent = 'Enable Defender';
-                                card.classList.remove('success-dynamic', 'danger-dynamic');
-                                card.classList.add('warning-dynamic');
-                            } else {
-                                el.innerHTML = 'Check';
-                                subEl.textContent = 'Click to review';
-                            }
+                        if (data.score !== null && data.score !== undefined) {
+                            const score = Math.round(data.score * 10) / 10;
+                            const cardClass = score >= 80 ? 'success-dynamic' : score >= 60 ? 'warning-dynamic' : 'danger-dynamic';
+                            const subtitle = score >= 80 ? 'Strong posture' : score >= 60 ? 'Needs attention' : 'Critical issues';
+                            
+                            // Cache result
+                            widgetCache.security.data = { value: score + '%', subtitle, cardClass };
+                            widgetCache.security.timestamp = Date.now();
+                            
+                            updateWidget('sidebarSecurityScore', score + '%', 'sidebarSecuritySubtitle', subtitle, 'securityCard', cardClass);
+                        } else {
+                            updateWidget('sidebarSecurityScore', 'N/A', 'sidebarSecuritySubtitle', 'Enable Defender', 'securityCard', 'warning-dynamic');
                         }
                     } else {
-                        const el = document.getElementById('sidebarSecurityScore');
-                        const subEl = document.getElementById('sidebarSecuritySubtitle');
-                        if (el) {
-                            el.innerHTML = 'N/A';
-                            subEl.textContent = 'Click to check';
-                        }
+                        updateWidget('sidebarSecurityScore', 'N/A', 'sidebarSecuritySubtitle', 'API error', 'securityCard', 'warning-dynamic');
                     }
-                } catch (err) {
-                    console.warn('🛡️ Security score fetch error:', err.message);
-                    const el = document.getElementById('sidebarSecurityScore');
-                    const subEl = document.getElementById('sidebarSecuritySubtitle');
-                    if (el) {
-                        el.innerHTML = 'N/A';
-                        subEl.textContent = 'Click to check';
-                    }
+                    
+                    console.log(`⚡ Security loaded in ${Math.round(performance.now() - t0)}ms`);
+                } catch (e) {
+                    console.error('🛡️ Security error:', e.message);
+                    updateWidget('sidebarSecurityScore', 'N/A', 'sidebarSecuritySubtitle', 'Error', 'securityCard', 'warning-dynamic');
+                } finally {
+                    widgetCache.security.loading = false;
                 }
-            })();
+            })());
+
+            // Widget 2: Savings (SLOW - Keep simple)
+            promises.push((async () => {
+                if (widgetCache.savings.loading) return;
+                
+                try {
+                    widgetCache.savings.loading = true;
+                    const t0 = performance.now();
+                    
+                    // Check cache
+                    if (isCacheValid('savings')) {
+                        console.log('📦 Savings: Using cache');
+                        const cached = widgetCache.savings.data;
+                        updateWidget('sidebarSavings', cached.value, 'sidebarSavingsSubtitle', cached.subtitle, 'savingsCard', cached.cardClass);
+                        return;
+                    }
+                    
+                    const response = await Promise.race([
+                        fetch('/api/chat', {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({
+                                message: 'Azure Advisor total potential monthly savings? Reply only with dollar amount like $123 or $0.',
+                                subscription_context: subscriptionId === 'all' || subscriptionId === 'current' ? null : subscriptionId,
+                                conversation_history: []
+                            })
+                        }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 25000))
+                    ]);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const savingsMatch = data.response?.match(/\$[\d,]+\.?\d*/);
+                        const zeroMatch = data.response?.match(/\$0|zero|none/i);
+                        
+                        let value, subtitle, cardClass;
+                        if (savingsMatch) {
+                            value = savingsMatch[0] + '/mo';
+                            subtitle = 'Potential savings';
+                            cardClass = 'warning-dynamic';
+                        } else if (zeroMatch) {
+                            value = '$0';
+                            subtitle = 'No savings found';
+                            cardClass = 'success-dynamic';
+                        } else {
+                            value = 'Check';
+                            subtitle = 'Click to analyze';
+                            cardClass = 'warning-dynamic';
+                        }
+                        
+                        // Cache result
+                        widgetCache.savings.data = { value, subtitle, cardClass };
+                        widgetCache.savings.timestamp = Date.now();
+                        
+                        updateWidget('sidebarSavings', value, 'sidebarSavingsSubtitle', subtitle, 'savingsCard', cardClass);
+                    }
+                    
+                    console.log(`⚡ Savings loaded in ${Math.round(performance.now() - t0)}ms`);
+                } catch (e) {
+                    console.error('💰 Savings error:', e.message);
+                    updateWidget('sidebarSavings', 'N/A', 'sidebarSavingsSubtitle', 'Timeout', 'savingsCard', 'warning-dynamic');
+                } finally {
+                    widgetCache.savings.loading = false;
+                }
+            })());
+
+            // Widget 3: Resources (SLOW - Keep simple)
+            promises.push((async () => {
+                if (widgetCache.resources.loading) return;
+                
+                try {
+                    widgetCache.resources.loading = true;
+                    const t0 = performance.now();
+                    
+                    // Check cache
+                    if (isCacheValid('resources')) {
+                        console.log('📦 Resources: Using cache');
+                        const cached = widgetCache.resources.data;
+                        updateWidget('sidebarResources', cached.value, 'sidebarResourcesSubtitle', cached.subtitle, 'resourcesCard', cached.cardClass);
+                        return;
+                    }
+                    
+                    const response = await Promise.race([
+                        fetch('/api/chat', {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({
+                                message: 'How many total resources in subscription? Reply only with number.',
+                                subscription_context: subscriptionId === 'all' || subscriptionId === 'current' ? null : subscriptionId,
+                                conversation_history: []
+                            })
+                        }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 25000))
+                    ]);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const countMatch = data.response?.match(/(\d+)/);
+                        
+                        let value, subtitle, cardClass;
+                        if (countMatch) {
+                            value = countMatch[1];
+                            subtitle = 'In current subscription';
+                            cardClass = 'success-dynamic';
+                        } else {
+                            value = 'Check';
+                            subtitle = 'Click to view';
+                            cardClass = 'warning-dynamic';
+                        }
+                        
+                        // Cache result
+                        widgetCache.resources.data = { value, subtitle, cardClass };
+                        widgetCache.resources.timestamp = Date.now();
+                        
+                        updateWidget('sidebarResources', value, 'sidebarResourcesSubtitle', subtitle, 'resourcesCard', cardClass);
+                    }
+                    
+                    console.log(`⚡ Resources loaded in ${Math.round(performance.now() - t0)}ms`);
+                } catch (e) {
+                    console.error('📦 Resources error:', e.message);
+                    updateWidget('sidebarResources', 'N/A', 'sidebarResourcesSubtitle', 'Timeout', 'resourcesCard', 'warning-dynamic');
+                } finally {
+                    widgetCache.resources.loading = false;
+                }
+            })());
+
+            // Wait for all to complete (but they run in parallel)
+            await Promise.allSettled(promises);
+            
+            const totalTime = Math.round(performance.now() - startTime);
+            console.log(`📊 [DONE] All widgets loaded in ${totalTime}ms`);
+            isLoadingWidgets = false;
         }
 
         function showNotification(message) {
@@ -3930,18 +4039,27 @@
         }
 
         // Initialize
-        window.addEventListener('load', () => {
-            loadUserProfile();
-            loadAzureSubscriptions();
-            document.getElementById('userInput').focus();
+        // Check authentication on load
+        function checkAuth() {
+            const loginComplete = sessionStorage.getItem('loginComplete');
+            const userInfo = sessionStorage.getItem('userInfo');
             
-            // Load sidebar insights after a short delay to ensure UI is ready
-            setTimeout(() => {
-                const select = document.getElementById('subscriptionSelect');
-                const subId = select?.value || 'current';
-                console.log('🚀 Initial insights load with subscription:', subId);
-                loadSidebarLiveInsights(subId);
-            }, 2000);
+            if (!loginComplete || !userInfo) {
+                console.log('❌ Not authenticated - redirecting to login');
+                window.location.replace('/login.html');
+                return false;
+            }
+            return true;
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            // Check authentication first
+            if (!checkAuth()) return;
+            
+            loadUserProfile();
+            loadAzureSubscriptions(); // This will call loadSidebarLiveInsights internally
+            document.getElementById('userInput').focus();
         });
     </script>
 </body>

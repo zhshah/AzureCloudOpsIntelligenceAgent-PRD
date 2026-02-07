@@ -3,9 +3,9 @@ Azure Cost Intelligence Agent - Main Application
 Provides conversational AI interface for Azure cost management and resource queries
 """
 
-from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi import FastAPI, HTTPException, Request, Header, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import os
@@ -19,7 +19,7 @@ from azure_cost_manager import AzureCostManager
 from azure_resource_manager import AzureResourceManager
 from entra_id_manager import EntraIDManager
 from openai_agent import OpenAIAgent
-from auth_manager import get_auth_manager
+from auth_manager import get_auth_manager, get_current_user, get_current_user_optional
 
 # Load environment variables
 load_dotenv()
@@ -61,8 +61,8 @@ class ChatResponse(BaseModel):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root():
-    """Serve the main chat interface"""
+async def read_root(user: Dict[str, Any] = Depends(get_current_user)):
+    """Serve the main chat interface (PROTECTED - requires authentication)"""
     with open("static/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
@@ -103,7 +103,11 @@ async def get_auth_config():
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatMessage, authorization: Optional[str] = Header(None)):
+async def chat(
+    request: ChatMessage,
+    user: Dict[str, Any] = Depends(get_current_user),
+    authorization: Optional[str] = Header(None)
+):
     """
     Process chat messages and return AI responses
     Extract user context from Authorization header for deployment requests
@@ -158,8 +162,8 @@ async def chat(request: ChatMessage, authorization: Optional[str] = Header(None)
 
 
 @app.get("/api/subscriptions")
-async def get_subscriptions():
-    """Get available Azure subscriptions"""
+async def get_subscriptions(user: Dict[str, Any] = Depends(get_current_user)):
+    """Get available Azure subscriptions (PROTECTED)"""
     try:
         subscriptions = await resource_manager.get_subscriptions()
         # Return subscriptions in correct format for frontend
@@ -171,8 +175,8 @@ async def get_subscriptions():
 
 
 @app.get("/api/subscriptions-hierarchy")
-async def get_subscriptions_hierarchy():
-    """Get subscriptions with management group hierarchy for context selector"""
+async def get_subscriptions_hierarchy(user: Dict[str, Any] = Depends(get_current_user)):
+    """Get subscriptions with management group hierarchy for context selector (PROTECTED)"""
     try:
         result = await resource_manager.get_subscriptions_with_hierarchy()
         return result
@@ -182,11 +186,14 @@ async def get_subscriptions_hierarchy():
 
 
 @app.get("/api/security-score/{subscription_id}")
-async def get_security_score(subscription_id: str):
-    """Get Microsoft Defender for Cloud secure score for a subscription"""
+async def get_security_score(
+    subscription_id: str,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get Microsoft Defender for Cloud secure score for a subscription (PROTECTED)"""
     try:
         from azure.identity import DefaultAzureCredential
-        from azure.mgmt.security import SecurityCenter
+        import requests as http_requests
         
         credential = DefaultAzureCredential()
         
@@ -201,38 +208,65 @@ async def get_security_score(subscription_id: str):
         if subscription_id.startswith('mg:'):
             return {"error": "Security score requires a subscription, not management group", "score": None}
         
-        security_client = SecurityCenter(credential, subscription_id, "")
+        # Get access token
+        token = credential.get_token("https://management.azure.com/.default")
         
-        # Get secure scores
-        scores = list(security_client.secure_scores.list())
+        # Use REST API directly for secure scores (more reliable than SDK)
+        api_url = f"https://management.azure.com/subscriptions/{subscription_id}/providers/Microsoft.Security/secureScores?api-version=2020-01-01"
         
-        if scores:
-            # Usually there's one score called 'ascScore'
-            main_score = scores[0]
-            current_score = main_score.current
-            max_score = main_score.max
-            percentage = (current_score / max_score * 100) if max_score > 0 else 0
+        headers = {
+            "Authorization": f"Bearer {token.token}",
+            "Content-Type": "application/json"
+        }
+        
+        response = http_requests.get(api_url, headers=headers, timeout=15)
+        
+        print(f"🛡️ Security Score API Response: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            scores = data.get("value", [])
             
-            return {
-                "score": round(percentage, 1),
-                "current": current_score,
-                "max": max_score,
-                "subscriptionId": subscription_id
-            }
+            if scores:
+                # Usually there's one score called 'ascScore'
+                main_score = scores[0]
+                properties = main_score.get("properties", {})
+                current_score = properties.get("score", {}).get("current", 0)
+                max_score = properties.get("score", {}).get("max", 100)
+                percentage = properties.get("score", {}).get("percentage", 0) * 100
+                
+                print(f"🛡️ Security Score: {percentage}% (current: {current_score}, max: {max_score})")
+                
+                return {
+                    "score": round(percentage, 1),
+                    "current": current_score,
+                    "max": max_score,
+                    "subscriptionId": subscription_id
+                }
+            else:
+                return {"score": None, "error": "No security score data - Defender for Cloud may not be enabled"}
+        elif response.status_code == 403:
+            return {"score": None, "error": "Access denied - ensure Security Reader role is assigned"}
+        elif response.status_code == 404:
+            return {"score": None, "error": "Defender for Cloud not enabled for this subscription"}
         else:
-            return {"score": None, "error": "No security score data available"}
+            print(f"🛡️ Security Score API Error: {response.text}")
+            return {"score": None, "error": f"API error: {response.status_code}"}
             
-    except ImportError:
-        return {"error": "Azure Security SDK not installed", "score": None}
     except Exception as e:
         print(f"Error fetching security score: {e}")
+        import traceback
+        traceback.print_exc()
         return {"error": str(e), "score": None}
 
 
 @app.get("/api/export-csv/{query_id}")
-async def export_csv(query_id: str):
+async def export_csv(
+    query_id: str,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
     """
-    Export full query results as CSV
+    Export full query results as CSV (PROTECTED)
     This endpoint returns ALL data from the cached query, not just what's displayed
     """
     try:
@@ -300,8 +334,11 @@ async def export_csv(query_id: str):
 
 
 @app.get("/api/query-info/{query_id}")
-async def get_query_info(query_id: str):
-    """Get information about a cached query (row count, type, etc.)"""
+async def get_query_info(
+    query_id: str,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get information about a cached query (row count, type, etc.) (PROTECTED)"""
     if query_id not in query_results_cache:
         return {"exists": False, "total_rows": 0}
     
@@ -322,9 +359,12 @@ class ExecuteApprovedRequest(BaseModel):
 
 
 @app.post("/api/execute-approved")
-async def execute_approved_command(request: ExecuteApprovedRequest):
+async def execute_approved_command(
+    request: ExecuteApprovedRequest,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
     """
-    Execute an approved Azure CLI command from Logic App
+    Execute an approved Azure CLI command from Logic App (PROTECTED)
     This endpoint is called by the Logic App after approval
     """
     try:
