@@ -339,20 +339,21 @@
         }
 
         .sidebar-section {
-            padding: 12px;
+            padding: 8px 8px;
             border-bottom: 1px solid var(--border-light);
         }
 
         .section-title {
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 600;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 10px;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+            padding: 4px 4px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         /* Insight Cards - Modern Figma Style */
@@ -496,84 +497,92 @@
             color: var(--text-muted);
         }
 
-        /* Category Section - Modern Accordion */
+        /* Category Section - Azure Portal Style */
         .category-section {
-            margin-bottom: 8px;
+            margin-bottom: 1px;
         }
 
         .category-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 8px 10px;
-            background: var(--surface-secondary);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
+            padding: 7px 12px;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            margin-bottom: 8px;
+            transition: background 0.15s ease;
+            margin-bottom: 0;
         }
 
         .category-header:hover {
-            background: var(--surface-hover);
-            border-color: var(--primary);
+            background: #E8F4FD;
         }
 
         .category-header.active {
-            background: var(--primary);
-            border-color: var(--primary);
+            background: #E8F4FD;
+            border-left: 3px solid var(--primary);
+            padding-left: 9px;
         }
 
         .category-info {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .category-icon {
-            width: 24px;
-            height: 24px;
-            background: var(--surface-secondary);
-            border-radius: 8px;
+            width: 20px;
+            height: 20px;
+            background: transparent;
+            border-radius: 0;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 14px;
-            padding: 6px;
+            padding: 0;
+            flex-shrink: 0;
         }
 
         .category-icon img {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             object-fit: contain;
         }
 
         .category-header.active .category-icon {
-            background: rgba(255, 255, 255, 0.2);
+            background: transparent;
         }
 
         .category-header.active .category-icon img {
-            filter: brightness(0) invert(1);
+            filter: none;
         }
 
         .category-name {
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 13px;
+            font-weight: 500;
             color: var(--text-primary);
         }
 
+        .category-header.active .category-name {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
         .category-toggle {
-            font-size: 20px;
-            transition: transform 0.3s;
+            font-size: 16px;
+            transition: transform 0.2s;
+            color: var(--text-muted);
         }
 
         .category-header.active .category-toggle {
             transform: rotate(180deg);
+            color: var(--primary);
         }
 
         .category-prompts {
             display: none;
-            padding: 8px 0;
+            padding: 2px 0 4px 0;
         }
 
         .category-prompts.active {
@@ -581,25 +590,25 @@
         }
 
         .prompt-item {
-            padding: 6px 10px;
-            margin: 4px 0;
-            background: var(--surface);
-            border: 1px solid transparent;
-            border-radius: var(--radius-sm);
+            padding: 5px 12px 5px 42px;
+            margin: 0;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 10px;
+            transition: background 0.15s ease;
+            font-size: 12px;
             color: var(--text-secondary);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            line-height: 1.4;
         }
 
         .prompt-item:hover {
-            background: var(--primary-light);
-            border-color: var(--primary);
-            color: var(--text-primary);
-            transform: translateX(4px);
+            background: #E8F4FD;
+            color: var(--primary-dark);
+            transform: none;
         }
 
         .prompt-icon {
@@ -730,81 +739,80 @@
 
         .welcome-categories {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
-            max-width: 1600px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+            max-width: 1100px;
             width: 100%;
         }
 
         .welcome-category-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 8px 10px;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 14px;
             text-align: left;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: background 0.15s ease;
             position: relative;
             overflow: hidden;
-            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: none;
         }
 
         .welcome-category-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: var(--gradient-primary);
-            transform: scaleX(0);
-            transition: transform 0.2s ease;
+            display: none;
         }
 
         .welcome-category-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-lg);
+            background: #E8F4FD;
+            border-color: transparent;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .welcome-category-card:hover .welcome-category-title {
+            color: var(--primary);
         }
 
         .welcome-category-card:hover::before {
-            transform: scaleX(1);
+            display: none;
         }
 
         .welcome-category-icon {
-            font-size: 24px;
-            margin-bottom: 16px;
-            display: block;
-            width: 22px;
-            height: 22px;
+            font-size: 20px;
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
         }
 
         .welcome-category-icon img {
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             object-fit: contain;
         }
 
         .welcome-category-title {
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 13px;
+            font-weight: 500;
             color: var(--text-primary);
-            margin-bottom: 8px;
+            margin-bottom: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .welcome-category-desc {
-            font-size: 10px;
-            color: var(--text-secondary);
-            line-height: 1.5;
-            margin-bottom: 16px;
+            display: none;
         }
 
         .welcome-category-count {
-            font-size: 11px;
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            display: none;
         }
 
         /* Messages - Modern Card Style */
@@ -1262,6 +1270,12 @@
 
             .welcome-categories {
                 grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .welcome-categories {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
@@ -2861,9 +2875,10 @@
         <div class="chat-area">
             <div class="chat-messages" id="chatContainer">
                 <div class="welcome-state">
-                    <h2>Welcome to Azure CloudOps Intelligence Agent</h2>
-                    <p>Your intelligent assistant for comprehensive Azure infrastructure management. Manage resources, optimize costs, ensure security, monitor health, and explore Azure services. Select a category to get started or use the chat to ask questions.</p>
+                    <h2>Azure CloudOps Intelligence Agent</h2>
+                    <p>Select a category to get started or use the chat to ask questions.</p>
                     
+                    <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; padding-left: 14px;">Quick Actions</div>
                     <div class="welcome-categories">
                         <div class="welcome-category-card" onclick="showCategory('entraid')">
                             <span class="welcome-category-icon"><img src="/Icons/identity/10235-icon-service-Identity-Governance.svg" alt="Entra ID"></span>
