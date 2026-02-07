@@ -3319,7 +3319,7 @@
                     
                     const response = await Promise.race([
                         fetch(`/api/security-score/${securitySubId}`, { method: 'GET', headers }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 20000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000))
                     ]);
                     
                     // Graceful auth handling - don't redirect for widgets
@@ -3383,7 +3383,7 @@
                                 conversation_history: []
                             })
                         }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 35000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000))
                     ]);
                     
                     // Graceful auth handling - don't redirect for widgets
@@ -3455,7 +3455,7 @@
                                 conversation_history: []
                             })
                         }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 40000))
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 60000))
                     ]);
                     
                     // Graceful auth handling - don't redirect for widgets

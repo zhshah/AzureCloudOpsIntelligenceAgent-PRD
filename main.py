@@ -223,7 +223,7 @@ async def get_security_score(
             "Content-Type": "application/json"
         }
         
-        response = http_requests.get(api_url, headers=headers, timeout=15)
+        response = http_requests.get(api_url, headers=headers, timeout=45)
         
         print(f"🛡️ Security Score API Response: {response.status_code}")
         
