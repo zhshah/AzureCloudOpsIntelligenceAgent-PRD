@@ -3242,7 +3242,12 @@
                 subscriptionId = 'current';
             }
             
-            const headers = { 'Content-Type': 'application/json' };
+            // Get authentication token for API calls
+            const accessToken = sessionStorage.getItem('accessToken');
+            const headers = { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            };
 
             // Helper to update widget UI
             function updateWidget(widgetId, value, subtitleId, subtitleText, cardId, cardClass) {
