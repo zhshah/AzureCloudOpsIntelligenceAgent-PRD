@@ -18,7 +18,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Entra ID Configuration
-TENANT_ID = os.getenv("ENTRA_TENANT_ID") or os.getenv("AZURE_TENANT_ID", "8d7622f8-d815-4120-b5b8-bee841c23a1c")
+TENANT_ID = os.getenv("ENTRA_TENANT_ID") or os.getenv("AZURE_TENANT_ID", "")
 ISSUER = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
 JWKS_URI = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
 

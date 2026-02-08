@@ -24,6 +24,15 @@ from auth_manager import get_auth_manager, get_current_user, get_current_user_op
 # Load environment variables
 load_dotenv()
 
+# Cached credential singleton - avoid recreating DefaultAzureCredential on every API call
+_cached_credential = None
+def get_cached_credential():
+    global _cached_credential
+    if _cached_credential is None:
+        from azure.identity import DefaultAzureCredential
+        _cached_credential = DefaultAzureCredential()
+    return _cached_credential
+
 app = FastAPI(
     title="Azure Cost Intelligence Agent",
     description="AI-powered Azure cost and resource management",
@@ -196,10 +205,9 @@ async def get_security_score(
 ):
     """Get Microsoft Defender for Cloud secure score for a subscription"""
     try:
-        from azure.identity import DefaultAzureCredential
         import requests as http_requests
         
-        credential = DefaultAzureCredential()
+        credential = get_cached_credential()
         
         # Handle special values
         if subscription_id in ['all', 'current', 'none', 'loading']:
@@ -268,10 +276,9 @@ async def get_security_score(
 async def get_resource_count(subscription_id: str, req: Request = None):
     """Get total resource count directly via Azure Resource Graph - fast, no OpenAI"""
     try:
-        from azure.identity import DefaultAzureCredential
         import requests as http_requests
         
-        credential = DefaultAzureCredential()
+        credential = get_cached_credential()
         
         if subscription_id in ['all', 'current', 'none', 'loading']:
             subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID')
@@ -295,28 +302,115 @@ async def get_resource_count(subscription_id: str, req: Request = None):
             "query": "Resources | summarize totalCount=count()"
         }
         
-        response = http_requests.post(api_url, headers=headers, json=body, timeout=45)
-        
-        print(f"📦 Resource Count API Response: {response.status_code}")
+        response = http_requests.post(api_url, headers=headers, json=body, timeout=30)
         
         if response.status_code == 200:
             data = response.json()
-            # Resource Graph returns data as a list of dicts
             records = data.get("data", [])
             if isinstance(records, list) and len(records) > 0:
                 total = records[0].get("totalCount", 0)
             else:
-                # Fallback for table format
                 rows = records.get("rows", []) if isinstance(records, dict) else []
                 total = rows[0][0] if rows else 0
-            print(f"📦 Total Resources: {total}")
             return {"count": total, "subscriptionId": subscription_id}
         else:
-            print(f"📦 Resource Count Error: {response.text}")
             return {"count": None, "error": f"API error: {response.status_code}"}
             
     except Exception as e:
         print(f"Error fetching resource count: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"count": None, "error": str(e)}
+
+
+@app.get("/api/public-access-exposure/{subscription_id}")
+async def get_public_access_exposure(subscription_id: str, req: Request = None):
+    """Get count of resources with public access exposure - VMs with public IPs + PaaS with public access"""
+    try:
+        import requests as http_requests
+        
+        credential = get_cached_credential()
+        
+        if subscription_id in ['all', 'current', 'none', 'loading']:
+            subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID')
+        
+        if not subscription_id:
+            return {"count": None, "error": "No subscription ID"}
+        
+        if subscription_id.startswith('mg:'):
+            subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID', subscription_id.replace('mg:', ''))
+        
+        token = credential.get_token("https://management.azure.com/.default")
+        
+        api_url = "https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01"
+        headers = {
+            "Authorization": f"Bearer {token.token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Query 1: VMs with public IP addresses
+        vm_query = """
+        Resources
+        | where type =~ 'microsoft.network/publicipaddresses'
+        | where isnotempty(properties.ipConfiguration.id)
+        | project pipId = id, pipName = name, attachedTo = tostring(properties.ipConfiguration.id)
+        | summarize vmPublicIPs = count()
+        """
+        
+        # Query 2: PaaS services with public access enabled
+        paas_query = """
+        Resources
+        | where (
+            (type =~ 'microsoft.storage/storageaccounts' and properties.networkAcls.defaultAction =~ 'Allow')
+            or (type =~ 'microsoft.sql/servers' and properties.publicNetworkAccess =~ 'Enabled')
+            or (type =~ 'microsoft.dbforpostgresql/flexibleservers' and properties.network.publicNetworkAccess =~ 'Enabled')
+            or (type =~ 'microsoft.dbformysql/flexibleservers' and properties.network.publicNetworkAccess =~ 'Enabled')
+            or (type =~ 'microsoft.documentdb/databaseaccounts' and properties.publicNetworkAccess =~ 'Enabled')
+            or (type =~ 'microsoft.web/sites' and properties.publicNetworkAccess != 'Disabled')
+            or (type =~ 'microsoft.keyvault/vaults' and properties.networkAcls.defaultAction =~ 'Allow')
+            or (type =~ 'microsoft.containerregistry/registries' and properties.publicNetworkAccess =~ 'Enabled')
+            or (type =~ 'microsoft.cognitiveservices/accounts' and properties.publicNetworkAccess =~ 'Enabled')
+        )
+        | summarize paasPublicAccess = count()
+        """
+        
+        total_exposed = 0
+        breakdown = {}
+        
+        # Execute VM public IP query
+        body1 = {"subscriptions": [subscription_id], "query": vm_query}
+        resp1 = http_requests.post(api_url, headers=headers, json=body1, timeout=20)
+        if resp1.status_code == 200:
+            data1 = resp1.json().get("data", {})
+            if isinstance(data1, list) and len(data1) > 0:
+                vm_count = data1[0].get("vmPublicIPs", 0)
+            else:
+                rows = data1.get("rows", []) if isinstance(data1, dict) else []
+                vm_count = rows[0][0] if rows else 0
+            total_exposed += vm_count
+            breakdown["publicIPs"] = vm_count
+        
+        # Execute PaaS public access query
+        body2 = {"subscriptions": [subscription_id], "query": paas_query}
+        resp2 = http_requests.post(api_url, headers=headers, json=body2, timeout=20)
+        if resp2.status_code == 200:
+            data2 = resp2.json().get("data", {})
+            if isinstance(data2, list) and len(data2) > 0:
+                paas_count = data2[0].get("paasPublicAccess", 0)
+            else:
+                rows = data2.get("rows", []) if isinstance(data2, dict) else []
+                paas_count = rows[0][0] if rows else 0
+            total_exposed += paas_count
+            breakdown["paasPublicAccess"] = paas_count
+        
+        return {
+            "count": total_exposed,
+            "breakdown": breakdown,
+            "subscriptionId": subscription_id
+        }
+            
+    except Exception as e:
+        print(f"Error fetching public access exposure: {e}")
         import traceback
         traceback.print_exc()
         return {"count": None, "error": str(e)}

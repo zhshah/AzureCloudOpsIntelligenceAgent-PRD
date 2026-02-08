@@ -3387,3 +3387,498 @@ class AzureResourceManager:
         | order by PlanName asc
         """
         return self.query_resources(query, subscriptions)
+
+    # ==========================================
+    # ORPHANED RESOURCES FUNCTIONS
+    # Based on: https://github.com/dolevshor/azure-orphan-resources
+    # ==========================================
+
+    def get_orphaned_app_service_plans(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned App Service Plans - plans without any hosted apps. These cost money even when empty."""
+        query = """
+        resources
+        | where type =~ "microsoft.web/serverfarms"
+        | where properties.numberOfSites == 0
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            Sku = tostring(sku.name), Tier = tostring(sku.tier),
+            Capacity = toint(sku.capacity), Kind = kind,
+            NumberOfSites = toint(properties.numberOfSites),
+            Status = tostring(properties.status),
+            Tags = tags, OrphanReason = 'No hosted apps - plan is empty'
+        | order by Tier desc, subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_availability_sets(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Availability Sets - sets not associated to any VM/VMSS. Excludes ASR sets."""
+        query = """
+        Resources
+        | where type =~ 'Microsoft.Compute/availabilitySets'
+        | where properties.virtualMachines == "[]"
+        | where not(name endswith "-asr")
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location, Sku = tostring(sku.name),
+            FaultDomains = toint(properties.platformFaultDomainCount),
+            UpdateDomains = toint(properties.platformUpdateDomainCount),
+            VirtualMachineCount = 0, Tags = tags,
+            OrphanReason = 'No VMs associated - availability set is empty'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_managed_disks(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Managed Disks - disks in Unattached state. These cost money. Excludes ASR/AKS disks."""
+        query = """
+        Resources
+        | where type has "microsoft.compute/disks"
+        | extend diskState = tostring(properties.diskState)
+        | where (managedBy == "" and diskState != 'ActiveSAS') or (diskState == 'Unattached' and diskState != 'ActiveSAS')
+        | where not(name endswith "-ASRReplica" or name startswith "ms-asr-" or name startswith "asrseeddisk-")
+        | where (tags !contains "kubernetes.io-created-for-pvc") and tags !contains "ASR-ReplicaDisk"
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            DiskType = tostring(sku.name), DiskTier = tostring(sku.tier),
+            DiskSizeGB = tolong(properties.diskSizeGB), DiskState = diskState,
+            OsType = tostring(properties.osType),
+            TimeCreated = tostring(properties.timeCreated),
+            Tags = tags, OrphanReason = 'Unattached disk - not connected to any VM'
+        | order by DiskSizeGB desc, subscriptionId, ResourceGroup
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_sql_elastic_pools(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned SQL Elastic Pools - pools without any databases. These cost money when empty."""
+        query = """
+        resources
+        | where type =~ 'microsoft.sql/servers/elasticpools'
+        | project elasticPoolId = tolower(id), Resource = id, resourceGroup, location, subscriptionId, tags, properties
+        | join kind=leftouter (
+            resources
+            | where type =~ 'Microsoft.Sql/servers/databases'
+            | project id, properties
+            | extend elasticPoolId = tolower(properties.elasticPoolId)
+        ) on elasticPoolId
+        | summarize databaseCount = countif(id != '') by Resource, resourceGroup, location, subscriptionId, tostring(tags)
+        | where databaseCount == 0
+        | project 
+            subscriptionId, ResourceId = Resource, ResourceGroup = resourceGroup,
+            Location = location, DatabaseCount = databaseCount, Tags = tags,
+            OrphanReason = 'No databases in pool'
+        | order by subscriptionId, ResourceGroup
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_public_ips(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Public IPs - IPs not attached to any resource. Static IPs cost money when unattached."""
+        query = """
+        Resources
+        | where type == "microsoft.network/publicipaddresses"
+        | where properties.ipConfiguration == "" and properties.natGateway == "" and properties.publicIPPrefix == ""
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            SkuName = tostring(sku.name), SkuTier = tostring(sku.tier),
+            AllocationMethod = tostring(properties.publicIPAllocationMethod),
+            IpAddress = tostring(properties.ipAddress),
+            Tags = tags, OrphanReason = 'Not attached to any resource'
+        | order by SkuName desc, subscriptionId, ResourceGroup
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_nics(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Network Interfaces - NICs not attached to any resource."""
+        query = """
+        Resources
+        | where type has "microsoft.network/networkinterfaces"
+        | where isnull(properties.privateEndpoint)
+        | where isnull(properties.privateLinkService)
+        | where properties.hostedWorkloads == "[]"
+        | where properties !has 'virtualmachine'
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            PrivateIP = tostring(properties.ipConfigurations[0].properties.privateIPAddress),
+            SubnetId = tostring(properties.ipConfigurations[0].properties.subnet.id),
+            Tags = tags, OrphanReason = 'Not attached to any VM or service'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_nsgs(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned NSGs - not attached to any NIC or subnet."""
+        query = """
+        Resources
+        | where type == "microsoft.network/networksecuritygroups"
+        | where isnull(properties.networkInterfaces) and isnull(properties.subnets)
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            InboundRuleCount = toint(array_length(properties.securityRules)),
+            ProvisioningState = tostring(properties.provisioningState),
+            Tags = tags, OrphanReason = 'Not attached to any NIC or subnet'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_route_tables(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Route Tables - not attached to any subnet."""
+        query = """
+        resources
+        | where type == "microsoft.network/routetables"
+        | where isnull(properties.subnets)
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            RouteCount = toint(array_length(properties.routes)),
+            DisableBgpRoutePropagation = tobool(properties.disableBgpRoutePropagation),
+            Tags = tags, OrphanReason = 'Not attached to any subnet'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_load_balancers(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Load Balancers - without backend pools or NAT rules. These cost money when idle."""
+        query = """
+        resources
+        | where type == "microsoft.network/loadbalancers"
+        | where properties.backendAddressPools == "[]" and properties.inboundNatRules == "[]"
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            SkuName = tostring(sku.name), SkuTier = tostring(sku.tier),
+            FrontendIPCount = toint(array_length(properties.frontendIPConfigurations)),
+            BackendPoolCount = 0, Tags = tags,
+            OrphanReason = 'No backend pools or NAT rules configured'
+        | order by SkuName desc, subscriptionId, ResourceGroup
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_front_door_waf_policies(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Front Door WAF Policies - without security links."""
+        query = """
+        resources
+        | where type == "microsoft.network/frontdoorwebapplicationfirewallpolicies"
+        | where properties.securityPolicyLinks == "[]"
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            SkuName = tostring(sku.name),
+            PolicyMode = tostring(properties.policySettings.mode),
+            Tags = tags, OrphanReason = 'No security policy links - WAF not attached'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_traffic_manager_profiles(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Traffic Manager Profiles - without endpoints."""
+        query = """
+        resources
+        | where type == "microsoft.network/trafficmanagerprofiles"
+        | where properties.endpoints == "[]"
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            RoutingMethod = tostring(properties.trafficRoutingMethod),
+            DnsFqdn = tostring(properties.dnsConfig.fqdn),
+            ProfileStatus = tostring(properties.profileStatus),
+            Tags = tags, OrphanReason = 'No endpoints configured'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_application_gateways(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Application Gateways - without backend targets. These are expensive when idle."""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/applicationgateways'
+        | extend backendPoolsCount = array_length(properties.backendAddressPools)
+        | extend SKUName = tostring(properties.sku.name)
+        | extend SKUTier = tostring(properties.sku.tier)
+        | extend SKUCapacity = toint(properties.sku.capacity)
+        | extend AppGwId = tostring(id)
+        | project AppGwId, resourceGroup, location, subscriptionId, tags, name, type, SKUName, SKUTier, SKUCapacity
+        | join kind=leftouter (
+            resources
+            | where type =~ 'microsoft.network/applicationgateways'
+            | mvexpand backendPools = properties.backendAddressPools
+            | extend backendIPCount = array_length(backendPools.properties.backendIPConfigurations)
+            | extend backendAddressesCount = array_length(backendPools.properties.backendAddresses)
+            | extend AppGwId = tostring(id)
+            | summarize backendIPCount = sum(backendIPCount), backendAddressesCount = sum(backendAddressesCount) by AppGwId
+        ) on AppGwId
+        | project-away AppGwId1
+        | where (backendIPCount == 0 or isempty(backendIPCount)) and (backendAddressesCount == 0 or isempty(backendAddressesCount))
+        | project 
+            subscriptionId, ResourceId = AppGwId, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            SKUName, SKUTier, SKUCapacity,
+            Tags = tags, OrphanReason = 'No backend targets - empty backend pools'
+        | order by SKUTier desc, subscriptionId, ResourceGroup
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_virtual_networks(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Virtual Networks - VNets without any subnets."""
+        query = """
+        resources
+        | where type == "microsoft.network/virtualnetworks"
+        | where properties.subnets == "[]"
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            AddressSpace = tostring(properties.addressSpace.addressPrefixes),
+            SubnetCount = 0, Tags = tags,
+            OrphanReason = 'No subnets configured - virtual network is empty'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_subnets(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Subnets - without connected devices or delegation."""
+        query = """
+        resources
+        | where type =~ "microsoft.network/virtualnetworks"
+        | extend subnet = properties.subnets
+        | mv-expand subnet
+        | extend ipConfigurations = subnet.properties.ipConfigurations
+        | extend delegations = subnet.properties.delegations
+        | extend appGatewayConfigs = subnet.properties.applicationGatewayIPConfigurations
+        | where isnull(ipConfigurations) and delegations == "[]" and isnull(appGatewayConfigs)
+        | project 
+            subscriptionId, ResourceId = tostring(subnet.id),
+            ResourceName = tostring(subnet.name),
+            ResourceType = 'microsoft.network/virtualnetworks/subnets',
+            VNetName = name, ResourceGroup = resourceGroup, Location = location,
+            AddressPrefix = tostring(subnet.properties.addressPrefix),
+            Tags = tags, OrphanReason = 'No connected devices or delegations'
+        | order by subscriptionId, VNetName, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_nat_gateways(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned NAT Gateways - not attached to any subnet. These cost money when idle."""
+        query = """
+        resources
+        | where type == "microsoft.network/natgateways"
+        | where isnull(properties.subnets)
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            SkuName = tostring(sku.name),
+            IdleTimeoutMinutes = toint(properties.idleTimeoutInMinutes),
+            Tags = tags, OrphanReason = 'Not attached to any subnet'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_ip_groups(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned IP Groups - not attached to any Azure Firewall."""
+        query = """
+        resources
+        | where type == "microsoft.network/ipgroups"
+        | where properties.firewalls == "[]" and properties.firewallPolicies == "[]"
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            IpAddressCount = toint(array_length(properties.ipAddresses)),
+            Tags = tags, OrphanReason = 'Not attached to any Azure Firewall'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_private_dns_zones(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Private DNS Zones - without Virtual Network Links. These cost money."""
+        query = """
+        resources
+        | where type == "microsoft.network/privatednszones"
+        | where properties.numberOfVirtualNetworkLinks == 0
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            NumberOfRecordSets = toint(properties.numberOfRecordSets),
+            NumberOfVNetLinks = toint(properties.numberOfVirtualNetworkLinks),
+            Tags = tags, OrphanReason = 'No Virtual Network links'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_private_endpoints(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned Private Endpoints - in Disconnected state. These cost money."""
+        query = """
+        resources
+        | where type =~ "microsoft.network/privateendpoints"
+        | extend connection = iff(array_length(properties.manualPrivateLinkServiceConnections) > 0, properties.manualPrivateLinkServiceConnections[0], properties.privateLinkServiceConnections[0])
+        | extend stateEnum = tostring(connection.properties.privateLinkServiceConnectionState.status)
+        | where stateEnum == "Disconnected"
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            ConnectionState = stateEnum,
+            TargetService = tostring(split(tostring(connection.properties.privateLinkServiceId), "/")[8]),
+            Tags = tags, OrphanReason = 'Disconnected from target service'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_vnet_gateways(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned VNet Gateways - without P2S config or connections. These are expensive when idle."""
+        query = """
+        resources
+        | where type =~ "microsoft.network/virtualnetworkgateways"
+        | extend SKU = tostring(properties.sku.name)
+        | extend Tier = tostring(properties.sku.tier)
+        | extend GatewayType = tostring(properties.gatewayType)
+        | extend Resource = id
+        | join kind=leftouter (
+            resources
+            | where type =~ "microsoft.network/connections"
+            | mv-expand Resource = pack_array(properties.virtualNetworkGateway1.id, properties.virtualNetworkGateway2.id) to typeof(string)
+            | project Resource, connectionId = id
+        ) on Resource
+        | where isempty(properties.vpnClientConfiguration) and isempty(connectionId)
+        | project 
+            subscriptionId, ResourceId = Resource, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            GatewayType, SKU, Tier,
+            Tags = tags, OrphanReason = 'No P2S config or connections - gateway is idle'
+        | order by GatewayType, SKU desc, subscriptionId, ResourceGroup
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_ddos_plans(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned DDoS Protection Plans - without protected VNets. Very expensive (~$2,944/month)."""
+        query = """
+        resources
+        | where type == "microsoft.network/ddosprotectionplans"
+        | where isnull(properties.virtualNetworks)
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            ProtectedVNetCount = 0, Tags = tags,
+            OrphanReason = 'No VNets protected - DDoS plan is idle',
+            EstimatedMonthlyCost = '$2,944/month'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_resource_groups(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get empty Resource Groups - RGs without any resources."""
+        query = """
+        ResourceContainers
+        | where type == "microsoft.resources/subscriptions/resourcegroups"
+        | extend rgAndSub = strcat(resourceGroup, "--", subscriptionId)
+        | join kind=leftouter (
+            Resources
+            | extend rgAndSub = strcat(resourceGroup, "--", subscriptionId)
+            | summarize resourceCount = count() by rgAndSub
+        ) on rgAndSub
+        | where isnull(resourceCount)
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            ResourceCount = 0, Tags = tags,
+            OrphanReason = 'No resources in group - resource group is empty'
+        | order by subscriptionId, ResourceGroup
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_api_connections(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get orphaned API Connections - not used by any Logic App."""
+        query = """
+        resources
+        | where type =~ 'Microsoft.Web/connections'
+        | project subscriptionId, Resource = id, apiName = name, resourceGroup, tags, location, type, properties
+        | join kind=leftouter (
+            resources
+            | where type == 'microsoft.logic/workflows'
+            | extend var_json = properties["parameters"]["$connections"]["value"]
+            | mvexpand var_connection = var_json
+            | where notnull(var_connection)
+            | extend connectionId = extract("connectionId\\\\":\\\\"(.*?)\\\\"", 1, tostring(var_connection))
+            | project connectionId, workflowName = name
+        ) on $left.Resource == $right.connectionId
+        | where connectionId == ""
+        | project 
+            subscriptionId, ResourceId = Resource, ResourceName = apiName, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            ApiDisplayName = tostring(properties.displayName),
+            Tags = tags, OrphanReason = 'Not used by any Logic App'
+        | order by subscriptionId, ResourceGroup, ResourceName
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_orphaned_certificates(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get expired App Service Certificates."""
+        query = """
+        resources
+        | where type == 'microsoft.web/certificates'
+        | extend expiresOn = todatetime(properties.expirationDate)
+        | where expiresOn <= now()
+        | project 
+            subscriptionId, ResourceId = id, ResourceName = name, ResourceType = type,
+            ResourceGroup = resourceGroup, Location = location,
+            ExpirationDate = expiresOn,
+            SubjectName = tostring(properties.subjectName),
+            Issuer = tostring(properties.issuer),
+            Thumbprint = tostring(properties.thumbprint),
+            Tags = tags, OrphanReason = 'Certificate has expired'
+        | order by ExpirationDate asc, subscriptionId, ResourceGroup
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_all_orphaned_resources_summary(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get a summary count of all orphaned resource types with cost impact indicators."""
+        sub_names = self._get_subscription_names()
+        summary = {"success": True, "categories": {}, "total_orphaned": 0, "cost_impact_resources": 0}
+        
+        cost_impact = {"App Service Plans", "Managed Disks", "SQL Elastic Pools", "Public IPs",
+                       "Load Balancers", "Application Gateways", "NAT Gateways", "Private DNS Zones",
+                       "Private Endpoints", "VNet Gateways", "DDoS Protection Plans"}
+        
+        checks = [
+            ("App Service Plans", self.get_orphaned_app_service_plans),
+            ("Availability Sets", self.get_orphaned_availability_sets),
+            ("Managed Disks", self.get_orphaned_managed_disks),
+            ("SQL Elastic Pools", self.get_orphaned_sql_elastic_pools),
+            ("Public IPs", self.get_orphaned_public_ips),
+            ("Network Interfaces", self.get_orphaned_nics),
+            ("Network Security Groups", self.get_orphaned_nsgs),
+            ("Route Tables", self.get_orphaned_route_tables),
+            ("Load Balancers", self.get_orphaned_load_balancers),
+            ("Application Gateways", self.get_orphaned_application_gateways),
+            ("NAT Gateways", self.get_orphaned_nat_gateways),
+            ("Private DNS Zones", self.get_orphaned_private_dns_zones),
+            ("Private Endpoints", self.get_orphaned_private_endpoints),
+            ("VNet Gateways", self.get_orphaned_vnet_gateways),
+            ("DDoS Protection Plans", self.get_orphaned_ddos_plans),
+            ("Resource Groups", self.get_orphaned_resource_groups),
+            ("Front Door WAF", self.get_orphaned_front_door_waf_policies),
+            ("Traffic Manager", self.get_orphaned_traffic_manager_profiles),
+            ("Virtual Networks", self.get_orphaned_virtual_networks),
+            ("Subnets", self.get_orphaned_subnets),
+            ("IP Groups", self.get_orphaned_ip_groups),
+            ("API Connections", self.get_orphaned_api_connections),
+            ("Certificates", self.get_orphaned_certificates),
+        ]
+        
+        for name, func in checks:
+            try:
+                result = func(subscriptions)
+                count = result.get("count", 0) or result.get("total_records", 0) or 0
+                has_cost = name in cost_impact
+                summary["categories"][name] = {
+                    "count": count,
+                    "cost_impact": has_cost,
+                    "label": f"{'💰 ' if has_cost else ''}{name}: {count} orphaned"
+                }
+                summary["total_orphaned"] += count
+                if has_cost and count > 0:
+                    summary["cost_impact_resources"] += count
+            except Exception as e:
+                summary["categories"][name] = {"count": 0, "error": str(e)}
+        
+        return summary

@@ -2129,6 +2129,30 @@ class OpenAIAgent:
                         "required": ["resource_type"]
                     }
                 }
+            },
+            # ORPHANED RESOURCES (Consolidated - 24 types in 1 tool)
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_orphaned_resources",
+                    "description": "Get orphaned/unused Azure resources by type. Finds resources costing money while unused. RESOURCE TYPES: app_service_plans, availability_sets, managed_disks, sql_elastic_pools, public_ips, nics, nsgs, route_tables, load_balancers, front_door_waf, traffic_manager, application_gateways, virtual_networks, subnets, nat_gateways, ip_groups, private_dns_zones, private_endpoints, vnet_gateways, ddos_plans, resource_groups, api_connections, certificates, ALL (for full summary). Use when user asks about orphaned resources, unused resources, cleanup, cost savings from unused resources.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "resource_type": {
+                                "type": "string",
+                                "enum": ["app_service_plans", "availability_sets", "managed_disks", "sql_elastic_pools", "public_ips", "nics", "nsgs", "route_tables", "load_balancers", "front_door_waf", "traffic_manager", "application_gateways", "virtual_networks", "subnets", "nat_gateways", "ip_groups", "private_dns_zones", "private_endpoints", "vnet_gateways", "ddos_plans", "resource_groups", "api_connections", "certificates", "ALL"],
+                                "description": "Type of orphaned resource to find. Use 'ALL' for complete summary across all types."
+                            },
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        },
+                        "required": ["resource_type"]
+                    }
+                }
             }
         ]
         
@@ -2652,8 +2676,9 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
             # Add current user message
             messages.append({"role": "user", "content": user_message})
             
-            # Initial API call
-            response = self.client.chat.completions.create(
+            # Initial API call - run in thread pool to avoid blocking the event loop
+            response = await asyncio.to_thread(
+                self.client.chat.completions.create,
                 model=self.deployment_name,
                 messages=messages,
                 tools=self.tools,
@@ -2695,8 +2720,9 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                     "content": json.dumps(function_result)
                 })
                 
-                # Get final response from AI
-                second_response = self.client.chat.completions.create(
+                # Get final response from AI - run in thread pool to avoid blocking the event loop
+                second_response = await asyncio.to_thread(
+                    self.client.chat.completions.create,
                     model=self.deployment_name,
                     messages=messages,
                     temperature=0.7,  # Balanced for accurate, well-formatted insights
@@ -3591,6 +3617,46 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                     return self._cache_query_results(result, cache_key)
                 return {"error": f"Unknown network resource_type: {resource_type}"}
             
+            # ORPHANED RESOURCES (Consolidated)
+            elif function_name == "get_orphaned_resources":
+                resource_type = arguments.get("resource_type", "ALL")
+                subs = arguments.get("subscriptions")
+                
+                orphan_functions = {
+                    "app_service_plans": self.resource_manager.get_orphaned_app_service_plans,
+                    "availability_sets": self.resource_manager.get_orphaned_availability_sets,
+                    "managed_disks": self.resource_manager.get_orphaned_managed_disks,
+                    "sql_elastic_pools": self.resource_manager.get_orphaned_sql_elastic_pools,
+                    "public_ips": self.resource_manager.get_orphaned_public_ips,
+                    "nics": self.resource_manager.get_orphaned_nics,
+                    "nsgs": self.resource_manager.get_orphaned_nsgs,
+                    "route_tables": self.resource_manager.get_orphaned_route_tables,
+                    "load_balancers": self.resource_manager.get_orphaned_load_balancers,
+                    "front_door_waf": self.resource_manager.get_orphaned_front_door_waf_policies,
+                    "traffic_manager": self.resource_manager.get_orphaned_traffic_manager_profiles,
+                    "application_gateways": self.resource_manager.get_orphaned_application_gateways,
+                    "virtual_networks": self.resource_manager.get_orphaned_virtual_networks,
+                    "subnets": self.resource_manager.get_orphaned_subnets,
+                    "nat_gateways": self.resource_manager.get_orphaned_nat_gateways,
+                    "ip_groups": self.resource_manager.get_orphaned_ip_groups,
+                    "private_dns_zones": self.resource_manager.get_orphaned_private_dns_zones,
+                    "private_endpoints": self.resource_manager.get_orphaned_private_endpoints,
+                    "vnet_gateways": self.resource_manager.get_orphaned_vnet_gateways,
+                    "ddos_plans": self.resource_manager.get_orphaned_ddos_plans,
+                    "resource_groups": self.resource_manager.get_orphaned_resource_groups,
+                    "api_connections": self.resource_manager.get_orphaned_api_connections,
+                    "certificates": self.resource_manager.get_orphaned_certificates,
+                }
+                
+                if resource_type == "ALL":
+                    result = self.resource_manager.get_all_orphaned_resources_summary(subscriptions=subs)
+                    return result
+                elif resource_type in orphan_functions:
+                    result = orphan_functions[resource_type](subscriptions=subs)
+                    return self._cache_query_results(result, f"orphaned_{resource_type}")
+                else:
+                    return {"error": f"Unknown orphaned resource type: {resource_type}. Valid types: {', '.join(orphan_functions.keys())}, ALL"}
+
             else:
                 return {"error": f"Unknown function: {function_name}"}
                 
