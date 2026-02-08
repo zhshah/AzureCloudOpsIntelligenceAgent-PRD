@@ -713,10 +713,25 @@ Write-Success "Model deployment ready: $OpenAIDeploymentName ($deployedModel)"
 # ============================================
 Write-Step "Step 4: Creating Azure Container Registry"
 
-# Validate ACR name (lowercase, no dashes, 5-50 chars)
+# Validate ACR name (Azure requires: lowercase, alphanumeric only, 5-50 chars)
 $acrNameClean = $ContainerRegistryName.ToLower() -replace '[^a-z0-9]', ''
+if ($acrNameClean -ne $ContainerRegistryName.ToLower()) {
+    Write-Host ""
+    Write-Host "  ⚠️  ACR NAME ADJUSTED" -ForegroundColor Yellow
+    Write-Host "  ─────────────────────────────────────────────────────────────" -ForegroundColor Gray
+    Write-Host "  You provided:       $ContainerRegistryName" -ForegroundColor White
+    Write-Host "  Azure requires:     Alphanumeric only (no hyphens, dots, or underscores)" -ForegroundColor White
+    Write-Host "  Adjusted to:        $acrNameClean" -ForegroundColor Green
+    Write-Host "  ─────────────────────────────────────────────────────────────" -ForegroundColor Gray
+    Write-Host ""
+    $acrConfirm = Read-Host "  Continue with ACR name '$acrNameClean'? (Y/N)"
+    if ($acrConfirm -ne 'Y' -and $acrConfirm -ne 'y') {
+        Write-Error "Deployment cancelled. Please provide an alphanumeric ACR name (e.g., 'myacrname' not 'my-acr-name')"
+        exit 1
+    }
+}
 if ($acrNameClean.Length -lt 5 -or $acrNameClean.Length -gt 50) {
-    Write-Error "Container Registry name must be 5-50 alphanumeric characters"
+    Write-Error "Container Registry name must be 5-50 alphanumeric characters (after removing special characters, got: '$acrNameClean' with $($acrNameClean.Length) chars)"
     exit 1
 }
 
@@ -728,7 +743,7 @@ if ($LASTEXITCODE -eq 0) {
     az acr create `
         --name $acrNameClean `
         --resource-group $ResourceGroupName `
-        --sku Basic `
+        --sku Premium `
         --admin-enabled false `
         --output none
     
@@ -1034,7 +1049,7 @@ Write-Host "  Location:              $Location" -ForegroundColor White
 Write-Host "  Azure OpenAI:          $OpenAIResourceName" -ForegroundColor White
 Write-Host "  OpenAI Endpoint:       $openaiEndpoint" -ForegroundColor White
 Write-Host "  Model Deployment:      $OpenAIDeploymentName (GPT-4o)" -ForegroundColor White
-Write-Host "  Container Registry:    $acrNameClean" -ForegroundColor White
+Write-Host "  Container Registry:    $acrNameClean (Premium SKU)" -ForegroundColor White
 Write-Host "  Container App:         $ContainerAppName" -ForegroundColor White
 Write-Host "  Subscription:          $subscriptionId" -ForegroundColor White
 if ($EnableLogAnalytics) {
