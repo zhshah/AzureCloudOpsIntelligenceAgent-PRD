@@ -1010,7 +1010,60 @@ $openaiResult = az role assignment create `
 if ($LASTEXITCODE -eq 0 -or $openaiResult -match "already exists") {
     Write-Success "Cognitive Services OpenAI User - Assigned (Resource-scoped)"
 } else {
-    Write-Info "OpenAI role - May already exist (continuing...)"
+    Write-Host ""
+    Write-Host "  ⚠️  OPENAI ROLE ASSIGNMENT FAILED" -ForegroundColor Red
+    Write-Host "  ─────────────────────────────────────────────────────────────" -ForegroundColor Gray
+    Write-Host "  The Managed Identity could not be granted OpenAI access automatically." -ForegroundColor White
+    Write-Host "  Chat features will NOT work until this is fixed." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Run this command manually after deployment:" -ForegroundColor Cyan
+    Write-Host "  az role assignment create ``" -ForegroundColor DarkGray
+    Write-Host "      --assignee $principalId ``" -ForegroundColor DarkGray
+    Write-Host "      --role 'Cognitive Services OpenAI User' ``" -ForegroundColor DarkGray
+    Write-Host "      --scope '/subscriptions/$subscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.CognitiveServices/accounts/$OpenAIResourceName'" -ForegroundColor DarkGray
+    Write-Host ""
+}
+
+# Verify OpenAI role was actually assigned (double-check)
+Write-Info "Verifying OpenAI role assignment..."
+$openaiVerify = az role assignment list `
+    --assignee $principalId `
+    --role "Cognitive Services OpenAI User" `
+    --scope "/subscriptions/$subscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.CognitiveServices/accounts/$OpenAIResourceName" `
+    --query "length(@)" -o tsv 2>$null
+
+if ($openaiVerify -gt 0) {
+    Write-Success "OpenAI role assignment verified ✓"
+} else {
+    Write-Host "  ⚠️  WARNING: OpenAI role not detected. Chat may fail with 401 error." -ForegroundColor Red
+    Write-Host "  Run manually: az role assignment create --assignee $principalId --role 'Cognitive Services OpenAI User' --scope '/subscriptions/$subscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.CognitiveServices/accounts/$OpenAIResourceName'" -ForegroundColor Yellow
+}
+
+# Management Group Reader - for subscription hierarchy dropdown
+Write-Host ""
+Write-Host "  Role: Management Group Reader" -ForegroundColor Cyan
+Write-Host "    Scope: Tenant Root Management Group" -ForegroundColor White
+Write-Host "    Purpose: List management groups in subscription dropdown hierarchy" -ForegroundColor Gray
+Write-Host "    Restriction: Read-only access to management group structure, no resource access" -ForegroundColor DarkGray
+Write-Host ""
+
+Write-Info "Assigning 'Management Group Reader' at Tenant Root scope..."
+$mgResult = az role assignment create `
+    --assignee $principalId `
+    --role "Management Group Reader" `
+    --scope "/providers/Microsoft.Management/managementGroups/$EntraTenantId" `
+    --output none 2>&1
+
+if ($LASTEXITCODE -eq 0 -or $mgResult -match "already exists") {
+    Write-Success "Management Group Reader - Assigned (Tenant Root scope)"
+} else {
+    Write-Host "  ⚠️  Could not assign Management Group Reader automatically." -ForegroundColor Yellow
+    Write-Host "  This requires elevated permissions (e.g., Global Admin or User Access Admin at root scope)." -ForegroundColor Gray
+    Write-Host "  Without this role, the subscription dropdown will show subscriptions without management group hierarchy." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  To fix manually (requires elevated permissions):" -ForegroundColor Cyan
+    Write-Host "  az role assignment create --assignee $principalId --role 'Management Group Reader' --scope '/providers/Microsoft.Management/managementGroups/$EntraTenantId'" -ForegroundColor DarkGray
+    Write-Host ""
 }
 
 Write-Host ""
@@ -1078,12 +1131,14 @@ Write-Host "  │ Reader                              │ Subscription          
 Write-Host "  │ Cost Management Reader              │ Subscription                  │" -ForegroundColor White
 Write-Host "  │ Cognitive Services OpenAI User      │ OpenAI Resource ONLY          │" -ForegroundColor White
 Write-Host "  │ AcrPull                             │ Container Registry ONLY       │" -ForegroundColor White
+Write-Host "  │ Management Group Reader             │ Tenant Root MG                │" -ForegroundColor White
 Write-Host "  └─────────────────────────────────────┴───────────────────────────────┘" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  ✅ Reader: Query VMs, networks, storage (read-only)" -ForegroundColor White
 Write-Host "  ✅ Cost Management Reader: Analyze costs (read-only)" -ForegroundColor White
 Write-Host "  ✅ OpenAI User: Chat with GPT-4o (resource-scoped only)" -ForegroundColor White
 Write-Host "  ✅ AcrPull: Pull container images from ACR (registry-scoped only)" -ForegroundColor White
+Write-Host "  ✅ MG Reader: Subscription hierarchy dropdown (tenant root scope)" -ForegroundColor White
 Write-Host ""
 Write-Host "📝 WHAT WAS AUTOMATED" -ForegroundColor Cyan
 Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
