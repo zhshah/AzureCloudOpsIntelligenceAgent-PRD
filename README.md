@@ -11,12 +11,7 @@
 
 ## Overview
 
-Azure CloudOps Intelligence Agent is an AI-powered platform that enables natural language interaction for Azure infrastructure management. Built on Azure OpenAI GPT-4o, it provides:
-
-- **Cost Intelligence** - Real-time cost analysis, trends, and optimization recommendations
-- **Security & Compliance** - Defender for Cloud, Azure Policy compliance monitoring
-- **Resource Management** - Full inventory across multi-subscription environments
-- **Automated Deployments** - Natural language resource creation with approval workflows
+Azure CloudOps Intelligence Agent is an AI-powered platform that enables natural language interaction for Azure infrastructure management. Built on Azure OpenAI GPT-4o with **119 integrated tools** and **29 operational categories**, it provides comprehensive cloud operations capabilities through a single conversational interface.
 
 ---
 
@@ -30,35 +25,99 @@ Azure CloudOps Intelligence Agent is an AI-powered platform that enables natural
 
 ![Solution Architecture](Architecture%20Image%20for%20Github.png)
 
+### Component Architecture
+
 | Component | Purpose |
 |-----------|---------|
-| **Azure Container Apps** | Hosts the application with auto-scaling |
-| **Azure OpenAI (GPT-4o)** | Natural language processing with function calling |
-| **Microsoft Entra ID** | User authentication (SSO) |
-| **Managed Identity** | Secure, credential-free Azure API access |
-| **Azure Resource Graph** | KQL-based resource queries |
-| **Cost Management API** | Billing and cost data |
+| **Azure Container Apps** | Hosts the application with auto-scaling and managed identity |
+| **Azure OpenAI (GPT-4o)** | Natural language processing with 119 function-calling tools |
+| **Microsoft Entra ID** | User authentication via MSAL.js (SPA flow) |
+| **Managed Identity** | Secure, credential-free Azure API access (zero hardcoded secrets) |
+| **Azure Resource Graph** | KQL-based resource queries across subscriptions |
+| **Cost Management API** | Billing and cost data with trend analysis |
+| **Management Groups API** | Subscription hierarchy with management group tree |
+| **Azure Container Registry** | Private container image storage |
 
 ---
 
-# Deployment Guide
+## Key Features
 
-## Section 1: Prerequisites
+### 29 Operational Categories
 
-Complete these steps BEFORE running the deployment script.
+| # | Category | Description |
+|---|----------|-------------|
+| 1 | **Entra ID & Identity** | Users, groups, roles, service principals, app registrations |
+| 2 | **IAM & Access Control** | RBAC assignments, role definitions, PIM, access reviews |
+| 3 | **Landing Zones** | Subscription hierarchy, management groups, governance |
+| 4 | **Well-Architected** | WAF pillars assessment, reliability, security, cost optimization |
+| 5 | **Azure Resources** | Full inventory, resource details, types, locations |
+| 6 | **Virtual Machines** | VM status, sizes, configurations, performance |
+| 7 | **Security & Compliance** | Defender for Cloud, policy compliance, secure score |
+| 8 | **Tags & Governance** | Tag compliance, untagged resources, tag policies |
+| 9 | **Networking** | VNets, NSGs, load balancers, DNS, peering |
+| 10 | **Storage** | Storage accounts, blobs, access tiers, lifecycle |
+| 11 | **Databases** | SQL, Cosmos DB, PostgreSQL, MySQL instances |
+| 12 | **Cost Analysis** | Current month costs, daily trends, service breakdown |
+| 13 | **Cost Optimization** | Savings recommendations, reserved instances, right-sizing |
+| 14 | **Budgets & Alerts** | Budget status, cost alerts, spending thresholds |
+| 15 | **Container Services** | AKS, Container Apps, Container Instances, ACR |
+| 16 | **App Services** | Web Apps, Function Apps, App Service Plans |
+| 17 | **Monitoring** | Azure Monitor, Log Analytics, Application Insights |
+| 18 | **DevOps** | Azure DevOps, pipelines, repos, boards integration |
+| 19 | **Backup & DR** | Recovery Services, backup policies, replication |
+| 20 | **Load Testing** | Azure Load Testing, performance benchmarks |
+| 21 | **Azure Policy** | Policy assignments, compliance reports, definitions |
+| 22 | **Advisor** | Azure Advisor recommendations across all pillars |
+| 23 | **Activity Logs** | Audit logs, operations history, change tracking |
+| 24 | **Resource Deployment** | Natural language resource creation with approval workflows |
+| 25 | **Resource Health** | Service health, planned maintenance, health alerts |
+| 26 | **Subscriptions** | Multi-subscription management, hierarchy navigation |
+| 27 | **Management Groups** | Group hierarchy, governance scope, policy inheritance |
+| 28 | **Private Endpoints** | Private link connectivity, DNS resolution |
+| 29 | **Orphaned Resources** | 24 resource types: unused disks, NICs, IPs, NSGs, and more |
 
-### 1.1 Azure Requirements
+### 119 AI-Powered Tools
+
+The agent includes 119 Azure OpenAI function-calling tools covering:
+- Resource inventory and querying (Azure Resource Graph)
+- Cost management and optimization
+- Security posture and compliance
+- Network topology analysis
+- Identity and access management
+- Resource deployment with approval workflows
+- Orphaned resource detection (based on [Azure Orphan Resources](https://github.com/dolevshor/azure-orphan-resources))
+
+### Live Dashboard Widgets
+
+| Widget | Description |
+|--------|-------------|
+| **Security Score** | Real-time Microsoft Defender for Cloud secure score |
+| **Monthly Cost** | Current month's Azure spending |
+| **Resource Count** | Total resources via Azure Resource Graph (direct API) |
+| **Public Exposure** | Count of publicly accessible resources (IPs, open ports, public storage) |
+
+### Subscription Hierarchy with Management Groups
+
+- **Management Group tree view** in sidebar dropdown
+- Nested hierarchy showing Tenant Root Group → child groups → subscriptions
+- Auto-selects subscription context for all queries
+- Works across multi-subscription environments
+
+---
+
+## Prerequisites
+
+### Azure Requirements
 
 | Requirement | Description | Verification |
 |-------------|-------------|--------------|
-| **Azure Subscription** | With appropriate permissions | `az account show` |
+| **Azure Subscription** | With Contributor or Owner permissions | `az account show` |
 | **Azure CLI** | Version 2.50+ | `az --version` |
 | **Azure OpenAI Access** | Subscription must have OpenAI approved | [Request access](https://aka.ms/oai/access) |
 | **PowerShell 5.1+** | For deployment script | `$PSVersionTable.PSVersion` |
+| **Docker** (optional) | For local container builds | `docker --version` |
 
-### 1.2 Deployer Permissions
-
-The person running the deployment script needs:
+### Required Permissions
 
 | Role | Scope | Purpose |
 |------|-------|---------|
@@ -67,210 +126,196 @@ The person running the deployment script needs:
 
 > **Alternative**: **Owner** role includes both permissions.
 
-### 1.3 Create Entra ID App Registration (Required for User Login)
+### Entra ID App Registration
 
-Users authenticate via Microsoft Entra ID. You must create an App Registration BEFORE deployment:
+An App Registration is required for user authentication. See [docs/AZURE_AD_SETUP.md](docs/AZURE_AD_SETUP.md) for detailed setup instructions.
 
-#### Step-by-Step:
-
-**Step 1: Navigate to App Registrations**
-```
-Azure Portal → Microsoft Entra ID → App registrations → New registration
-```
-
-**Step 2: Configure Basic Settings**
-| Field | Value |
-|-------|-------|
-| Name | `CloudOps-Agent-UserAuth` (or your preferred name) |
-| Supported account types | `Accounts in this organizational directory only (Single tenant)` |
-| Redirect URI | Leave blank for now (configure after deployment) |
-
-Click **Register**
-
-**Step 3: Record Required Values**
-
-After registration, note these values from the **Overview** page:
-
-| Value | Where to Find | Example |
-|-------|---------------|---------|
-| **Application (client) ID** | Overview → Application (client) ID | `a1b2c3d4-e5f6-7890-abcd-ef1234567890` |
-| **Directory (tenant) ID** | Overview → Directory (tenant) ID | `12345678-abcd-ef12-3456-7890abcdef12` |
-
-> **Important**: You'll provide these values as parameters to the deployment script.
-
-**Step 4: Configure Authentication (After Deployment)**
-
-After the Container App is deployed, you'll get an application URL (e.g., `https://cloudops-agent.azurecontainerapps.io`). Then:
-
-1. Return to your App Registration → **Authentication**
-2. Click **Add a platform** → **Single-page application**
-3. Add Redirect URI: `https://<your-container-app-url>/login.html`
-4. Check:
-   - ✅ Access tokens
-   - ✅ ID tokens
-5. Click **Configure** then **Save**
-
-**Step 5: Configure API Permissions**
-1. Go to **API permissions** → **Add a permission**
-2. Add these **Microsoft Graph** delegated permissions:
-   - `openid`
-   - `profile`
-   - `email`
-   - `User.Read`
+**Quick steps:**
+1. Azure Portal → Microsoft Entra ID → App registrations → New registration
+2. Name: `CloudOps Intelligence Agent`
+3. Redirect URI: `Single-page application (SPA)` → `https://<your-app-url>/login.html`
+4. Note the **Application (client) ID** and **Tenant ID**
 
 ---
 
-## Section 2: Deployment
+## Deployment
 
-### 2.1 Clone the Repository
+### Automated Deployment (Recommended)
 
-```powershell
-git clone https://github.com/zhshah/AzureCloudOpsIntelligenceAgent-PRD.git
-cd AzureCloudOpsIntelligenceAgent-PRD
-```
-
-### 2.2 Login to Azure
-
-```powershell
-az login
-az account set --subscription "<your-subscription-name-or-id>"
-```
-
-### 2.3 Run the Automated Deployment Script
+The included `deploy-automated.ps1` script handles end-to-end setup:
 
 ```powershell
 .\deploy-automated.ps1 `
-    -ResourceGroupName "rg-cloudops-agent" `
-    -Location "westeurope" `
-    -ContainerRegistryName "mycrname" `
-    -EntraAppClientId "<your-app-registration-client-id>" `
-    -EntraTenantId "<your-tenant-id>"
+  -EntraAppClientId "<your-client-id>" `
+  -EntraTenantId "<your-tenant-id>" `
+  -SubscriptionId "<your-subscription-id>" `
+  -ContainerRegistryName "<your-acr-name>"
 ```
 
-#### Required Parameters
+**What the script creates:**
+1. Azure Resource Group
+2. Azure OpenAI service with GPT-4o deployment
+3. Azure Container Registry
+4. Docker image build and push
+5. Azure Container App with managed identity
+6. RBAC role assignments (Reader, Cost Management Reader, Security Reader)
+7. Environment variable configuration
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `-ResourceGroupName` | Name for the resource group | `rg-cloudops-agent` |
-| `-ContainerRegistryName` | Globally unique ACR name (alphanumeric, no dashes) | `cloudopsacr2024` |
-| `-EntraAppClientId` | Application (client) ID from Step 1.3 | `a1b2c3d4-e5f6-...` |
-| `-EntraTenantId` | Directory (tenant) ID from Step 1.3 | `12345678-abcd-...` |
+### Manual Deployment
 
-#### Optional Parameters
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `-Location` | `westeurope` | Azure region |
-| `-OpenAIResourceName` | Auto-generated | Azure OpenAI resource name |
-| `-ContainerAppName` | `cloudops-agent` | Container App name |
-| `-ContainerAppEnvName` | `cloudops-env` | Container Apps Environment name |
-
-### 2.4 What the Script Creates
-
-The script automatically creates:
-
-| Resource | Purpose |
-|----------|---------|
-| **Resource Group** | Container for all resources |
-| **Azure OpenAI** | GPT-4o model for AI chat |
-| **Container Registry** | Docker image storage |
-| **Container Apps Environment** | Hosting environment |
-| **Container App** | The application with Managed Identity |
-| **RBAC Role Assignments** | Reader, Cost Management Reader, OpenAI User |
-
-### 2.5 Post-Deployment: Configure Redirect URI
-
-After deployment completes, the script displays your application URL. Complete Step 1.3 → Step 4 to configure the redirect URI in your App Registration.
-
----
-
-## Section 3: Security Architecture
-
-### Application Permissions (Least-Privilege)
-
-The Container App's Managed Identity receives only these READ-ONLY roles:
-
-| Role | Scope | Purpose | Limitations |
-|------|-------|---------|-------------|
-| **Reader** | Subscription | Query resources via Resource Graph | ❌ Cannot create/modify/delete |
-| **Cost Management Reader** | Subscription | Read cost and billing data | ❌ Cannot modify budgets |
-| **Cognitive Services OpenAI User** | OpenAI Resource | Use GPT-4o API | ❌ Cannot manage deployments |
-
-### Security Highlights
-
-- ✅ **Zero Secrets** - Managed Identity handles authentication (no API keys stored)
-- ✅ **Read-Only Access** - Application cannot modify your Azure resources
-- ✅ **Scoped Permissions** - OpenAI access limited to specific resource only
-- ✅ **Enterprise SSO** - Users authenticate via your organization's Entra ID
-
----
-
-## Section 4: Multi-Subscription Access (Optional)
-
-By default, the agent can only query resources in the deployment subscription. For multi-subscription access:
-
-### Get the Container App's Principal ID
-
+#### 1. Clone the Repository
 ```bash
-az containerapp show \
-    --name cloudops-agent \
-    --resource-group rg-cloudops-agent \
-    --query "identity.principalId" -o tsv
+git clone <repository-url>
+cd AzureCloudOpsIntelligenceAgent
 ```
 
-### Grant Access to Additional Subscriptions
-
+#### 2. Build Docker Image
 ```bash
-PRINCIPAL_ID="<principal-id-from-above>"
-OTHER_SUBSCRIPTION_ID="<subscription-id-to-access>"
-
-# Assign Reader role
-az role assignment create --assignee $PRINCIPAL_ID --role "Reader" \
-    --scope "/subscriptions/$OTHER_SUBSCRIPTION_ID"
-
-# Assign Cost Management Reader role
-az role assignment create --assignee $PRINCIPAL_ID --role "Cost Management Reader" \
-    --scope "/subscriptions/$OTHER_SUBSCRIPTION_ID"
+docker build -t cloudops-agent .
 ```
 
-### Grant Access at Management Group Level (All Subscriptions Under It)
+#### 3. Push to Azure Container Registry
+```bash
+az acr login --name <your-acr>
+docker tag cloudops-agent <your-acr>.azurecr.io/cloudops-agent:latest
+docker push <your-acr>.azurecr.io/cloudops-agent:latest
+```
+
+#### 4. Deploy to Azure Container Apps
+```bash
+az containerapp create \
+  --name cloudops-agent \
+  --resource-group <your-rg> \
+  --image <your-acr>.azurecr.io/cloudops-agent:latest \
+  --target-port 8000 \
+  --ingress external \
+  --min-replicas 1 \
+  --max-replicas 3
+```
+
+### Required Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint URL | `https://your-openai.openai.azure.com/` |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key | `(from Azure Portal)` |
+| `AZURE_OPENAI_DEPLOYMENT` | GPT-4o deployment name | `gpt-4o` |
+| `ENTRA_APP_CLIENT_ID` | Entra ID App Registration client ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `ENTRA_TENANT_ID` | Entra ID tenant ID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `AZURE_SUBSCRIPTION_ID` | Default Azure subscription | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+
+### Post-Deployment RBAC
+
+The Container App's managed identity requires these roles:
+
+| Role | Scope | Purpose |
+|------|-------|---------|
+| **Reader** | Subscription | Read all resource metadata |
+| **Cost Management Reader** | Subscription | Access cost and billing data |
+| **Security Reader** | Subscription | Access Defender for Cloud data |
+| **Management Group Reader** | Tenant Root Group | Read management group hierarchy |
 
 ```bash
-PRINCIPAL_ID="<principal-id>"
-MANAGEMENT_GROUP_NAME="<your-mg-name>"
+# Get the Container App's managed identity principal ID
+PRINCIPAL_ID=$(az containerapp show --name cloudops-agent --resource-group <your-rg> --query identity.principalId -o tsv)
 
-az role assignment create --assignee $PRINCIPAL_ID --role "Reader" \
-    --scope "/providers/Microsoft.Management/managementGroups/$MANAGEMENT_GROUP_NAME"
-
-az role assignment create --assignee $PRINCIPAL_ID --role "Cost Management Reader" \
-    --scope "/providers/Microsoft.Management/managementGroups/$MANAGEMENT_GROUP_NAME"
+# Assign required roles
+az role assignment create --assignee $PRINCIPAL_ID --role "Reader" --scope /subscriptions/<sub-id>
+az role assignment create --assignee $PRINCIPAL_ID --role "Cost Management Reader" --scope /subscriptions/<sub-id>
+az role assignment create --assignee $PRINCIPAL_ID --role "Security Reader" --scope /subscriptions/<sub-id>
 ```
 
 ---
 
-## Features
+## Project Structure
 
-### Cost Intelligence
-- Current month costs and daily trends
-- Cost breakdown by service, resource group, tags
-- Orphaned resources detection
-- CSV export for reporting
+```
+├── main.py                           # FastAPI application (API endpoints, live widgets)
+├── openai_agent.py                   # Azure OpenAI integration (119 tools, function calling)
+├── azure_resource_manager.py         # Resource Graph queries & management group hierarchy
+├── azure_cost_manager.py             # Cost Management API integration
+├── auth_manager.py                   # Entra ID authentication handler
+├── entra_id_manager.py               # Entra ID operations (users, groups, roles)
+├── universal_azure_operations.py     # Cross-service Azure operations
+├── universal_cli_deployment.py       # CLI-based resource deployment
+├── azure_cli_operations.py           # Azure CLI command execution
+├── modern_resource_deployment.py     # Resource deployment engine
+├── intelligent_template_generator.py # ARM/Bicep template generation
+├── intelligent_parameter_collector.py# Smart parameter collection
+├── azure_schema_provider.py          # Azure resource schema provider
+├── api_version_overrides.py          # API version management
+├── logic_app_client.py               # Logic App approval workflow integration
+├── requirements.txt                  # Python dependencies
+├── Dockerfile                        # Container build configuration
+├── deploy-automated.ps1              # Automated deployment script (PowerShell)
+├── static/
+│   ├── index.html                    # Main dashboard (29 categories, live widgets)
+│   ├── login.html                    # Entra ID login page (MSAL.js)
+│   └── logout.js                     # Logout handler
+├── Icons/                            # Official Azure service icons (500+ SVGs)
+│   ├── ai + machine learning/
+│   ├── analytics/
+│   ├── compute/
+│   ├── containers/
+│   ├── databases/
+│   ├── networking/
+│   ├── security/
+│   ├── storage/
+│   └── ... (20+ categories)
+├── azure_function/                   # Azure Function for approval webhooks
+│   ├── function_app.py
+│   ├── function.json
+│   ├── host.json
+│   └── requirements.txt
+└── docs/
+    └── AZURE_AD_SETUP.md             # Entra ID App Registration setup guide
+```
 
-### Security & Compliance
-- Defender for Cloud recommendations
-- Azure Policy compliance status
-- Non-compliant resource reports
-- Public access auditing
+---
 
-### Resource Management
-- Full inventory across subscriptions
-- Natural language search
-- Tag compliance monitoring
+## Technology Stack
 
-### Automated Deployments
-- Natural language resource creation
-- Email-based approval workflows (via Logic Apps)
-- Supported: VMs, Storage, SQL, VNets, Disks
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| Python | 3.11+ | Backend runtime |
+| FastAPI | 0.100+ | Web framework with async support |
+| Azure OpenAI SDK | Latest | GPT-4o function calling |
+| Azure Identity | Latest | DefaultAzureCredential / Managed Identity |
+| Azure Resource Graph | Latest | Cross-subscription resource queries |
+| Azure Cost Management | Latest | Billing and cost APIs |
+| Azure Management Groups | 1.0.0 | Subscription hierarchy |
+| MSAL.js | 2.x | Frontend Entra ID authentication |
+| Docker | Latest | Containerization |
+| Azure Container Apps | Latest | Hosting platform |
+
+---
+
+## Security
+
+- **Zero hardcoded secrets** — All credentials via environment variables or Managed Identity
+- **DefaultAzureCredential** — Automatic credential chain (Managed Identity → Azure CLI → Environment)
+- **Entra ID SSO** — Enterprise single sign-on via MSAL.js
+- **RBAC-based access** — Principle of least privilege for managed identity
+- **No API keys in code** — All sensitive values sourced from environment variables
+
+---
+
+## Troubleshooting
+
+### Subscription Dropdown Not Loading
+- Verify **Management Group Reader** role is assigned at Tenant Root Group scope
+- Check Container App logs: `az containerapp logs show --name <app> --resource-group <rg>`
+- Ensure `azure-mgmt-managementgroups==1.0.0` is in requirements.txt
+
+### Widgets Showing N/A
+- Confirm **Reader**, **Cost Management Reader**, **Security Reader** roles are assigned
+- Check the managed identity has access to the selected subscription
+- Review browser console (F12) for API errors
+
+### Authentication Issues
+- Verify Entra ID App Registration redirect URI matches your deployment URL
+- Ensure `ENTRA_APP_CLIENT_ID` and `ENTRA_TENANT_ID` environment variables are set
+- Check that the App Registration has `User.Read` API permission
 
 ---
 

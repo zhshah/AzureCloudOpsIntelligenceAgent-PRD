@@ -40,9 +40,7 @@ class UniversalCLIDeployment:
             import os
             
             # Get Office365 connection details
-            subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID", "")
-            rg_name = os.getenv("AZURE_RESOURCE_GROUP", "")
-            connection_id = f"/subscriptions/{subscription_id}/resourceGroups/{rg_name}/providers/Microsoft.Web/connections/office365"
+            connection_id = "/subscriptions//resourceGroups//providers/Microsoft.Web/connections/office365"
             
             if status == "success":
                 subject = f"✅ Deployment Successful: {resource_name}"
@@ -120,10 +118,8 @@ class UniversalCLIDeployment:
             while poll_count < max_polls:
                 try:
                     # Check Logic App run history for approval
-                    rg_name = os.getenv("AZURE_RESOURCE_GROUP", "")
-                    logic_app_name = os.getenv("LOGIC_APP_NAME", "")
                     check_result = subprocess.run(
-                        f'az rest --method get --url "https://management.azure.com/subscriptions/{os.getenv("AZURE_SUBSCRIPTION_ID")}/resourceGroups/{rg_name}/providers/Microsoft.Logic/workflows/{logic_app_name}/runs?api-version=2019-05-01&$top=5" --query "value[?contains(properties.trigger.inputsLink.contentVersion, \'{request_id}\')].{{status:status,outputs:properties.outputs}}" --output json',
+                        f'az rest --method get --url "https://management.azure.com/subscriptions/{os.getenv("AZURE_SUBSCRIPTION_ID")}/resourceGroups//providers/Microsoft.Logic/workflows//runs?api-version=2019-05-01&$top=5" --query "value[?contains(properties.trigger.inputsLink.contentVersion, \'{request_id}\')].{{status:status,outputs:properties.outputs}}" --output json',
                         shell=True,
                         capture_output=True,
                         text=True,
