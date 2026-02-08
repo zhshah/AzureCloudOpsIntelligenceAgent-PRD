@@ -277,6 +277,8 @@ After registration, find these values on the **Overview** page:
     -SubscriptionId "<your-subscription-id>"
 ```
 
+> **⚠️ ACR Naming Rule:** The `-ContainerRegistryName` must be **alphanumeric only** (lowercase letters and numbers). Azure Container Registry does **not** allow hyphens (`-`), dots (`.`), or underscores (`_`). If you provide a name with these characters (e.g., `my-acr-name`), the script will automatically strip them and prompt you to confirm the adjusted name (e.g., `myacrname`).
+
 The script automatically:
 1. ✅ **Validates subscription** — displays target subscription name & ID, prompts for confirmation before deploying
 2. ✅ Registers all required Azure resource providers
@@ -318,7 +320,7 @@ After the model is deployed, the script waits for stabilisation and then attempt
 | Parameter | Required | Default | Description |
 |-----------|:--------:|---------|-------------|
 | `-ResourceGroupName` | ✅ | — | Name of the resource group to create/use |
-| `-ContainerRegistryName` | ✅ | — | Globally unique ACR name (lowercase, no dashes) |
+| `-ContainerRegistryName` | ✅ | — | Globally unique ACR name — **alphanumeric only**, no hyphens/dots/underscores (e.g., `cloudopsacr2024`) |
 | `-EntraAppClientId` | ✅ | — | Entra ID Application (Client) ID |
 | `-EntraTenantId` | ✅ | — | Azure AD Tenant ID |
 | `-Location` | ❌ | `westeurope` | Azure region (e.g., `qatarcentral`, `eastus`) |
