@@ -230,8 +230,8 @@ The fastest way to deploy is using the included PowerShell automation script tha
 ### Step 1: Clone the Repository
 
 ```bash
-git clone <repository-url>
-cd AzureCloudOpsIntelligenceAgent
+git clone https://github.com/zhshah/AzureCloudOpsIntelligenceAgent-PRD
+cd AzureCloudOpsIntelligenceAgent-PRD
 ```
 
 ### Step 2: Create App Registration
