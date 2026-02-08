@@ -234,13 +234,36 @@ git clone <repository-url>
 cd AzureCloudOpsIntelligenceAgent
 ```
 
-### Step 2: Register an Entra ID Application
+### Step 2: Create App Registration
 
-Follow the detailed guide in [docs/AZURE_AD_SETUP.md](docs/AZURE_AD_SETUP.md) to:
-1. Register a new app in Entra ID
-2. Configure redirect URIs for your Container App URL
-3. Enable ID tokens
-4. Note down the **Application (Client) ID** and **Tenant ID**
+1. Go to **Azure Portal** → **Microsoft Entra ID** → **App registrations**
+2. Click **New registration**
+3. Configure:
+   - **Name**: `CloudOps Intelligence Agent` (or your preferred name)
+   - **Supported account types**: Accounts in this organizational directory only
+   - **Redirect URI**: Select **Single-page application (SPA)** — leave URL blank for now
+4. Click **Register**
+
+#### Note These Values (Required for Deployment Script)
+
+After registration, find these values on the **Overview** page:
+
+| Value | Where to Find | Script Parameter |
+|-------|---------------|------------------|
+| Application (client) ID | Overview → Application (client) ID | `-EntraAppClientId` |
+| Directory (tenant) ID | Overview → Directory (tenant) ID | `-EntraTenantId` |
+
+#### Configure API Permissions
+
+1. Go to **API permissions** in your App Registration
+2. Click **Add a permission** → **Microsoft Graph** → **Delegated permissions**
+3. Select these permissions:
+   - `openid`
+   - `profile`
+   - `email`
+   - `User.Read`
+4. Click **Add permissions**
+5. Click **Grant admin consent for [Your Organization]** (requires admin)
 
 ### Step 3: Run Automated Deployment
 
@@ -304,14 +327,17 @@ After the model is deployed, the script waits for stabilisation and then attempt
 | `-SubscriptionId` | ❌ | Current context | Target subscription — script validates and asks for confirmation before deploying |
 | `-EnableLogAnalytics` | ❌ | `$false` | Enable Log Analytics workspace |
 
-### Step 4: Post-Deployment
+### Step 4: After Deployment — Add Redirect URI
 
-1. Update the Entra ID App Registration redirect URI to match your Container App FQDN:
+After deployment completes, you'll receive the application URL. Then:
+
+1. Go back to **App Registration** → **Authentication**
+2. Under **Single-page application** → **Redirect URIs**, add:
    ```
-   https://<your-container-app>.azurecontainerapps.io/
+   https://<your-container-app>.azurecontainerapps.io/login.html
    ```
-2. Assign RBAC roles to the Container App's Managed Identity (see [Post-Deployment RBAC](#-post-deployment-rbac))
-3. Access your application at `https://<your-container-app>.azurecontainerapps.io`
+3. Click **Save**
+4. Access your application at `https://<your-container-app>.azurecontainerapps.io`
 
 ---
 
