@@ -255,17 +255,40 @@ Follow the detailed guide in [docs/AZURE_AD_SETUP.md](docs/AZURE_AD_SETUP.md) to
 ```
 
 The script automatically:
-1. ✅ Creates Azure Container Registry
-2. ✅ Deploys Azure OpenAI (AI Foundry) with GPT-4o model
-3. ✅ Builds and pushes the Docker image
-4. ✅ Creates Container App Environment
-5. ✅ Deploys the Container App with System-Assigned Managed Identity
-6. ✅ Assigns all required RBAC roles (Least-Privilege, READ-ONLY)
-7. ✅ Configures all environment variables automatically
+1. ✅ **Validates subscription** — displays target subscription name & ID, prompts for confirmation before deploying
+2. ✅ Registers all required Azure resource providers
+3. ✅ Creates Azure Container Registry
+4. ✅ Deploys Azure OpenAI (AI Foundry) with **smart TPM capacity negotiation** (see below)
+5. ✅ Builds and pushes the Docker image
+6. ✅ Creates Container App Environment
+7. ✅ Deploys the Container App with System-Assigned Managed Identity
+8. ✅ Assigns all required RBAC roles (Least-Privilege, READ-ONLY)
+9. ✅ Configures all environment variables automatically
 
 **No manual configuration required — everything is 100% automated!**
 
 **Estimated deployment time: 10–15 minutes**
+
+#### Subscription Validation
+
+When `-SubscriptionId` is provided, the script explicitly sets the Azure context to that subscription. If omitted, it uses the currently active subscription. In **both** cases, the script displays the target subscription name and ID in a highlighted box and asks for explicit confirmation (`Y/N`) before proceeding — preventing accidental deployments to the wrong subscription.
+
+#### Smart TPM Capacity Negotiation
+
+The solution requires high Tokens-Per-Minute (TPM) throughput for optimal performance. The script implements a two-phase strategy:
+
+**Phase 1 — Initial Deployment (step-down by 2K)**
+The script starts at **80K TPM** and tries decreasing by **2K** increments until it finds available quota (minimum 10K). SKU priority order:
+1. **GlobalStandard** (best latency — global routing)
+2. **DataZoneStandard** (fallback — regional constraints)
+3. **Standard** (legacy regions)
+4. **GPT-4o-mini** (last resort if GPT-4o unavailable)
+
+**Phase 2 — Post-Deployment Scale-Up (find the sweet spot)**
+After the model is deployed, the script waits for stabilisation and then attempts to **scale UP** the TPM from the initial value back toward **80K**, stepping down by **2K** until it finds the highest available quota. This two-phase approach ensures:
+- Deployment always succeeds (even with limited quota)
+- The final TPM is maximised to the highest value the subscription supports
+- If scale-up fails, a manual command is printed for later use when quota becomes available
 
 ### Deployment Parameters
 
@@ -278,7 +301,7 @@ The script automatically:
 | `-Location` | ❌ | `westeurope` | Azure region (e.g., `qatarcentral`, `eastus`) |
 | `-OpenAIResourceName` | ❌ | Auto-generated | Custom name for the OpenAI resource |
 | `-ContainerAppName` | ❌ | `cloudops-agent` | Custom name for the Container App |
-| `-SubscriptionId` | ❌ | Current context | Target subscription for deployment |
+| `-SubscriptionId` | ❌ | Current context | Target subscription — script validates and asks for confirmation before deploying |
 | `-EnableLogAnalytics` | ❌ | `$false` | Enable Log Analytics workspace |
 
 ### Step 4: Post-Deployment
@@ -319,16 +342,18 @@ az cognitiveservices account create \
     --kind OpenAI \
     --sku S0
 
-# Deploy GPT-4o model
+# Deploy GPT-4o model (start with highest TPM your quota allows; 80K recommended)
 az cognitiveservices account deployment create \
     --name $OPENAI_NAME \
     --resource-group $RESOURCE_GROUP \
     --deployment-name "gpt-4o" \
     --model-name "gpt-4o" \
-    --model-version "2024-05-13" \
+    --model-version "2024-08-06" \
     --model-format OpenAI \
-    --sku-capacity 10 \
-    --sku-name "Standard"
+    --sku-capacity 80 \
+    --sku-name "GlobalStandard"
+# If capacity errors occur, reduce --sku-capacity (try 60, 40, 30, 20, 10)
+# or change --sku-name to "DataZoneStandard" / "Standard"
 ```
 
 ### Step 2: Build and Deploy Container
