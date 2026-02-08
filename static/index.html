@@ -3333,6 +3333,14 @@
             const selectedOption = select.options[select.selectedIndex];
             const subscriptionName = selectedOption.text;
             
+            // Clear widget cache so widgets re-fetch for the new context
+            widgetCache = {
+                security: { data: null, timestamp: 0, loading: false },
+                savings: { data: null, timestamp: 0, loading: false },
+                resources: { data: null, timestamp: 0, loading: false }
+            };
+            isLoadingWidgets = false;
+            
             // Update insights based on subscription
             updateInsightsForSubscription(select.value);
             
