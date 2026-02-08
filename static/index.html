@@ -3523,7 +3523,7 @@
                     }
                     
                     let securitySubId = subscriptionId;
-                    if (securitySubId.startsWith('mg:') || securitySubId === 'all' || securitySubId === 'current') {
+                    if (securitySubId === 'all' || securitySubId === 'current') {
                         const storedSubs = sessionStorage.getItem('azureSubscriptions');
                         if (storedSubs) {
                             const subs = JSON.parse(storedSubs);
@@ -3660,7 +3660,7 @@
                     }
                     
                     let resourceSubId = subscriptionId;
-                    if (resourceSubId.startsWith('mg:') || resourceSubId === 'all' || resourceSubId === 'current') {
+                    if (resourceSubId === 'all' || resourceSubId === 'current') {
                         const storedSubs = sessionStorage.getItem('azureSubscriptions');
                         if (storedSubs) {
                             const subs = JSON.parse(storedSubs);
@@ -3717,7 +3717,7 @@
                     const t0 = performance.now();
                     
                     let paSubId = subscriptionId;
-                    if (paSubId.startsWith('mg:') || paSubId === 'all' || paSubId === 'current' || paSubId === 'loading') {
+                    if (paSubId === 'all' || paSubId === 'current' || paSubId === 'loading') {
                         const storedSubs = sessionStorage.getItem('azureSubscriptions');
                         if (storedSubs) {
                             const subs = JSON.parse(storedSubs);

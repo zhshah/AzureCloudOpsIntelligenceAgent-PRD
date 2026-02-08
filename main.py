@@ -54,6 +54,36 @@ auth_manager = get_auth_manager()
 ai_agent.query_cache = query_results_cache
 
 
+def resolve_mg_subscriptions(mg_id: str) -> List[str]:
+    """Resolve all subscription IDs under a management group (recursively)"""
+    try:
+        from azure.mgmt.managementgroups import ManagementGroupsAPI
+        mg_client = ManagementGroupsAPI(get_cached_credential())
+        
+        subscription_ids = []
+        
+        def collect_subs(group_id, depth=0):
+            if depth > 5:
+                return
+            try:
+                mg = mg_client.management_groups.get(group_id, expand="children")
+                if mg.children:
+                    for child in mg.children:
+                        if child.type == "/subscriptions":
+                            subscription_ids.append(child.name)
+                        elif child.type == "/providers/Microsoft.Management/managementGroups":
+                            collect_subs(child.name, depth + 1)
+            except Exception as e:
+                print(f"Error resolving MG {group_id}: {e}")
+        
+        collect_subs(mg_id)
+        print(f"📁 Resolved MG '{mg_id}' → {len(subscription_ids)} subscriptions: {subscription_ids}")
+        return subscription_ids
+    except Exception as e:
+        print(f"Error resolving management group subscriptions: {e}")
+        return []
+
+
 class ChatMessage(BaseModel):
     message: str
     conversation_history: Optional[List[Dict[str, str]]] = []
@@ -146,7 +176,19 @@ async def chat(
         
         # Enhance user message with subscription context if provided
         enhanced_message = request.message
-        if request.subscription_context and request.subscription_context.lower() not in ['all', 'none', 'loading']:
+        if request.subscription_context and request.subscription_context.startswith('mg:'):
+            # Management Group selected - resolve child subscriptions
+            mg_id = request.subscription_context[3:]  # Strip 'mg:' prefix
+            mg_sub_ids = resolve_mg_subscriptions(mg_id)
+            if mg_sub_ids:
+                sub_list = ', '.join(mg_sub_ids)
+                context_info = f"\n\n[SYSTEM CONTEXT: User has selected Management Group '{request.subscription_name}'. This MG contains {len(mg_sub_ids)} subscription(s). Pass ALL these subscription IDs in the subscriptions parameter when calling functions: [{sub_list}]. Include subscription name in output for multi-subscription results. Do NOT pass the management group ID as a subscription - only use the actual subscription GUIDs listed above.]"
+                enhanced_message = request.message + context_info
+            else:
+                # Fallback: couldn't resolve MG subscriptions
+                context_info = "\n\n[SYSTEM CONTEXT: User selected a Management Group but no child subscriptions could be resolved. Query across ALL accessible subscriptions. Do NOT pass any specific subscription IDs - leave the subscriptions parameter empty or omit it.]"
+                enhanced_message = request.message + context_info
+        elif request.subscription_context and request.subscription_context.lower() not in ['all', 'none', 'loading']:
             # Single subscription selected - add context for AI to use
             context_info = f"\n\n[SYSTEM CONTEXT: User has selected subscription '{request.subscription_name}' (ID: {request.subscription_context}) in the UI. Use this subscription ID automatically for all queries. Pass this ID in the subscriptions parameter when calling functions.]"
             enhanced_message = request.message + context_info
@@ -216,9 +258,13 @@ async def get_security_score(
         if not subscription_id:
             return {"error": "No subscription ID provided", "score": None}
         
-        # Remove mg: prefix if management group
+        # Resolve management group to first child subscription for security score
         if subscription_id.startswith('mg:'):
-            return {"error": "Security score requires a subscription, not management group", "score": None}
+            mg_subs = resolve_mg_subscriptions(subscription_id[3:])
+            if mg_subs:
+                subscription_id = mg_subs[0]  # Use first subscription for security score
+            else:
+                return {"error": "No subscriptions found under management group", "score": None}
         
         # Get access token
         token = credential.get_token("https://management.azure.com/.default")
@@ -286,9 +332,21 @@ async def get_resource_count(subscription_id: str, req: Request = None):
         if not subscription_id:
             return {"count": None, "error": "No subscription ID"}
         
-        # Strip mg: prefix
+        # Resolve management group to child subscriptions
+        mg_resolved = False
         if subscription_id.startswith('mg:'):
-            subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID', subscription_id.replace('mg:', ''))
+            mg_subs = resolve_mg_subscriptions(subscription_id[3:])
+            if mg_subs:
+                sub_list = mg_subs
+                mg_resolved = True
+            else:
+                fallback = os.getenv('AZURE_SUBSCRIPTION_ID')
+                sub_list = [fallback] if fallback else []
+        else:
+            sub_list = [subscription_id]
+        
+        if not sub_list:
+            return {"count": None, "error": "No subscriptions resolved"}
         
         token = credential.get_token("https://management.azure.com/.default")
         
@@ -298,7 +356,7 @@ async def get_resource_count(subscription_id: str, req: Request = None):
             "Content-Type": "application/json"
         }
         body = {
-            "subscriptions": [subscription_id],
+            "subscriptions": sub_list,
             "query": "Resources | summarize totalCount=count()"
         }
         
@@ -312,7 +370,7 @@ async def get_resource_count(subscription_id: str, req: Request = None):
             else:
                 rows = records.get("rows", []) if isinstance(records, dict) else []
                 total = rows[0][0] if rows else 0
-            return {"count": total, "subscriptionId": subscription_id}
+            return {"count": total, "subscriptionId": subscription_id if not mg_resolved else f"mg:{len(sub_list)} subscriptions"}
         else:
             return {"count": None, "error": f"API error: {response.status_code}"}
             
@@ -337,8 +395,19 @@ async def get_public_access_exposure(subscription_id: str, req: Request = None):
         if not subscription_id:
             return {"count": None, "error": "No subscription ID"}
         
+        # Resolve management group to child subscriptions
         if subscription_id.startswith('mg:'):
-            subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID', subscription_id.replace('mg:', ''))
+            mg_subs = resolve_mg_subscriptions(subscription_id[3:])
+            if mg_subs:
+                sub_list = mg_subs
+            else:
+                fallback = os.getenv('AZURE_SUBSCRIPTION_ID')
+                sub_list = [fallback] if fallback else []
+        else:
+            sub_list = [subscription_id]
+        
+        if not sub_list:
+            return {"count": None, "error": "No subscriptions resolved"}
         
         token = credential.get_token("https://management.azure.com/.default")
         
@@ -378,7 +447,7 @@ async def get_public_access_exposure(subscription_id: str, req: Request = None):
         breakdown = {}
         
         # Execute VM public IP query
-        body1 = {"subscriptions": [subscription_id], "query": vm_query}
+        body1 = {"subscriptions": sub_list, "query": vm_query}
         resp1 = http_requests.post(api_url, headers=headers, json=body1, timeout=20)
         if resp1.status_code == 200:
             data1 = resp1.json().get("data", {})
@@ -391,7 +460,7 @@ async def get_public_access_exposure(subscription_id: str, req: Request = None):
             breakdown["publicIPs"] = vm_count
         
         # Execute PaaS public access query
-        body2 = {"subscriptions": [subscription_id], "query": paas_query}
+        body2 = {"subscriptions": sub_list, "query": paas_query}
         resp2 = http_requests.post(api_url, headers=headers, json=body2, timeout=20)
         if resp2.status_code == 200:
             data2 = resp2.json().get("data", {})
