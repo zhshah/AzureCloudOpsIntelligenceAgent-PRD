@@ -19,7 +19,8 @@ An enterprise-grade AI agent that transforms Azure cloud operations through natu
 - [Live Dashboard Widgets](#-live-dashboard-widgets)
 - [29 Operational Categories](#-29-operational-categories)
 - [Prerequisites](#-prerequisites)
-- [Deployment Guide](#-deployment-guide)
+- [Quick Start — Automated Deployment](#-quick-start--automated-deployment)
+- [Manual Deployment](#-manual-deployment)
 - [Configuration](#-configuration)
 - [Post-Deployment RBAC](#-post-deployment-rbac)
 - [Security & Data Privacy](#-security--data-privacy)
@@ -222,13 +223,15 @@ Before deploying the solution, ensure you have:
 
 ---
 
-## 🚀 Deployment Guide
+## 🚀 Quick Start — Automated Deployment
+
+The fastest way to deploy is using the included PowerShell automation script that handles everything end-to-end.
 
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/zhshah/AzureCloudOpsIntelligenceAgent-PRD.git
-cd AzureCloudOpsIntelligenceAgent-PRD
+git clone <repository-url>
+cd AzureCloudOpsIntelligenceAgent
 ```
 
 ### Step 2: Register an Entra ID Application
@@ -239,7 +242,7 @@ Follow the detailed guide in [docs/AZURE_AD_SETUP.md](docs/AZURE_AD_SETUP.md) to
 3. Enable ID tokens
 4. Note down the **Application (Client) ID** and **Tenant ID**
 
-### Step 3: Deploy Azure Resources
+### Step 3: Run Automated Deployment
 
 ```powershell
 .\deploy-automated.ps1 `
@@ -247,28 +250,36 @@ Follow the detailed guide in [docs/AZURE_AD_SETUP.md](docs/AZURE_AD_SETUP.md) to
     -Location "westeurope" `
     -ContainerRegistryName "youracrname" `
     -EntraAppClientId "<your-entra-app-client-id>" `
-    -EntraTenantId "<your-entra-tenant-id>"
+    -EntraTenantId "<your-entra-tenant-id>" `
+    -SubscriptionId "<your-subscription-id>"
 ```
 
-**What the script creates:**
-1. Azure Container Registry (ACR)
-2. Azure OpenAI resource with GPT-4o model
-3. Container App Environment with Log Analytics
-4. Container App with Managed Identity enabled
-5. All required RBAC role assignments
-6. Environment variables configured automatically
+The script automatically:
+1. ✅ Creates Azure Container Registry
+2. ✅ Deploys Azure OpenAI (AI Foundry) with GPT-4o model
+3. ✅ Builds and pushes the Docker image
+4. ✅ Creates Container App Environment
+5. ✅ Deploys the Container App with System-Assigned Managed Identity
+6. ✅ Assigns all required RBAC roles (Least-Privilege, READ-ONLY)
+7. ✅ Configures all environment variables automatically
 
-**Optional parameters:**
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `-Location` | `westeurope` | Azure region (e.g., `qatarcentral`, `eastus`) |
-| `-OpenAIResourceName` | Auto-generated | Custom name for the OpenAI resource |
-| `-ContainerAppName` | `cloudops-agent` | Custom name for the Container App |
-| `-SubscriptionId` | Current context | Target subscription for deployment |
-| `-EnableLogAnalytics` | `$false` | Enable Log Analytics workspace |
+**No manual configuration required — everything is 100% automated!**
 
 **Estimated deployment time: 10–15 minutes**
+
+### Deployment Parameters
+
+| Parameter | Required | Default | Description |
+|-----------|:--------:|---------|-------------|
+| `-ResourceGroupName` | ✅ | — | Name of the resource group to create/use |
+| `-ContainerRegistryName` | ✅ | — | Globally unique ACR name (lowercase, no dashes) |
+| `-EntraAppClientId` | ✅ | — | Entra ID Application (Client) ID |
+| `-EntraTenantId` | ✅ | — | Azure AD Tenant ID |
+| `-Location` | ❌ | `westeurope` | Azure region (e.g., `qatarcentral`, `eastus`) |
+| `-OpenAIResourceName` | ❌ | Auto-generated | Custom name for the OpenAI resource |
+| `-ContainerAppName` | ❌ | `cloudops-agent` | Custom name for the Container App |
+| `-SubscriptionId` | ❌ | Current context | Target subscription for deployment |
+| `-EnableLogAnalytics` | ❌ | `$false` | Enable Log Analytics workspace |
 
 ### Step 4: Post-Deployment
 
@@ -278,6 +289,72 @@ Follow the detailed guide in [docs/AZURE_AD_SETUP.md](docs/AZURE_AD_SETUP.md) to
    ```
 2. Assign RBAC roles to the Container App's Managed Identity (see [Post-Deployment RBAC](#-post-deployment-rbac))
 3. Access your application at `https://<your-container-app>.azurecontainerapps.io`
+
+---
+
+## 📋 Manual Deployment
+
+For environments where the automated script cannot be used, follow these manual steps.
+
+### Step 1: Create Azure Resources
+
+```bash
+# Set variables
+RESOURCE_GROUP="rg-cloudops-agent"
+LOCATION="westeurope"
+ACR_NAME="cloudopsagentacr"
+OPENAI_NAME="cloudops-openai"
+
+# Create Resource Group
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# Create Azure Container Registry
+az acr create --name $ACR_NAME --resource-group $RESOURCE_GROUP --sku Basic --admin-enabled true
+
+# Create Azure OpenAI
+az cognitiveservices account create \
+    --name $OPENAI_NAME \
+    --resource-group $RESOURCE_GROUP \
+    --location $LOCATION \
+    --kind OpenAI \
+    --sku S0
+
+# Deploy GPT-4o model
+az cognitiveservices account deployment create \
+    --name $OPENAI_NAME \
+    --resource-group $RESOURCE_GROUP \
+    --deployment-name "gpt-4o" \
+    --model-name "gpt-4o" \
+    --model-version "2024-05-13" \
+    --model-format OpenAI \
+    --sku-capacity 10 \
+    --sku-name "Standard"
+```
+
+### Step 2: Build and Deploy Container
+
+```bash
+# Build Docker image
+docker build -t cloudops-agent:latest .
+
+# Tag and push to ACR
+az acr login --name $ACR_NAME
+docker tag cloudops-agent:latest $ACR_NAME.azurecr.io/cloudops-agent:latest
+docker push $ACR_NAME.azurecr.io/cloudops-agent:latest
+
+# Deploy to Azure Container Apps
+az containerapp up \
+    --name cloudops-agent \
+    --resource-group $RESOURCE_GROUP \
+    --location $LOCATION \
+    --image $ACR_NAME.azurecr.io/cloudops-agent:latest \
+    --ingress external \
+    --target-port 8000
+```
+
+### Step 3: Configure Environment Variables
+
+Set the required environment variables on the Container App (see [Configuration](#-configuration) section below).
 
 ---
 
