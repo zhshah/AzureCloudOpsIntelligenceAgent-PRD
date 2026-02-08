@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2294,6 +2294,18 @@
                             <span class="prompt-icon">📊</span>
                             <span>Security compliance summary</span>
                         </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show security score breakdown by security control. Include: Control Name, Current Score, Max Score, Percentage, Healthy Resource Count, Unhealthy Resource Count.')">
+                            <span class="prompt-icon">🎯</span>
+                            <span>Security score breakdown</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show active security alerts from Microsoft Defender for Cloud. Include: Alert Name, Severity, Status, Affected Resource, Description.')">
+                            <span class="prompt-icon">🚨</span>
+                            <span>Active security alerts</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show regulatory compliance assessment status. Include compliance with standards like PCI DSS, ISO 27001, SOC 2, HIPAA.')">
+                            <span class="prompt-icon">📋</span>
+                            <span>Regulatory compliance status</span>
+                        </div>
                     </div>
                 </div>
 
@@ -2976,8 +2988,8 @@
                         <div class="welcome-category-card" onclick="showCategory('security')">
                             <span class="welcome-category-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security"></span>
                             <div class="welcome-category-title">Security & Compliance</div>
-                            <div class="welcome-category-desc">Defender, Policy compliance, public access audit</div>
-                            <div class="welcome-category-count">7 Quick Actions</div>
+                            <div class="welcome-category-desc">Defender, security score, alerts, compliance</div>
+                            <div class="welcome-category-count">10 Quick Actions</div>
                         </div>
                         <div class="welcome-category-card" onclick="showCategory('policy')">
                             <span class="welcome-category-icon"><img src="/Icons/management + governance/10316-icon-service-Policy.svg" alt="Policy"></span>

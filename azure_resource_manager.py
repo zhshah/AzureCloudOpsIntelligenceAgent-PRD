@@ -2625,3 +2625,765 @@ class AzureResourceManager:
         | take 100
         """
         return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # RBAC / IAM ROLE ASSIGNMENT FUNCTIONS
+    # ============================================================
+
+    def get_role_assignments_at_subscription(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all active role assignments at subscription level using Azure Resource Graph authorizationresources"""
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | extend roleDefinitionId = tostring(properties.roleDefinitionId)
+        | extend principalId = tostring(properties.principalId)
+        | extend principalType = tostring(properties.principalType)
+        | extend scope = tostring(properties.scope)
+        | extend createdOn = tostring(properties.createdOn)
+        | extend createdBy = tostring(properties.createdBy)
+        | extend updatedOn = tostring(properties.updatedOn)
+        | where scope matches regex "^/subscriptions/[^/]+$"
+        | project
+            RoleAssignmentId = id,
+            RoleDefinitionId = roleDefinitionId,
+            PrincipalId = principalId,
+            PrincipalType = principalType,
+            Scope = scope,
+            CreatedOn = createdOn,
+            CreatedBy = createdBy,
+            UpdatedOn = updatedOn
+        | order by PrincipalType asc, CreatedOn desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_role_assignments_at_management_group(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all active role assignments at management group level"""
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | extend roleDefinitionId = tostring(properties.roleDefinitionId)
+        | extend principalId = tostring(properties.principalId)
+        | extend principalType = tostring(properties.principalType)
+        | extend scope = tostring(properties.scope)
+        | extend createdOn = tostring(properties.createdOn)
+        | extend createdBy = tostring(properties.createdBy)
+        | where scope matches regex "^/providers/Microsoft.Management/managementGroups/"
+        | project
+            RoleAssignmentId = id,
+            RoleDefinitionId = roleDefinitionId,
+            PrincipalId = principalId,
+            PrincipalType = principalType,
+            Scope = scope,
+            CreatedOn = createdOn,
+            CreatedBy = createdBy
+        | order by PrincipalType asc, CreatedOn desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_role_assignments_at_resource_group(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all active role assignments at resource group level"""
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | extend roleDefinitionId = tostring(properties.roleDefinitionId)
+        | extend principalId = tostring(properties.principalId)
+        | extend principalType = tostring(properties.principalType)
+        | extend scope = tostring(properties.scope)
+        | extend createdOn = tostring(properties.createdOn)
+        | extend createdBy = tostring(properties.createdBy)
+        | where scope matches regex "^/subscriptions/[^/]+/resourceGroups/[^/]+$"
+        | project
+            RoleAssignmentId = id,
+            RoleDefinitionId = roleDefinitionId,
+            PrincipalId = principalId,
+            PrincipalType = principalType,
+            Scope = scope,
+            CreatedOn = createdOn,
+            CreatedBy = createdBy
+        | order by PrincipalType asc, CreatedOn desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_role_definitions(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all role definitions (built-in and custom) to map role names"""
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roledefinitions'
+        | extend roleName = tostring(properties.roleName)
+        | extend roleType = tostring(properties.type)
+        | extend description = tostring(properties.description)
+        | project
+            RoleDefinitionId = id,
+            RoleName = roleName,
+            RoleType = roleType,
+            Description = description
+        | order by RoleName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_role_assignments_privileged(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get privileged role assignments (Owner, Contributor, User Access Administrator) across all scopes"""
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | extend roleDefinitionId = tostring(properties.roleDefinitionId)
+        | extend principalId = tostring(properties.principalId)
+        | extend principalType = tostring(properties.principalType)
+        | extend scope = tostring(properties.scope)
+        | extend createdOn = tostring(properties.createdOn)
+        | extend createdBy = tostring(properties.createdBy)
+        | join kind=leftouter (
+            authorizationresources
+            | where type =~ 'microsoft.authorization/roledefinitions'
+            | extend roleName = tostring(properties.roleName)
+            | extend roleDefId = id
+            | project roleDefId, roleName
+        ) on $left.roleDefinitionId == $right.roleDefId
+        | where roleName in ('Owner', 'Contributor', 'User Access Administrator')
+        | project
+            PrincipalId = principalId,
+            PrincipalType = principalType,
+            RoleName = roleName,
+            Scope = scope,
+            CreatedOn = createdOn,
+            CreatedBy = createdBy
+        | order by RoleName asc, PrincipalType asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_rbac_summary(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get comprehensive RBAC summary with counts by scope, role type, and principal type"""
+        query = """
+        authorizationresources
+        | where type =~ 'microsoft.authorization/roleassignments'
+        | extend principalType = tostring(properties.principalType)
+        | extend scope = tostring(properties.scope)
+        | extend scopeLevel = case(
+            scope matches regex "^/providers/Microsoft.Management/managementGroups/", "Management Group",
+            scope matches regex "^/subscriptions/[^/]+$", "Subscription",
+            scope matches regex "^/subscriptions/[^/]+/resourceGroups/[^/]+$", "Resource Group",
+            "Resource"
+          )
+        | summarize Count = count() by scopeLevel, principalType
+        | order by scopeLevel asc, Count desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # MANAGEMENT GROUP & HIERARCHY FUNCTIONS
+    # ============================================================
+
+    def get_management_group_hierarchy(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get complete management group hierarchy structure using Management Groups API"""
+        try:
+            from azure.mgmt.managementgroups import ManagementGroupsAPI
+            from azure.identity import DefaultAzureCredential
+            
+            credential = DefaultAzureCredential()
+            mg_client = ManagementGroupsAPI(credential)
+            
+            hierarchy = []
+            
+            # Get all management groups
+            mg_list = list(mg_client.management_groups.list())
+            
+            def build_mg_tree(mg_id, depth=0, max_depth=5):
+                if depth >= max_depth:
+                    return None
+                try:
+                    mg_details = mg_client.management_groups.get(
+                        mg_id, expand="children", recurse=True
+                    )
+                    result = {
+                        "name": mg_details.display_name or mg_details.name,
+                        "id": mg_details.name,
+                        "type": "managementGroup",
+                        "children": []
+                    }
+                    if mg_details.children:
+                        for child in mg_details.children:
+                            if child.type and 'managementGroups' in child.type:
+                                child_tree = build_mg_tree(child.name, depth + 1)
+                                if child_tree:
+                                    result["children"].append(child_tree)
+                            elif child.type and 'subscriptions' in child.type:
+                                result["children"].append({
+                                    "name": child.display_name or child.name,
+                                    "id": child.name,
+                                    "type": "subscription"
+                                })
+                    return result
+                except Exception as e:
+                    return {"name": mg_id, "id": mg_id, "type": "managementGroup", "children": [], "error": str(e)}
+            
+            # Find root management group(s) and build tree from there
+            root_groups = [mg for mg in mg_list if not hasattr(mg, 'parent') or mg.parent is None or 
+                          (hasattr(mg.parent, 'id') and mg.parent.id is None)]
+            
+            if not root_groups and mg_list:
+                # If we can't find root, try building from each top-level group
+                root_groups = mg_list[:3]  # Limit to prevent over-fetching
+            
+            for mg in root_groups:
+                tree = build_mg_tree(mg.name)
+                if tree:
+                    hierarchy.append(tree)
+            
+            return {
+                "count": len(mg_list),
+                "total_management_groups": len(mg_list),
+                "hierarchy": hierarchy,
+                "management_groups": [{"name": mg.display_name or mg.name, "id": mg.name} for mg in mg_list]
+            }
+        except Exception as e:
+            return {"error": f"Failed to retrieve management group hierarchy: {str(e)}", "count": 0, "hierarchy": []}
+
+    # ============================================================
+    # SECURITY & DEFENDER FOR CLOUD FUNCTIONS
+    # ============================================================
+
+    def get_security_recommendations(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Microsoft Defender for Cloud security recommendations using Azure Resource Graph"""
+        query = """
+        securityresources
+        | where type =~ 'microsoft.security/assessments'
+        | extend status = tostring(properties.status.code)
+        | extend displayName = tostring(properties.displayName)
+        | extend severity = tostring(properties.metadata.severity)
+        | extend category = tostring(properties.metadata.categories[0])
+        | extend resourceId = tostring(properties.resourceDetails.Id)
+        | extend resourceType = tostring(split(resourceId, '/')[6])
+        | extend description = tostring(properties.metadata.description)
+        | extend remediationDescription = tostring(properties.metadata.remediationDescription)
+        | where status == 'Unhealthy'
+        | project
+            RecommendationName = displayName,
+            Severity = severity,
+            Category = category,
+            AffectedResource = resourceId,
+            ResourceType = resourceType,
+            Description = description,
+            Remediation = remediationDescription,
+            Status = status
+        | order by Severity asc, Category asc
+        | take 200
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_security_score_details(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get security score breakdown by security control using Azure Resource Graph"""
+        query = """
+        securityresources
+        | where type =~ 'microsoft.security/securescores/securescorecontrols'
+        | extend controlName = tostring(properties.displayName)
+        | extend currentScore = todouble(properties.score.current)
+        | extend maxScore = todouble(properties.score.max)
+        | extend percentage = iff(maxScore > 0, round(currentScore / maxScore * 100, 1), 0.0)
+        | extend healthyResources = toint(properties.healthyResourceCount)
+        | extend unhealthyResources = toint(properties.unhealthyResourceCount)
+        | extend notApplicable = toint(properties.notApplicableResourceCount)
+        | project
+            ControlName = controlName,
+            CurrentScore = currentScore,
+            MaxScore = maxScore,
+            Percentage = percentage,
+            HealthyResources = healthyResources,
+            UnhealthyResources = unhealthyResources,
+            NotApplicable = notApplicable
+        | order by Percentage asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_security_alerts(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get active security alerts from Microsoft Defender for Cloud"""
+        query = """
+        securityresources
+        | where type =~ 'microsoft.security/locations/alerts'
+        | extend alertName = tostring(properties.alertDisplayName)
+        | extend severity = tostring(properties.severity)
+        | extend status = tostring(properties.status)
+        | extend description = tostring(properties.description)
+        | extend startTime = tostring(properties.startTimeUtc)
+        | extend affectedResource = tostring(properties.compromisedEntity)
+        | extend alertType = tostring(properties.alertType)
+        | where status != 'Dismissed' and status != 'Resolved'
+        | project
+            AlertName = alertName,
+            Severity = severity,
+            Status = status,
+            Description = description,
+            StartTime = startTime,
+            AffectedResource = affectedResource,
+            AlertType = alertType
+        | order by Severity asc, StartTime desc
+        | take 100
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_regulatory_compliance(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get regulatory compliance assessment status"""
+        query = """
+        securityresources
+        | where type =~ 'microsoft.security/regulatorycompliancestandards'
+        | extend standardName = tostring(properties.displayName)
+        | extend state = tostring(properties.state)
+        | extend passedControls = toint(properties.passedControls)
+        | extend failedControls = toint(properties.failedControls)
+        | extend skippedControls = toint(properties.skippedControls)
+        | extend unsupportedControls = toint(properties.unsupportedControls)
+        | project
+            StandardName = standardName,
+            State = state,
+            PassedControls = passedControls,
+            FailedControls = failedControls,
+            SkippedControls = skippedControls,
+            UnsupportedControls = unsupportedControls
+        | order by StandardName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # PRIVATE DNS ZONE FUNCTIONS
+    # ============================================================
+
+    def get_private_dns_zones(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Private DNS Zones with details"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/privatednszones'
+        | extend recordCount = toint(properties.numberOfRecordSets)
+        | extend vnetLinkCount = toint(properties.numberOfVirtualNetworkLinks)
+        | extend autoRegistration = toint(properties.numberOfVirtualNetworkLinksWithRegistration)
+        | extend maxRecordSets = toint(properties.maxNumberOfRecordSets)
+        | project
+            ZoneName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            RecordCount = recordCount,
+            VNetLinks = vnetLinkCount,
+            AutoRegistrationLinks = autoRegistration,
+            MaxRecordSets = maxRecordSets,
+            SubscriptionId = subscriptionId,
+            Tags = tags
+        | order by ZoneName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_private_dns_vnet_links(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get VNet links for Private DNS Zones"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/privatednszones/virtualnetworklinks'
+        | extend zoneName = tostring(split(id, '/')[8])
+        | extend linkName = name
+        | extend registrationEnabled = tostring(properties.registrationEnabled)
+        | extend vnetId = tostring(properties.virtualNetwork.id)
+        | extend provisioningState = tostring(properties.provisioningState)
+        | project
+            ZoneName = zoneName,
+            LinkName = linkName,
+            RegistrationEnabled = registrationEnabled,
+            VNetId = vnetId,
+            ProvisioningState = provisioningState,
+            ResourceGroup = resourceGroup
+        | order by ZoneName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_private_endpoints(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Private Endpoints with details"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/privateendpoints'
+        | extend targetServiceId = tostring(properties.privateLinkServiceConnections[0].properties.privateLinkServiceId)
+        | extend targetServiceType = tostring(split(targetServiceId, '/')[6])
+        | extend targetServiceName = tostring(split(targetServiceId, '/')[8])
+        | extend connectionStatus = tostring(properties.privateLinkServiceConnections[0].properties.privateLinkServiceConnectionState.status)
+        | extend subnetId = tostring(properties.subnet.id)
+        | extend vnetName = tostring(split(subnetId, '/')[8])
+        | extend subnetName = tostring(split(subnetId, '/')[10])
+        | mv-expand ipConfig = properties.customDnsConfigs
+        | extend privateIp = tostring(ipConfig.ipAddresses[0])
+        | extend fqdn = tostring(ipConfig.fqdn)
+        | project
+            EndpointName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            TargetServiceType = targetServiceType,
+            TargetServiceName = targetServiceName,
+            ConnectionStatus = connectionStatus,
+            VNetName = vnetName,
+            SubnetName = subnetName,
+            PrivateIP = privateIp,
+            FQDN = fqdn,
+            SubscriptionId = subscriptionId
+        | order by TargetServiceType asc, EndpointName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # NETWORK SECURITY GROUPS DETAILED
+    # ============================================================
+
+    def get_nsgs_with_rules(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all NSGs with their security rules for analysis"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/networksecuritygroups'
+        | mv-expand rules = properties.securityRules
+        | extend ruleName = tostring(rules.name)
+        | extend direction = tostring(rules.properties.direction)
+        | extend access = tostring(rules.properties.access)
+        | extend priority = toint(rules.properties.priority)
+        | extend sourceAddress = tostring(rules.properties.sourceAddressPrefix)
+        | extend destinationPort = tostring(rules.properties.destinationPortRange)
+        | extend protocol = tostring(rules.properties.protocol)
+        | extend subnetCount = array_length(properties.subnets)
+        | extend nicCount = array_length(properties.networkInterfaces)
+        | project
+            NSGName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            RuleName = ruleName,
+            Direction = direction,
+            Access = access,
+            Priority = priority,
+            SourceAddress = sourceAddress,
+            DestinationPort = destinationPort,
+            Protocol = protocol,
+            SubnetAssociations = subnetCount,
+            NICAssociations = nicCount
+        | order by NSGName asc, Priority asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_nsgs_risky_rules(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get NSGs with risky rules (Any source, exposed sensitive ports)"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/networksecuritygroups'
+        | mv-expand rules = properties.securityRules
+        | extend ruleName = tostring(rules.name)
+        | extend direction = tostring(rules.properties.direction)
+        | extend access = tostring(rules.properties.access)
+        | extend priority = toint(rules.properties.priority)
+        | extend sourceAddress = tostring(rules.properties.sourceAddressPrefix)
+        | extend destinationPort = tostring(rules.properties.destinationPortRange)
+        | extend protocol = tostring(rules.properties.protocol)
+        | where access == 'Allow' and direction == 'Inbound'
+        | where sourceAddress in ('*', '0.0.0.0/0', 'Internet', 'Any')
+            or destinationPort in ('3389', '22', '1433', '445', '23', '5985', '5986')
+            or destinationPort == '*'
+        | project
+            NSGName = name,
+            ResourceGroup = resourceGroup,
+            RuleName = ruleName,
+            Priority = priority,
+            SourceAddress = sourceAddress,
+            DestinationPort = destinationPort,
+            Protocol = protocol,
+            RiskLevel = case(
+                destinationPort == '*' and sourceAddress in ('*', '0.0.0.0/0', 'Internet', 'Any'), 'CRITICAL',
+                sourceAddress in ('*', '0.0.0.0/0', 'Internet', 'Any') and destinationPort in ('3389', '22'), 'HIGH',
+                sourceAddress in ('*', '0.0.0.0/0', 'Internet', 'Any'), 'MEDIUM',
+                'LOW'
+            )
+        | order by RiskLevel asc, Priority asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # LOAD BALANCERS
+    # ============================================================
+
+    def get_load_balancers(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Load Balancers with details"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/loadbalancers'
+        | extend sku = tostring(properties.sku.name)
+        | extend frontendCount = array_length(properties.frontendIPConfigurations)
+        | extend backendCount = array_length(properties.backendAddressPools)
+        | extend probeCount = array_length(properties.probes)
+        | extend ruleCount = array_length(properties.loadBalancingRules)
+        | extend lbType = iff(
+            array_length(properties.frontendIPConfigurations) > 0 and 
+            isnotempty(properties.frontendIPConfigurations[0].properties.publicIPAddress),
+            'Public', 'Internal')
+        | project
+            LBName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            SKU = sku,
+            Type = lbType,
+            FrontendIPs = frontendCount,
+            BackendPools = backendCount,
+            Probes = probeCount,
+            Rules = ruleCount,
+            SubscriptionId = subscriptionId,
+            Tags = tags
+        | order by LBName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # VPN & EXPRESSROUTE GATEWAYS
+    # ============================================================
+
+    def get_vpn_gateways(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all VPN Gateways"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/virtualnetworkgateways'
+        | extend gatewayType = tostring(properties.gatewayType)
+        | extend vpnType = tostring(properties.vpnType)
+        | extend sku = tostring(properties.sku.name)
+        | extend activeActive = tostring(properties.activeActive)
+        | extend bgpEnabled = tostring(properties.enableBgp)
+        | extend provisioningState = tostring(properties.provisioningState)
+        | project
+            GatewayName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            GatewayType = gatewayType,
+            VPNType = vpnType,
+            SKU = sku,
+            ActiveActive = activeActive,
+            BGPEnabled = bgpEnabled,
+            ProvisioningState = provisioningState,
+            SubscriptionId = subscriptionId
+        | order by GatewayName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_expressroute_circuits(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all ExpressRoute circuits"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/expressroutecircuits'
+        | extend serviceProvider = tostring(properties.serviceProviderProperties.serviceProviderName)
+        | extend peeringLocation = tostring(properties.serviceProviderProperties.peeringLocation)
+        | extend bandwidth = tostring(properties.serviceProviderProperties.bandwidthInMbps)
+        | extend skuTier = tostring(properties.sku.tier)
+        | extend skuFamily = tostring(properties.sku.family)
+        | extend circuitState = tostring(properties.circuitProvisioningState)
+        | extend providerState = tostring(properties.serviceProviderProvisioningState)
+        | project
+            CircuitName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            ServiceProvider = serviceProvider,
+            PeeringLocation = peeringLocation,
+            Bandwidth = bandwidth,
+            SKUTier = skuTier,
+            SKUFamily = skuFamily,
+            CircuitState = circuitState,
+            ProviderState = providerState,
+            SubscriptionId = subscriptionId
+        | order by CircuitName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # WAF POLICIES & APPLICATION GATEWAYS
+    # ============================================================
+
+    def get_waf_policies(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Web Application Firewall policies"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/applicationgatewaywebapplicationfirewallpolicies'
+            or type =~ 'microsoft.network/frontdoorwebapplicationfirewallpolicies'
+        | extend policyMode = tostring(properties.policySettings.mode)
+        | extend managedRuleCount = array_length(properties.managedRules.managedRuleSets)
+        | extend customRuleCount = array_length(properties.customRules)
+        | project
+            PolicyName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            Type = type,
+            Mode = policyMode,
+            ManagedRuleSets = managedRuleCount,
+            CustomRules = customRuleCount,
+            SubscriptionId = subscriptionId
+        | order by PolicyName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_application_gateways(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Application Gateways with details"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/applicationgateways'
+        | extend sku = tostring(properties.sku.name)
+        | extend tier = tostring(properties.sku.tier)
+        | extend capacity = toint(properties.sku.capacity)
+        | extend wafEnabled = isnotempty(properties.webApplicationFirewallConfiguration)
+        | extend frontendCount = array_length(properties.frontendIPConfigurations)
+        | extend backendPoolCount = array_length(properties.backendAddressPools)
+        | extend listenerCount = array_length(properties.httpListeners)
+        | extend probeCount = array_length(properties.probes)
+        | extend operationalState = tostring(properties.operationalState)
+        | project
+            GatewayName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            SKU = sku,
+            Tier = tier,
+            Capacity = capacity,
+            WAFEnabled = wafEnabled,
+            FrontendIPs = frontendCount,
+            BackendPools = backendPoolCount,
+            Listeners = listenerCount,
+            Probes = probeCount,
+            OperationalState = operationalState,
+            SubscriptionId = subscriptionId
+        | order by GatewayName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # AZURE FIREWALL
+    # ============================================================
+
+    def get_azure_firewalls(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Azure Firewalls"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/azurefirewalls'
+        | extend sku = tostring(properties.sku.name)
+        | extend tier = tostring(properties.sku.tier)
+        | extend threatIntelMode = tostring(properties.threatIntelMode)
+        | extend provisioningState = tostring(properties.provisioningState)
+        | extend firewallPolicyId = tostring(properties.firewallPolicy.id)
+        | extend firewallPolicyName = tostring(split(firewallPolicyId, '/')[8])
+        | extend publicIpCount = array_length(properties.ipConfigurations)
+        | project
+            FirewallName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            SKU = sku,
+            Tier = tier,
+            ThreatIntelMode = threatIntelMode,
+            FirewallPolicy = firewallPolicyName,
+            PublicIPs = publicIpCount,
+            ProvisioningState = provisioningState,
+            SubscriptionId = subscriptionId
+        | order by FirewallName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # VIRTUAL WAN
+    # ============================================================
+
+    def get_virtual_wans(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Virtual WANs and Hubs"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/virtualwans'
+            or type =~ 'microsoft.network/virtualhubs'
+        | extend wanType = iff(type =~ 'microsoft.network/virtualwans', 'Virtual WAN', 'Virtual Hub')
+        | extend sku = tostring(properties.sku)
+        | extend provisioningState = tostring(properties.provisioningState)
+        | extend addressPrefix = tostring(properties.addressPrefix)
+        | project
+            Name = name,
+            Type = wanType,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            SKU = sku,
+            AddressPrefix = addressPrefix,
+            ProvisioningState = provisioningState,
+            SubscriptionId = subscriptionId
+        | order by Type asc, Name asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # FRONT DOOR & TRAFFIC MANAGER
+    # ============================================================
+
+    def get_front_doors(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Azure Front Door profiles"""
+        query = """
+        resources
+        | where type =~ 'microsoft.cdn/profiles' or type =~ 'microsoft.network/frontdoors'
+        | extend sku = tostring(properties.sku.name)
+        | extend provisioningState = tostring(properties.provisioningState)
+        | project
+            FrontDoorName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            Type = type,
+            SKU = sku,
+            ProvisioningState = provisioningState,
+            SubscriptionId = subscriptionId
+        | order by FrontDoorName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_traffic_manager_profiles(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get all Traffic Manager profiles"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/trafficmanagerprofiles'
+        | extend routingMethod = tostring(properties.trafficRoutingMethod)
+        | extend dnsName = tostring(properties.dnsConfig.relativeName)
+        | extend ttl = toint(properties.dnsConfig.ttl)
+        | extend monitorProtocol = tostring(properties.monitorConfig.protocol)
+        | extend monitorPort = toint(properties.monitorConfig.port)
+        | extend endpointCount = array_length(properties.endpoints)
+        | extend profileStatus = tostring(properties.profileStatus)
+        | project
+            ProfileName = name,
+            ResourceGroup = resourceGroup,
+            RoutingMethod = routingMethod,
+            DNSName = dnsName,
+            TTL = ttl,
+            MonitorProtocol = monitorProtocol,
+            MonitorPort = monitorPort,
+            EndpointCount = endpointCount,
+            ProfileStatus = profileStatus,
+            SubscriptionId = subscriptionId
+        | order by ProfileName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ============================================================
+    # NETWORK WATCHER & DDOS
+    # ============================================================
+
+    def get_network_watchers(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Network Watcher status by region"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/networkwatchers'
+        | extend provisioningState = tostring(properties.provisioningState)
+        | project
+            Name = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            ProvisioningState = provisioningState,
+            SubscriptionId = subscriptionId
+        | order by Location asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_ddos_protection_plans(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get DDoS Protection Plans"""
+        query = """
+        resources
+        | where type =~ 'microsoft.network/ddosprotectionplans'
+        | extend vnetCount = array_length(properties.virtualNetworks)
+        | extend provisioningState = tostring(properties.provisioningState)
+        | project
+            PlanName = name,
+            ResourceGroup = resourceGroup,
+            Location = location,
+            ProtectedVNets = vnetCount,
+            ProvisioningState = provisioningState,
+            SubscriptionId = subscriptionId
+        | order by PlanName asc
+        """
+        return self.query_resources(query, subscriptions)

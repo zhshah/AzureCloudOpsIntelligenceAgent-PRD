@@ -1979,6 +1979,156 @@ class OpenAIAgent:
                         }
                     }
                 }
+            },
+            # ============================================================
+            # RBAC / IAM ROLE ASSIGNMENT TOOL (consolidated)
+            # ============================================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_rbac_info",
+                    "description": "Get RBAC / IAM role assignment information. Supports multiple query types: subscription_assignments (role assignments at subscription scope), management_group_assignments (role assignments at MG scope), resource_group_assignments (RG scope), role_definitions (all built-in and custom role definitions), privileged_assignments (Owner/Contributor/User Access Admin across all scopes), summary (RBAC dashboard with counts by scope/principal type). Use when user asks about role assignments, RBAC, IAM, access control, privileged access, or role definitions.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query_type": {
+                                "type": "string",
+                                "enum": ["subscription_assignments", "management_group_assignments", "resource_group_assignments", "role_definitions", "privileged_assignments", "summary"],
+                                "description": "Type of RBAC query to execute."
+                            },
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        },
+                        "required": ["query_type"]
+                    }
+                }
+            },
+            # ============================================================
+            # MANAGEMENT GROUP HIERARCHY TOOL
+            # ============================================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_management_group_hierarchy",
+                    "description": "Get complete Management Group hierarchy and structure including all child management groups and subscriptions. Use when user asks about management group hierarchy, landing zone structure, subscription organization, or CAF management groups.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        }
+                    }
+                }
+            },
+            # ============================================================
+            # SECURITY & DEFENDER FOR CLOUD TOOL (consolidated)
+            # ============================================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_security_info",
+                    "description": "Get Microsoft Defender for Cloud security information. Supports: recommendations (unhealthy assessments with severity, category, remediation), score_details (security score breakdown by control with healthy/unhealthy counts), alerts (active security alerts with severity and affected resources), regulatory_compliance (compliance status for PCI DSS, ISO 27001, SOC 2, HIPAA). Use when user asks about security recommendations, security score, security alerts, compliance, Defender for Cloud, or security posture.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query_type": {
+                                "type": "string",
+                                "enum": ["recommendations", "score_details", "alerts", "regulatory_compliance"],
+                                "description": "Type of security query to execute."
+                            },
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        },
+                        "required": ["query_type"]
+                    }
+                }
+            },
+            # ============================================================
+            # PRIVATE DNS & PRIVATE ENDPOINTS TOOL (consolidated)
+            # ============================================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_private_networking",
+                    "description": "Get Private DNS and Private Endpoint information. Supports: dns_zones (all Private DNS zones with record count, VNet links, auto-registration), vnet_links (VNet links for DNS zones with auto-registration status), private_endpoints (all Private Endpoints with target service, connection status, private IP). Use when user asks about private DNS zones, DNS VNet links, private endpoints, or private connectivity.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query_type": {
+                                "type": "string",
+                                "enum": ["dns_zones", "vnet_links", "private_endpoints"],
+                                "description": "Type of private networking query."
+                            },
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        },
+                        "required": ["query_type"]
+                    }
+                }
+            },
+            # ============================================================
+            # NSG TOOL (consolidated)
+            # ============================================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_nsg_info",
+                    "description": "Get Network Security Group information. Supports: all_rules (all NSGs with full security rules for analysis), risky_rules (NSGs with dangerous rules - any source 0.0.0.0/0, exposed RDP/SSH/SQL/SMB ports with risk levels). Use when user asks about NSGs, security rules, exposed ports, or risky network rules.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query_type": {
+                                "type": "string",
+                                "enum": ["all_rules", "risky_rules"],
+                                "description": "Type of NSG query."
+                            },
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        },
+                        "required": ["query_type"]
+                    }
+                }
+            },
+            # ============================================================
+            # NETWORK INFRASTRUCTURE TOOL (consolidated)
+            # ============================================================
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_network_infrastructure",
+                    "description": "Get network infrastructure resources. Supports: load_balancers (all LBs with SKU, type, frontend IPs, backend pools), vpn_gateways (VPN gateways with type, SKU, BGP), expressroute (ExpressRoute circuits with provider, bandwidth, SKU), waf_policies (WAF policies with mode, rules), application_gateways (App Gateways with SKU, WAF, listeners), azure_firewalls (Firewalls with SKU, threat intel, policy), virtual_wans (vWAN and hubs), front_doors (Front Door profiles with SKU), traffic_manager (profiles with routing method, endpoints), network_watchers (status by region), ddos_protection (DDoS plans with protected VNet count). Use when user asks about any network infrastructure component.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "resource_type": {
+                                "type": "string",
+                                "enum": ["load_balancers", "vpn_gateways", "expressroute", "waf_policies", "application_gateways", "azure_firewalls", "virtual_wans", "front_doors", "traffic_manager", "network_watchers", "ddos_protection"],
+                                "description": "Type of network infrastructure resource to query."
+                            },
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        },
+                        "required": ["resource_type"]
+                    }
+                }
             }
         ]
         
@@ -3335,6 +3485,111 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                     subscriptions=arguments.get("subscriptions")
                 )
                 return self._cache_query_results(result, "backup_jobs_failed")
+            
+            # ============================================================
+            # RBAC / IAM ROLE ASSIGNMENT FUNCTIONS (consolidated)
+            # ============================================================
+            elif function_name == "get_rbac_info":
+                query_type = arguments.get("query_type", "summary")
+                subs = arguments.get("subscriptions")
+                dispatch_map = {
+                    "subscription_assignments": ("get_role_assignments_at_subscription", "role_assignments_subscription"),
+                    "management_group_assignments": ("get_role_assignments_at_management_group", "role_assignments_mg"),
+                    "resource_group_assignments": ("get_role_assignments_at_resource_group", "role_assignments_rg"),
+                    "role_definitions": ("get_role_definitions", "role_definitions"),
+                    "privileged_assignments": ("get_role_assignments_privileged", "role_assignments_privileged"),
+                    "summary": ("get_rbac_summary", "rbac_summary"),
+                }
+                if query_type in dispatch_map:
+                    method_name, cache_key = dispatch_map[query_type]
+                    result = getattr(self.resource_manager, method_name)(subscriptions=subs)
+                    return self._cache_query_results(result, cache_key)
+                return {"error": f"Unknown RBAC query_type: {query_type}"}
+            
+            # ============================================================
+            # MANAGEMENT GROUP HIERARCHY
+            # ============================================================
+            elif function_name == "get_management_group_hierarchy":
+                result = self.resource_manager.get_management_group_hierarchy(
+                    subscriptions=arguments.get("subscriptions")
+                )
+                return self._cache_query_results(result, "management_group_hierarchy")
+            
+            # ============================================================
+            # SECURITY & DEFENDER FOR CLOUD (consolidated)
+            # ============================================================
+            elif function_name == "get_security_info":
+                query_type = arguments.get("query_type", "recommendations")
+                subs = arguments.get("subscriptions")
+                dispatch_map = {
+                    "recommendations": ("get_security_recommendations", "security_recommendations"),
+                    "score_details": ("get_security_score_details", "security_score_details"),
+                    "alerts": ("get_security_alerts", "security_alerts"),
+                    "regulatory_compliance": ("get_regulatory_compliance", "regulatory_compliance"),
+                }
+                if query_type in dispatch_map:
+                    method_name, cache_key = dispatch_map[query_type]
+                    result = getattr(self.resource_manager, method_name)(subscriptions=subs)
+                    return self._cache_query_results(result, cache_key)
+                return {"error": f"Unknown security query_type: {query_type}"}
+            
+            # ============================================================
+            # PRIVATE DNS & PRIVATE ENDPOINTS (consolidated)
+            # ============================================================
+            elif function_name == "get_private_networking":
+                query_type = arguments.get("query_type", "dns_zones")
+                subs = arguments.get("subscriptions")
+                dispatch_map = {
+                    "dns_zones": ("get_private_dns_zones", "private_dns_zones"),
+                    "vnet_links": ("get_private_dns_vnet_links", "private_dns_vnet_links"),
+                    "private_endpoints": ("get_private_endpoints", "private_endpoints"),
+                }
+                if query_type in dispatch_map:
+                    method_name, cache_key = dispatch_map[query_type]
+                    result = getattr(self.resource_manager, method_name)(subscriptions=subs)
+                    return self._cache_query_results(result, cache_key)
+                return {"error": f"Unknown private networking query_type: {query_type}"}
+            
+            # ============================================================
+            # NSG FUNCTIONS (consolidated)
+            # ============================================================
+            elif function_name == "get_nsg_info":
+                query_type = arguments.get("query_type", "all_rules")
+                subs = arguments.get("subscriptions")
+                dispatch_map = {
+                    "all_rules": ("get_nsgs_with_rules", "nsgs_with_rules"),
+                    "risky_rules": ("get_nsgs_risky_rules", "nsgs_risky_rules"),
+                }
+                if query_type in dispatch_map:
+                    method_name, cache_key = dispatch_map[query_type]
+                    result = getattr(self.resource_manager, method_name)(subscriptions=subs)
+                    return self._cache_query_results(result, cache_key)
+                return {"error": f"Unknown NSG query_type: {query_type}"}
+            
+            # ============================================================
+            # NETWORK INFRASTRUCTURE (consolidated)
+            # ============================================================
+            elif function_name == "get_network_infrastructure":
+                resource_type = arguments.get("resource_type", "load_balancers")
+                subs = arguments.get("subscriptions")
+                dispatch_map = {
+                    "load_balancers": ("get_load_balancers", "load_balancers"),
+                    "vpn_gateways": ("get_vpn_gateways", "vpn_gateways"),
+                    "expressroute": ("get_expressroute_circuits", "expressroute_circuits"),
+                    "waf_policies": ("get_waf_policies", "waf_policies"),
+                    "application_gateways": ("get_application_gateways", "application_gateways"),
+                    "azure_firewalls": ("get_azure_firewalls", "azure_firewalls"),
+                    "virtual_wans": ("get_virtual_wans", "virtual_wans"),
+                    "front_doors": ("get_front_doors", "front_doors"),
+                    "traffic_manager": ("get_traffic_manager_profiles", "traffic_manager_profiles"),
+                    "network_watchers": ("get_network_watchers", "network_watchers"),
+                    "ddos_protection": ("get_ddos_protection_plans", "ddos_protection_plans"),
+                }
+                if resource_type in dispatch_map:
+                    method_name, cache_key = dispatch_map[resource_type]
+                    result = getattr(self.resource_manager, method_name)(subscriptions=subs)
+                    return self._cache_query_results(result, cache_key)
+                return {"error": f"Unknown network resource_type: {resource_type}"}
             
             else:
                 return {"error": f"Unknown function: {function_name}"}
