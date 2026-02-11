@@ -20,6 +20,7 @@ An enterprise-grade AI agent that transforms Azure cloud operations through natu
 - [29 Operational Categories](#-29-operational-categories)
 - [Prerequisites](#-prerequisites)
 - [Quick Start — Automated Deployment](#-quick-start--automated-deployment)
+- [Private (Internal-Only) Deployment](#-private-internal-only-deployment)
 - [Manual Deployment](#-manual-deployment)
 - [Configuration](#-configuration)
 - [Post-Deployment RBAC](#-post-deployment-rbac)
@@ -328,6 +329,10 @@ After the model is deployed, the script waits for stabilisation and then attempt
 | `-ContainerAppName` | ❌ | `cloudops-agent` | Custom name for the Container App |
 | `-SubscriptionId` | ❌ | Current context | Target subscription — script validates and asks for confirmation before deploying |
 | `-EnableLogAnalytics` | ❌ | `$false` | Enable Log Analytics workspace |
+| `-DeploymentMode` | ❌ | `Public` | `Public` (internet-accessible) or `Private` (VNet-integrated, internal-only) |
+| `-VNetResourceGroupName` | ⚠️ | — | Resource group containing the existing VNet (**required for Private mode**) |
+| `-VNetName` | ⚠️ | — | Existing VNet name to deploy into (**required for Private mode**) |
+| `-SubnetName` | ⚠️ | — | Subnet for Container Apps Environment (**required for Private mode**, see subnet requirements below) |
 
 ### Step 4: After Deployment — Add Redirect URI
 
@@ -343,7 +348,165 @@ After deployment completes, you'll receive the application URL. Then:
 
 ---
 
-## 📋 Manual Deployment
+## � Private (Internal-Only) Deployment
+
+For enterprise customers who require the application to run **entirely within their private network** — with no public endpoint exposed — the deployment script supports a **Private deployment mode** that integrates the Container App into your existing VNet.
+
+> **🔑 Key Point:** In Private mode, the application is accessible **only from within your corporate network** (VPN, ExpressRoute, or VNet-peered resources). No traffic goes over the public internet.
+
+### Why Private Deployment?
+
+| Concern | Private Mode Solution |
+|---------|----------------------|
+| **Data Sovereignty** | All traffic stays within your Azure VNet |
+| **Compliance** | Meets regulatory requirements for internal-only access |
+| **Zero Public Exposure** | No public FQDN — Container App has internal-only ingress |
+| **Network Isolation** | Deployed inside your VNet with subnet delegation |
+| **Enterprise Security** | Access only via VPN, ExpressRoute, or VNet-peered resources |
+
+### Prerequisites for Private Deployment
+
+Before running the script in Private mode, ensure you have:
+
+1. **An existing VNet** in the same region as your deployment
+2. **A dedicated subnet** for the Container Apps Environment with:
+   - Minimum size: `/27` (32 addresses) — **Recommended: `/23`** (512 addresses) for production
+   - No other resources deployed in the subnet
+   - Subnet delegation to `Microsoft.App/environments` (the script can apply this automatically)
+3. **Network connectivity** from your users to the VNet (VPN Gateway, ExpressRoute, or peered VNets)
+
+### Private Deployment Command
+
+```powershell
+.\deploy-automated.ps1 `
+    -ResourceGroupName "rg-cloudops-agent" `
+    -Location "westeurope" `
+    -ContainerRegistryName "youracrname" `
+    -EntraAppClientId "<your-entra-app-client-id>" `
+    -EntraTenantId "<your-entra-tenant-id>" `
+    -SubscriptionId "<your-subscription-id>" `
+    -DeploymentMode "Private" `
+    -VNetResourceGroupName "rg-networking" `
+    -VNetName "corp-vnet" `
+    -SubnetName "container-apps-subnet"
+```
+
+### What the Script Does in Private Mode
+
+The script performs these additional validations and configurations:
+
+| Step | Action |
+|------|--------|
+| **VNet Validation** | Verifies the VNet exists and is accessible |
+| **Subnet Validation** | Checks subnet exists, verifies size (minimum /27), warns if smaller than /23 |
+| **Region Matching** | Auto-adjusts deployment region if VNet is in a different region |
+| **Subnet Delegation** | Checks for `Microsoft.App/environments` delegation — offers to apply it automatically if missing |
+| **Internal Environment** | Creates Container Apps Environment with `--internal-only` flag + VNet integration |
+| **Internal Ingress** | Configures Container App ingress as `internal` (no public endpoint) |
+| **DNS Guidance** | Provides Private DNS Zone setup instructions for name resolution |
+
+### Subnet Delegation
+
+Azure Container Apps requires the subnet to be **delegated** to `Microsoft.App/environments`. The script will:
+
+- ✅ **Detect** if the delegation already exists → proceed automatically
+- ⚠️ **Prompt to apply** if no delegation exists → applies with your confirmation
+- ❌ **Block** if the subnet has a different delegation → asks you to use another subnet
+
+To apply delegation manually:
+```bash
+az network vnet subnet update \
+    --name container-apps-subnet \
+    --vnet-name corp-vnet \
+    --resource-group rg-networking \
+    --delegations Microsoft.App/environments
+```
+
+### Accessing the Application (Private Mode)
+
+After private deployment, the app URL (e.g., `https://cloudops-agent.internal.<domain>`) is **only resolvable from within the VNet**. Choose one of these access methods:
+
+#### Option 1: Azure Private DNS Zone (Recommended)
+
+Create a Private DNS Zone linked to your VNet for seamless name resolution:
+
+```bash
+# Create Private DNS Zone (use the defaultDomain from deployment output)
+az network private-dns zone create \
+    --resource-group rg-networking \
+    --name "<environment-default-domain>"
+
+# Add wildcard A record pointing to the environment's static IP
+az network private-dns record-set a add-record \
+    --resource-group rg-networking \
+    --zone-name "<environment-default-domain>" \
+    --record-set-name "*" \
+    --ipv4-address "<environment-static-ip>"
+
+# Link DNS Zone to your VNet
+az network private-dns link vnet create \
+    --resource-group rg-networking \
+    --zone-name "<environment-default-domain>" \
+    --name vnet-dns-link \
+    --virtual-network <vnet-resource-id> \
+    --registration-enabled false
+```
+
+#### Option 2: Jumpbox / Bastion
+
+- RDP/SSH to a VM (jumpbox) in the same VNet or a peered VNet
+- Open a browser and navigate to the internal URL
+- Azure Bastion can provide secure browser-based access without public IPs
+
+#### Option 3: VPN / ExpressRoute
+
+- Connect from your on-premises network via VPN Gateway or ExpressRoute
+- Configure DNS forwarding to resolve the Container App's internal FQDN
+- Users on the corporate network can access the app as if it were an internal application
+
+### Network Architecture — Private Deployment
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     Your Corporate VNet                                 │
+│                                                                         │
+│  ┌──────────────────┐     ┌──────────────────────────────────────────┐  │
+│  │  Subnet:         │     │  Subnet: container-apps-subnet           │  │
+│  │  jumpbox / VMs   │     │  (Delegated: Microsoft.App/environments) │  │
+│  │                  │     │                                          │  │
+│  │  ┌────────────┐  │     │  ┌──────────────────────────────────┐   │  │
+│  │  │ Jumpbox VM │──│─────│──│  Container Apps Environment      │   │  │
+│  │  └────────────┘  │     │  │  (Internal Only)                 │   │  │
+│  │                  │     │  │                                  │   │  │
+│  │                  │     │  │  ┌────────────────────────────┐  │   │  │
+│  │                  │     │  │  │  CloudOps Intelligence     │  │   │  │
+│  │                  │     │  │  │  Agent (Container App)     │  │   │  │
+│  │                  │     │  │  │  Internal Ingress Only     │  │   │  │
+│  │                  │     │  │  └────────────────────────────┘  │   │  │
+│  │                  │     │  └──────────────────────────────────┘   │  │
+│  └──────────────────┘     └──────────────────────────────────────────┘  │
+│                                                                         │
+│  ┌──────────────────┐     ┌──────────────────┐                         │
+│  │ Private DNS Zone │     │ Azure OpenAI     │                         │
+│  │ (Name Resolution)│     │ (Managed Identity)│                         │
+│  └──────────────────┘     └──────────────────┘                         │
+│                                                                         │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │
+               ┌────────────────┴───────────────────┐
+               │   VPN Gateway / ExpressRoute        │
+               │   (On-Premises Connectivity)        │
+               └────────────────┬───────────────────┘
+                                │
+               ┌────────────────┴───────────────────┐
+               │   Corporate Users                   │
+               │   (Internal Network Access Only)    │
+               └────────────────────────────────────┘
+```
+
+---
+
+## �📋 Manual Deployment
 
 For environments where the automated script cannot be used, follow these manual steps.
 
@@ -491,24 +654,29 @@ az role assignment create \
 - **Managed Identity** — All Azure API calls use `DefaultAzureCredential`; zero stored credentials
 - **Conditional Access** — Supports Entra ID conditional access policies
 - **Audit Logging** — Full audit trail via Azure Monitor and Log Analytics
-- **Private Endpoint Ready** — Container App and Azure OpenAI can be deployed with private endpoints for network isolation
+- **Private Endpoint Ready** — Container App and Azure OpenAI can be deployed with private endpoints for network isolation. See [Private (Internal-Only) Deployment](#-private-internal-only-deployment) for automated VNet-integrated deployment.
 - **RBAC** — Fine-grained access control via Azure role assignments
 
 ### Network Architecture Options
 
+The deployment script supports both modes natively via the `-DeploymentMode` parameter:
+
 ```
-Option 1: Public Endpoint (Default)
+Option 1: Public Endpoint (-DeploymentMode "Public" — Default)
 ┌──────────────┐     ┌──────────────────┐
 │   Users      │────▶│  Container App   │
 │  (Internet)  │     │  (Public FQDN)   │
 └──────────────┘     └──────────────────┘
 
-Option 2: Private Endpoint (Enterprise)
-┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│   Users      │────▶│  App Gateway /   │────▶│  Container App   │
-│  (VPN/ER)    │     │  Front Door      │     │  (Private VNet)  │
-└──────────────┘     └──────────────────┘     └──────────────────┘
+Option 2: Private / Internal-Only (-DeploymentMode "Private")
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────────────┐
+│  Corporate   │────▶│  VPN Gateway /   │────▶│  Container App           │
+│  Users       │     │  ExpressRoute    │     │  (Internal Ingress Only) │
+│  (Internal)  │     │                  │     │  Inside Customer VNet    │
+└──────────────┘     └──────────────────┘     └──────────────────────────┘
 ```
+
+See [Private (Internal-Only) Deployment](#-private-internal-only-deployment) for full setup instructions.
 
 ### Compliance & Regional Deployment
 
