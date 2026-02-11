@@ -6,9 +6,14 @@
     This script creates ALL required Azure resources from scratch:
     - Azure OpenAI (AI Foundry) with GPT-4o model
     - Azure Container Registry
-    - Azure Container Apps Environment
+    - Azure Container Apps Environment (Public OR Private/VNet-integrated)
     - Azure Container App with System-Assigned Managed Identity
     - All RBAC role assignments (Least-Privilege, READ-ONLY)
+    
+    DEPLOYMENT MODES:
+    - PUBLIC:  Container App is publicly accessible via HTTPS (default)
+    - PRIVATE: Container App is deployed inside a VNet with internal-only ingress
+               Only accessible from within the corporate/internal network
     
     NO manual configuration required - everything is 100% automated!
     When the script completes, the application is fully running.
@@ -45,8 +50,33 @@
     Default: Disabled (for simpler deployment on new subscriptions)
     When disabled, use 'az containerapp logs show' to view container logs
 
+.PARAMETER DeploymentMode
+    Deployment mode: 'Public' or 'Private' (default: Public)
+    - Public:  Container App accessible from the internet via HTTPS
+    - Private: Container App deployed inside a VNet, accessible only from internal network
+
+.PARAMETER VNetResourceGroupName
+    Resource group containing the existing VNet (REQUIRED for Private deployment)
+    The VNet must already exist - this script does NOT create VNets
+
+.PARAMETER VNetName
+    Name of the existing VNet to deploy into (REQUIRED for Private deployment)
+    The VNet must be in the same region as the deployment location
+
+.PARAMETER SubnetName
+    Name of the subnet within the VNet for Container Apps Environment (REQUIRED for Private deployment)
+    Subnet requirements:
+    - Minimum size: /27 (32 addresses) for workload profiles, /23 (512 addresses) recommended
+    - Must be delegated to Microsoft.App/environments
+    - Must not have any other resources deployed in it
+
 .EXAMPLE
+    # PUBLIC deployment (default - accessible from internet)
     .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname" -EntraAppClientId "your-app-client-id" -EntraTenantId "your-tenant-id" -SubscriptionId "your-subscription-id"
+
+.EXAMPLE
+    # PRIVATE deployment (VNet-integrated, internal access only)
+    .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname" -EntraAppClientId "your-app-client-id" -EntraTenantId "your-tenant-id" -SubscriptionId "your-subscription-id" -DeploymentMode "Private" -VNetResourceGroupName "rg-networking" -VNetName "corp-vnet" -SubnetName "container-apps-subnet"
 
 .EXAMPLE
     # Deploy with Log Analytics enabled
@@ -241,7 +271,20 @@ param(
     [string]$SubscriptionId = "",
     
     [Parameter(Mandatory=$false)]
-    [switch]$EnableLogAnalytics = $false
+    [switch]$EnableLogAnalytics = $false,
+    
+    [Parameter(Mandatory=$false)]
+    [ValidateSet("Public", "Private")]
+    [string]$DeploymentMode = "Public",
+    
+    [Parameter(Mandatory=$false)]
+    [string]$VNetResourceGroupName = "",
+    
+    [Parameter(Mandatory=$false)]
+    [string]$VNetName = "",
+    
+    [Parameter(Mandatory=$false)]
+    [string]$SubnetName = ""
 )
 
 # ============================================
@@ -348,6 +391,187 @@ if ($confirmation -ne 'Y' -and $confirmation -ne 'y') {
 Write-Success "Subscription confirmed: $subscriptionName ($subscriptionId)"
 
 # ============================================
+# PRIVATE DEPLOYMENT: VALIDATE VNET & SUBNET
+# ============================================
+if ($DeploymentMode -eq "Private") {
+    Write-Step "Private Deployment: Validating VNet & Subnet Configuration"
+    
+    Write-Host ""
+    Write-Host "  ╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
+    Write-Host "  ║  🔒 PRIVATE DEPLOYMENT MODE SELECTED                          ║" -ForegroundColor Magenta
+    Write-Host "  ╠════════════════════════════════════════════════════════════════╣" -ForegroundColor Magenta
+    Write-Host "  ║  Container App will be deployed inside your VNet              ║" -ForegroundColor White
+    Write-Host "  ║  Accessible ONLY from internal/corporate network              ║" -ForegroundColor White
+    Write-Host "  ║  NO public endpoint will be created                           ║" -ForegroundColor White
+    Write-Host "  ╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+    Write-Host ""
+    
+    # Validate required parameters for private deployment
+    if ([string]::IsNullOrEmpty($VNetResourceGroupName)) {
+        Write-Error "VNetResourceGroupName is REQUIRED for Private deployment mode"
+        Write-Host "  Usage: -VNetResourceGroupName 'rg-networking'" -ForegroundColor Yellow
+        exit 1
+    }
+    if ([string]::IsNullOrEmpty($VNetName)) {
+        Write-Error "VNetName is REQUIRED for Private deployment mode"
+        Write-Host "  Usage: -VNetName 'corp-vnet'" -ForegroundColor Yellow
+        exit 1
+    }
+    if ([string]::IsNullOrEmpty($SubnetName)) {
+        Write-Error "SubnetName is REQUIRED for Private deployment mode"
+        Write-Host "  Usage: -SubnetName 'container-apps-subnet'" -ForegroundColor Yellow
+        exit 1
+    }
+    
+    # Validate VNet exists
+    Write-Info "Validating VNet '$VNetName' in resource group '$VNetResourceGroupName'..."
+    $vnetCheck = az network vnet show --name $VNetName --resource-group $VNetResourceGroupName --query "{name:name, location:location, addressSpace:addressSpace.addressPrefixes}" -o json 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "VNet '$VNetName' not found in resource group '$VNetResourceGroupName'"
+        Write-Host "  Please verify:" -ForegroundColor Yellow
+        Write-Host "    1. VNet name is correct" -ForegroundColor Yellow
+        Write-Host "    2. Resource group name is correct" -ForegroundColor Yellow
+        Write-Host "    3. You have access to the VNet" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  List VNets: az network vnet list --resource-group $VNetResourceGroupName -o table" -ForegroundColor Cyan
+        exit 1
+    }
+    
+    $vnetInfo = $vnetCheck | ConvertFrom-Json
+    $vnetLocation = $vnetInfo.location
+    Write-Success "VNet found: $VNetName (Location: $vnetLocation)"
+    
+    # Verify VNet is in the same region as deployment
+    if ($vnetLocation -ne $Location) {
+        Write-Host ""
+        Write-Host "  ⚠️  REGION MISMATCH WARNING" -ForegroundColor Yellow
+        Write-Host "  ─────────────────────────────────────────────────────────────" -ForegroundColor Gray
+        Write-Host "  Deployment Location:  $Location" -ForegroundColor White
+        Write-Host "  VNet Location:        $vnetLocation" -ForegroundColor White
+        Write-Host "  Container Apps Environment must be in the SAME region as the VNet." -ForegroundColor White
+        Write-Host ""
+        Write-Host "  Auto-adjusting deployment location to: $vnetLocation" -ForegroundColor Green
+        $Location = $vnetLocation
+        Write-Success "Deployment location adjusted to: $Location (matching VNet region)"
+    }
+    
+    # Validate subnet exists
+    Write-Info "Validating subnet '$SubnetName' in VNet '$VNetName'..."
+    $subnetCheck = az network vnet subnet show --name $SubnetName --vnet-name $VNetName --resource-group $VNetResourceGroupName --query "{name:name, addressPrefix:addressPrefix, delegations:delegations[].serviceName}" -o json 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Subnet '$SubnetName' not found in VNet '$VNetName'"
+        Write-Host "  Available subnets:" -ForegroundColor Yellow
+        az network vnet subnet list --vnet-name $VNetName --resource-group $VNetResourceGroupName --query "[].{Name:name, Prefix:addressPrefix}" -o table
+        exit 1
+    }
+    
+    $subnetInfo = $subnetCheck | ConvertFrom-Json
+    Write-Success "Subnet found: $SubnetName (Address prefix: $($subnetInfo.addressPrefix))"
+    
+    # Check subnet size (recommend /23 or larger)
+    $prefix = $subnetInfo.addressPrefix -replace '.*/(\d+)$', '$1'
+    $prefixInt = [int]$prefix
+    if ($prefixInt -gt 27) {
+        Write-Error "Subnet '$SubnetName' is too small ($($subnetInfo.addressPrefix))"
+        Write-Host "  Container Apps Environment requires a subnet of at least /27 (32 addresses)" -ForegroundColor Yellow
+        Write-Host "  Recommended: /23 (512 addresses) for production workloads" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  To resize or create a properly sized subnet:" -ForegroundColor Cyan
+        Write-Host "  az network vnet subnet create --name $SubnetName --vnet-name $VNetName --resource-group $VNetResourceGroupName --address-prefixes '10.0.16.0/23'" -ForegroundColor DarkGray
+        exit 1
+    } elseif ($prefixInt -gt 23) {
+        Write-Host ""
+        Write-Host "  ⚠️  SUBNET SIZE NOTE" -ForegroundColor Yellow
+        Write-Host "  Current: $($subnetInfo.addressPrefix) - This will work but may limit scaling." -ForegroundColor White
+        Write-Host "  Recommended: /23 (512 addresses) for production workloads." -ForegroundColor White
+        Write-Host ""
+    }
+    
+    # Check subnet delegation
+    Write-Info "Checking subnet delegation for Microsoft.App/environments..."
+    $delegations = $subnetInfo.delegations
+    $hasDelegation = $false
+    
+    if ($delegations -and $delegations.Count -gt 0) {
+        foreach ($delegation in $delegations) {
+            if ($delegation -eq "Microsoft.App/environments") {
+                $hasDelegation = $true
+                break
+            }
+        }
+    }
+    
+    if ($hasDelegation) {
+        Write-Success "Subnet delegation is correctly configured (Microsoft.App/environments)"
+    } else {
+        Write-Host ""
+        Write-Host "  ⚠️  SUBNET DELEGATION REQUIRED" -ForegroundColor Red
+        Write-Host "  ─────────────────────────────────────────────────────────────" -ForegroundColor Gray
+        Write-Host "  Subnet '$SubnetName' does NOT have the required delegation:" -ForegroundColor White
+        Write-Host "    Microsoft.App/environments" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  This delegation is required for Container Apps Environment deployment." -ForegroundColor White
+        Write-Host ""
+        
+        if ($delegations -and $delegations.Count -gt 0) {
+            Write-Host "  Current delegations: $($delegations -join ', ')" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Error "Subnet already has a different delegation. Please use a different subnet or remove the existing delegation."
+            Write-Host "  You can create a new dedicated subnet:" -ForegroundColor Cyan
+            Write-Host "  az network vnet subnet create --name 'container-apps-subnet' --vnet-name $VNetName --resource-group $VNetResourceGroupName --address-prefixes '10.0.16.0/23' --delegations 'Microsoft.App/environments'" -ForegroundColor DarkGray
+            exit 1
+        }
+        
+        $delegationConfirm = Read-Host "  Would you like this script to add the delegation automatically? (Y/N)"
+        if ($delegationConfirm -eq 'Y' -or $delegationConfirm -eq 'y') {
+            Write-Info "Adding subnet delegation for Microsoft.App/environments..."
+            az network vnet subnet update `
+                --name $SubnetName `
+                --vnet-name $VNetName `
+                --resource-group $VNetResourceGroupName `
+                --delegations "Microsoft.App/environments" `
+                --output none
+            
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Failed to add subnet delegation"
+                Write-Host "  Please add it manually:" -ForegroundColor Yellow
+                Write-Host "  az network vnet subnet update --name $SubnetName --vnet-name $VNetName --resource-group $VNetResourceGroupName --delegations 'Microsoft.App/environments'" -ForegroundColor DarkGray
+                exit 1
+            }
+            Write-Success "Subnet delegation added successfully"
+        } else {
+            Write-Host ""
+            Write-Host "  Please add the delegation manually before running this script:" -ForegroundColor Yellow
+            Write-Host "  az network vnet subnet update --name $SubnetName --vnet-name $VNetName --resource-group $VNetResourceGroupName --delegations 'Microsoft.App/environments'" -ForegroundColor DarkGray
+            Write-Host ""
+            exit 1
+        }
+    }
+    
+    # Build the subnet resource ID for later use
+    $vnetSubId = az account show --query "id" -o tsv
+    $subnetResourceId = "/subscriptions/$vnetSubId/resourceGroups/$VNetResourceGroupName/providers/Microsoft.Network/virtualNetworks/$VNetName/subnets/$SubnetName"
+    Write-Success "Subnet Resource ID: $subnetResourceId"
+    
+    Write-Host ""
+    Write-Host "  ✅ Private deployment prerequisites validated:" -ForegroundColor Green
+    Write-Host "    VNet:       $VNetName ($VNetResourceGroupName)" -ForegroundColor White
+    Write-Host "    Subnet:     $SubnetName ($($subnetInfo.addressPrefix))" -ForegroundColor White
+    Write-Host "    Delegation: Microsoft.App/environments ✓" -ForegroundColor White
+    Write-Host "    Region:     $Location" -ForegroundColor White
+    Write-Host ""
+} else {
+    Write-Host ""
+    Write-Host "  ╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "  ║  🌐 PUBLIC DEPLOYMENT MODE                                    ║" -ForegroundColor Cyan
+    Write-Host "  ╠════════════════════════════════════════════════════════════════╣" -ForegroundColor Cyan
+    Write-Host "  ║  Container App will be publicly accessible via HTTPS          ║" -ForegroundColor White
+    Write-Host "  ║  Use -DeploymentMode 'Private' for VNet-integrated deployment ║" -ForegroundColor White
+    Write-Host "  ╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+# ============================================
 # STEP 0: REGISTER REQUIRED RESOURCE PROVIDERS
 # ============================================
 Write-Step "Step 0: Registering Required Resource Providers"
@@ -367,6 +591,11 @@ $requiredProviders = @(
 # Add Log Analytics provider if enabled
 if ($EnableLogAnalytics) {
     $requiredProviders += @{ Namespace = "Microsoft.OperationalInsights"; Description = "Log Analytics" }
+}
+
+# Add Network provider for private deployment
+if ($DeploymentMode -eq "Private") {
+    $requiredProviders += @{ Namespace = "Microsoft.Network"; Description = "Virtual Networks (Private Deployment)" }
 }
 
 # Check and register providers
@@ -784,37 +1013,122 @@ Write-Success "Container image built and pushed: $acrServer/${ContainerImageName
 # ============================================
 Write-Step "Step 6: Creating Container Apps Environment"
 
+if ($DeploymentMode -eq "Private") {
+    Write-Info "🔒 Creating PRIVATE Container Apps Environment (VNet-integrated, internal-only)..."
+} else {
+    Write-Info "🌐 Creating PUBLIC Container Apps Environment..."
+}
+
 $envExists = az containerapp env show --name $ContainerAppEnvName --resource-group $ResourceGroupName 2>&1
 if ($LASTEXITCODE -eq 0) {
     Write-Info "Container Apps Environment '$ContainerAppEnvName' already exists"
+    
+    # If private mode, verify the existing environment is actually internal
+    if ($DeploymentMode -eq "Private") {
+        $envVnetConfig = az containerapp env show --name $ContainerAppEnvName --resource-group $ResourceGroupName --query "properties.vnetConfiguration.internal" -o tsv 2>$null
+        if ($envVnetConfig -ne "True") {
+            Write-Host ""
+            Write-Host "  ⚠️  WARNING: Existing environment is NOT configured as internal/private!" -ForegroundColor Red
+            Write-Host "  You requested Private deployment but the existing environment is public." -ForegroundColor Yellow
+            Write-Host "  To deploy privately, delete the existing environment and re-run:" -ForegroundColor Yellow
+            Write-Host "    az containerapp env delete --name $ContainerAppEnvName --resource-group $ResourceGroupName --yes" -ForegroundColor DarkGray
+            Write-Host ""
+            $overrideConfirm = Read-Host "  Continue with existing PUBLIC environment? (Y/N)"
+            if ($overrideConfirm -ne 'Y' -and $overrideConfirm -ne 'y') {
+                Write-Error "Deployment cancelled. Delete the existing environment and re-run."
+                exit 1
+            }
+        } else {
+            Write-Success "Existing environment is correctly configured as internal/private"
+        }
+    }
 } else {
     Write-Info "Creating Container Apps Environment..."
-    Write-Info "This may take 2-3 minutes..."
+    Write-Info "This may take 2-5 minutes..."
     
-    if ($EnableLogAnalytics) {
-        Write-Info "Log Analytics enabled - environment will have full logging capabilities"
-        az containerapp env create `
-            --name $ContainerAppEnvName `
-            --resource-group $ResourceGroupName `
-            --location $Location `
-            --output none
+    if ($DeploymentMode -eq "Private") {
+        # PRIVATE: Deploy with VNet integration and internal-only access
+        Write-Host ""
+        Write-Host "  🔒 Private Configuration:" -ForegroundColor Magenta
+        Write-Host "    VNet:               $VNetName ($VNetResourceGroupName)" -ForegroundColor White
+        Write-Host "    Subnet:             $SubnetName" -ForegroundColor White
+        Write-Host "    Subnet Resource ID: $subnetResourceId" -ForegroundColor Gray
+        Write-Host "    Internal Only:      Yes (no public endpoint)" -ForegroundColor White
+        Write-Host ""
+        
+        if ($EnableLogAnalytics) {
+            Write-Info "Log Analytics enabled for private environment"
+            az containerapp env create `
+                --name $ContainerAppEnvName `
+                --resource-group $ResourceGroupName `
+                --location $Location `
+                --infrastructure-subnet-resource-id $subnetResourceId `
+                --internal-only `
+                --output none
+        } else {
+            Write-Info "Log Analytics disabled - use 'az containerapp logs' for debugging"
+            az containerapp env create `
+                --name $ContainerAppEnvName `
+                --resource-group $ResourceGroupName `
+                --location $Location `
+                --infrastructure-subnet-resource-id $subnetResourceId `
+                --internal-only `
+                --logs-destination none `
+                --output none
+        }
     } else {
-        Write-Info "Log Analytics disabled (default) - use 'az containerapp logs' for debugging"
-        Write-Info "To enable later, recreate environment with -EnableLogAnalytics switch"
-        az containerapp env create `
-            --name $ContainerAppEnvName `
-            --resource-group $ResourceGroupName `
-            --location $Location `
-            --logs-destination none `
-            --output none
+        # PUBLIC: Standard deployment (no VNet)
+        if ($EnableLogAnalytics) {
+            Write-Info "Log Analytics enabled - environment will have full logging capabilities"
+            az containerapp env create `
+                --name $ContainerAppEnvName `
+                --resource-group $ResourceGroupName `
+                --location $Location `
+                --output none
+        } else {
+            Write-Info "Log Analytics disabled (default) - use 'az containerapp logs' for debugging"
+            Write-Info "To enable later, recreate environment with -EnableLogAnalytics switch"
+            az containerapp env create `
+                --name $ContainerAppEnvName `
+                --resource-group $ResourceGroupName `
+                --location $Location `
+                --logs-destination none `
+                --output none
+        }
     }
     
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to create Container Apps Environment"
+        if ($DeploymentMode -eq "Private") {
+            Write-Host ""
+            Write-Host "  Common causes for private deployment failures:" -ForegroundColor Yellow
+            Write-Host "    1. Subnet is too small (need at least /27)" -ForegroundColor Yellow
+            Write-Host "    2. Subnet delegation missing (Microsoft.App/environments)" -ForegroundColor Yellow
+            Write-Host "    3. Subnet already has other resources deployed" -ForegroundColor Yellow
+            Write-Host "    4. NSG on subnet blocking required ports" -ForegroundColor Yellow
+            Write-Host "    5. VNet/Subnet in different region than deployment" -ForegroundColor Yellow
+        }
         exit 1
     }
 }
-Write-Success "Container Apps Environment ready: $ContainerAppEnvName"
+
+if ($DeploymentMode -eq "Private") {
+    # Get the environment's static IP and default domain for private DNS
+    $envStaticIp = az containerapp env show --name $ContainerAppEnvName --resource-group $ResourceGroupName --query "properties.staticIp" -o tsv 2>$null
+    $envDefaultDomain = az containerapp env show --name $ContainerAppEnvName --resource-group $ResourceGroupName --query "properties.defaultDomain" -o tsv 2>$null
+    
+    Write-Success "Private Container Apps Environment ready: $ContainerAppEnvName"
+    Write-Host "    Static IP (internal): $envStaticIp" -ForegroundColor White
+    Write-Host "    Default Domain:       $envDefaultDomain" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  📋 DNS NOTE: To access the app by FQDN from your internal network," -ForegroundColor Yellow
+    Write-Host "  configure a Private DNS Zone or add a DNS record:" -ForegroundColor Yellow
+    Write-Host "    Zone: $envDefaultDomain" -ForegroundColor DarkGray
+    Write-Host "    A Record: * → $envStaticIp" -ForegroundColor DarkGray
+    Write-Host ""
+} else {
+    Write-Success "Container Apps Environment ready: $ContainerAppEnvName"
+}
 
 # ============================================
 # STEP 7: CREATE CONTAINER APP WITH MANAGED IDENTITY
@@ -837,13 +1151,17 @@ if ($LASTEXITCODE -eq 0) {
     Write-Info "Creating Container App '$ContainerAppName' with System-Assigned Managed Identity..."
     Write-Info "Using placeholder image (will update after ACR access is configured)..."
     
+    # Set ingress type based on deployment mode
+    $ingressType = if ($DeploymentMode -eq "Private") { "internal" } else { "external" }
+    Write-Info "Ingress type: $ingressType"
+    
     az containerapp create `
         --name $ContainerAppName `
         --resource-group $ResourceGroupName `
         --environment $ContainerAppEnvName `
         --image "mcr.microsoft.com/k8se/quickstart:latest" `
         --target-port 8000 `
-        --ingress external `
+        --ingress $ingressType `
         --min-replicas 1 `
         --max-replicas 3 `
         --cpu 1.0 `
@@ -1090,30 +1408,76 @@ $appUrl = az containerapp show `
 # DEPLOYMENT SUMMARY
 # ============================================
 Write-Host ""
-Write-Host "╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║              DEPLOYMENT 100% COMPLETE! 🎉                         ║" -ForegroundColor Green
-Write-Host "║         Application is FULLY RUNNING - No Manual Work!           ║" -ForegroundColor Green
-Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+if ($DeploymentMode -eq "Private") {
+    Write-Host "╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Green
+    Write-Host "║         🔒 PRIVATE DEPLOYMENT 100% COMPLETE! 🎉                  ║" -ForegroundColor Green
+    Write-Host "║     Application Running on Internal Network - No Public Access   ║" -ForegroundColor Green
+    Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+} else {
+    Write-Host "╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Green
+    Write-Host "║              DEPLOYMENT 100% COMPLETE! 🎉                         ║" -ForegroundColor Green
+    Write-Host "║         Application is FULLY RUNNING - No Manual Work!           ║" -ForegroundColor Green
+    Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+}
 Write-Host ""
 Write-Host "📋 DEPLOYMENT SUMMARY" -ForegroundColor Cyan
 Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
 Write-Host "  Resource Group:        $ResourceGroupName" -ForegroundColor White
 Write-Host "  Location:              $Location" -ForegroundColor White
+Write-Host "  Deployment Mode:       $DeploymentMode" -ForegroundColor $(if ($DeploymentMode -eq "Private") { "Magenta" } else { "Cyan" })
 Write-Host "  Azure OpenAI:          $OpenAIResourceName" -ForegroundColor White
 Write-Host "  OpenAI Endpoint:       $openaiEndpoint" -ForegroundColor White
 Write-Host "  Model Deployment:      $OpenAIDeploymentName (GPT-4o)" -ForegroundColor White
 Write-Host "  Container Registry:    $acrNameClean (Premium SKU)" -ForegroundColor White
 Write-Host "  Container App:         $ContainerAppName" -ForegroundColor White
 Write-Host "  Subscription:          $subscriptionId" -ForegroundColor White
+if ($DeploymentMode -eq "Private") {
+    Write-Host "" -ForegroundColor White
+    Write-Host "  🔒 PRIVATE NETWORK CONFIGURATION" -ForegroundColor Magenta
+    Write-Host "  VNet:                  $VNetName ($VNetResourceGroupName)" -ForegroundColor White
+    Write-Host "  Subnet:               $SubnetName" -ForegroundColor White
+    Write-Host "  Internal Ingress:      Yes (no public endpoint)" -ForegroundColor White
+    if ($envStaticIp) {
+        Write-Host "  Static IP (internal):  $envStaticIp" -ForegroundColor White
+    }
+    if ($envDefaultDomain) {
+        Write-Host "  Internal Domain:       $envDefaultDomain" -ForegroundColor White
+    }
+}
 if ($EnableLogAnalytics) {
     Write-Host "  Log Analytics:         ✅ Enabled" -ForegroundColor White
 } else {
     Write-Host "  Log Analytics:         Disabled (use -EnableLogAnalytics to enable)" -ForegroundColor Gray
 }
 Write-Host ""
-Write-Host "🌐 APPLICATION URL (Ready to use!)" -ForegroundColor Cyan
-Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
-Write-Host "  https://$appUrl" -ForegroundColor Green
+if ($DeploymentMode -eq "Private") {
+    Write-Host "🔒 APPLICATION URL (Internal Access Only)" -ForegroundColor Magenta
+    Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
+    Write-Host "  https://$appUrl" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  ⚠️  This URL is ONLY accessible from within your VNet/corporate network." -ForegroundColor Yellow
+    Write-Host "  It cannot be reached from the public internet." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  📋 TO ACCESS THE APPLICATION:" -ForegroundColor Cyan
+    Write-Host "  ─────────────────────────────────────────────────────────────" -ForegroundColor Gray
+    Write-Host "  Option 1: Configure Private DNS Zone (Recommended)" -ForegroundColor White
+    Write-Host "    - Create Azure Private DNS Zone: $envDefaultDomain" -ForegroundColor DarkGray
+    Write-Host "    - Add A record: * → $envStaticIp" -ForegroundColor DarkGray
+    Write-Host "    - Link the DNS Zone to your VNet" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  Option 2: Access via VM/Jumpbox in the same VNet" -ForegroundColor White
+    Write-Host "    - RDP/SSH to a VM in the same VNet" -ForegroundColor DarkGray
+    Write-Host "    - Open browser and navigate to: https://$appUrl" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  Option 3: VPN/ExpressRoute from on-premises" -ForegroundColor White
+    Write-Host "    - Ensure VPN/ExpressRoute connects to the VNet" -ForegroundColor DarkGray
+    Write-Host "    - Configure DNS forwarding for $envDefaultDomain" -ForegroundColor DarkGray
+    Write-Host ""
+} else {
+    Write-Host "🌐 APPLICATION URL (Ready to use!)" -ForegroundColor Cyan
+    Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
+    Write-Host "  https://$appUrl" -ForegroundColor Green
+}
 Write-Host ""
 Write-Host "🔐 SECURITY CONFIGURATION (Least-Privilege)" -ForegroundColor Cyan
 Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor Gray
@@ -1147,8 +1511,16 @@ Write-Host "  ✅ Created Azure OpenAI (AI Foundry) resource" -ForegroundColor G
 Write-Host "  ✅ Deployed GPT-4o model" -ForegroundColor Green
 Write-Host "  ✅ Created Container Registry" -ForegroundColor Green
 Write-Host "  ✅ Built and pushed container image" -ForegroundColor Green
-Write-Host "  ✅ Created Container Apps Environment" -ForegroundColor Green
-Write-Host "  ✅ Deployed Container App with System-Assigned Managed Identity" -ForegroundColor Green
+if ($DeploymentMode -eq "Private") {
+    Write-Host "  ✅ Validated VNet and subnet configuration" -ForegroundColor Green
+    Write-Host "  ✅ Verified/applied subnet delegation (Microsoft.App/environments)" -ForegroundColor Green
+    Write-Host "  ✅ Created PRIVATE Container Apps Environment (VNet-integrated)" -ForegroundColor Green
+    Write-Host "  ✅ Deployed Container App with INTERNAL ingress (no public access)" -ForegroundColor Green
+} else {
+    Write-Host "  ✅ Created Container Apps Environment" -ForegroundColor Green
+    Write-Host "  ✅ Deployed Container App (public HTTPS)" -ForegroundColor Green
+}
+Write-Host "  ✅ System-Assigned Managed Identity enabled" -ForegroundColor Green
 Write-Host "  ✅ Configured Managed Identity authentication for ACR" -ForegroundColor Green
 Write-Host "  ✅ Assigned all RBAC roles (Least-Privilege)" -ForegroundColor Green
 Write-Host "  ✅ Configured all environment variables automatically" -ForegroundColor Green
