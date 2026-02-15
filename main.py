@@ -576,6 +576,114 @@ async def get_query_info(
     }
 
 
+# ═══════════════════════════════════════════════════════════════
+# ARCHITECTURE DIAGRAM ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+@app.get("/api/diagram/{diagram_id}")
+async def get_diagram_image(diagram_id: str):
+    """
+    Serve a generated architecture diagram as a PNG image.
+    Diagrams are cached in the AI agent's diagram_cache.
+    """
+    import base64
+
+    # Check agent's diagram cache
+    if not hasattr(ai_agent, 'diagram_cache') or diagram_id not in ai_agent.diagram_cache:
+        raise HTTPException(status_code=404, detail="Diagram not found or expired. Please regenerate.")
+
+    cached = ai_agent.diagram_cache[diagram_id]
+    image_data = base64.b64decode(cached["base64_image"])
+
+    return StreamingResponse(
+        io.BytesIO(image_data),
+        media_type="image/png",
+        headers={
+            "Content-Disposition": f'inline; filename="azure_diagram_{diagram_id}.png"',
+            "Cache-Control": "public, max-age=3600"
+        }
+    )
+
+
+@app.get("/api/diagram-download/{diagram_id}")
+async def download_diagram(diagram_id: str, format: str = "png"):
+    """
+    Download a generated architecture diagram in PNG, JPEG, or SVG format.
+    Query param: ?format=png|jpeg|svg (default: png)
+    """
+    import base64
+
+    if not hasattr(ai_agent, 'diagram_cache') or diagram_id not in ai_agent.diagram_cache:
+        raise HTTPException(status_code=404, detail="Diagram not found or expired. Please regenerate.")
+
+    cached = ai_agent.diagram_cache[diagram_id]
+    image_data = base64.b64decode(cached["base64_image"])
+    title_slug = cached.get("title", "azure_architecture").replace(" ", "_").lower()[:50]
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    fmt = format.lower().strip()
+
+    if fmt == "jpeg" or fmt == "jpg":
+        # Convert PNG to JPEG using Pillow
+        try:
+            from PIL import Image
+            png_image = Image.open(io.BytesIO(image_data))
+            # JPEG doesn't support transparency, so paste onto white background
+            if png_image.mode in ('RGBA', 'LA') or (png_image.mode == 'P' and 'transparency' in png_image.info):
+                background = Image.new('RGB', png_image.size, (255, 255, 255))
+                if png_image.mode == 'P':
+                    png_image = png_image.convert('RGBA')
+                background.paste(png_image, mask=png_image.split()[-1])
+                png_image = background
+            elif png_image.mode != 'RGB':
+                png_image = png_image.convert('RGB')
+            jpeg_buffer = io.BytesIO()
+            png_image.save(jpeg_buffer, format='JPEG', quality=95)
+            jpeg_buffer.seek(0)
+            return StreamingResponse(
+                jpeg_buffer,
+                media_type="image/jpeg",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{title_slug}_{timestamp}.jpg"',
+                    "X-Image-Size-KB": str(round(jpeg_buffer.getbuffer().nbytes / 1024, 1))
+                }
+            )
+        except ImportError:
+            # Pillow not installed, fall back to PNG
+            pass
+
+    if fmt == "svg":
+        # SVG conversion: embed PNG as base64 inside an SVG wrapper
+        b64_str = cached["base64_image"]
+        try:
+            from PIL import Image
+            img = Image.open(io.BytesIO(image_data))
+            w, h = img.size
+        except ImportError:
+            w, h = 1200, 800  # default fallback
+        svg_content = f'''<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{w}" height="{h}" viewBox="0 0 {w} {h}">
+  <title>{cached.get("title", "Azure Architecture Diagram")}</title>
+  <image width="{w}" height="{h}" xlink:href="data:image/png;base64,{b64_str}"/>
+</svg>'''
+        return StreamingResponse(
+            io.BytesIO(svg_content.encode('utf-8')),
+            media_type="image/svg+xml",
+            headers={
+                "Content-Disposition": f'attachment; filename="{title_slug}_{timestamp}.svg"'
+            }
+        )
+
+    # Default: PNG
+    return StreamingResponse(
+        io.BytesIO(image_data),
+        media_type="image/png",
+        headers={
+            "Content-Disposition": f'attachment; filename="{title_slug}_{timestamp}.png"',
+            "X-Image-Size-KB": str(cached.get("image_size_kb", 0))
+        }
+    )
+
+
 class ExecuteApprovedRequest(BaseModel):
     requestId: str
     command: str

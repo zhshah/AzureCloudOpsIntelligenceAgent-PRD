@@ -325,6 +325,54 @@ class AzureResourceManager:
         
         return result
     
+    def get_resources_for_diagram(self, resource_group: str = None, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get resources with enriched properties for architecture diagram generation.
+        
+        Includes VM size, disk size, IP addresses, SKU, and availability set info
+        to enable richer diagram labels.
+        """
+        rg_filter = f"| where resourceGroup =~ '{resource_group}'" if resource_group else ""
+        query = f"""
+        Resources
+        {rg_filter}
+        | extend
+            vmSize = tostring(properties.hardwareProfile.vmSize),
+            diskSizeGB = toint(properties.diskSizeGB),
+            osType = tostring(properties.osType),
+            privateIP = tostring(properties.ipConfigurations[0].properties.privateIPAddress),
+            publicIPAddr = tostring(properties.ipAddress),
+            skuName = tostring(sku.name),
+            skuTier = tostring(sku.tier),
+            availabilitySet = tostring(split(properties.availabilitySet.id, '/')[-1]),
+            provisioningState = tostring(properties.provisioningState)
+        | project
+            name,
+            type,
+            resourceGroup,
+            location,
+            subscriptionId,
+            vmSize,
+            diskSizeGB,
+            osType,
+            privateIP,
+            publicIPAddr,
+            skuName,
+            skuTier,
+            availabilitySet,
+            provisioningState
+        | order by type asc, name asc
+        """
+        result = self.query_resources(query, subscriptions)
+        
+        # Add subscription names to results
+        if result and 'data' in result and isinstance(result['data'], list):
+            sub_names = self._get_subscription_names()
+            for resource in result['data']:
+                sub_id = resource.get('subscriptionId', '')
+                resource['SubscriptionName'] = sub_names.get(sub_id, sub_id[:8] + '...' if sub_id else 'Unknown')
+        
+        return result
+    
     def get_resource_count_by_type(self) -> Dict[str, Any]:
         """Get count of resources grouped by type"""
         query = """
@@ -3385,6 +3433,1198 @@ class AzureResourceManager:
             ProvisioningState = provisioningState,
             SubscriptionId = subscriptionId
         | order by PlanName asc
+        """
+        return self.query_resources(query, subscriptions)
+
+    # ==========================================
+    # AZURE INVENTORY FUNCTIONS
+    # Based on: https://github.com/scautomation/Azure-Inventory-Workbook
+    # ==========================================
+
+    def get_inventory_overview(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get overview of all Azure resources - total counts, counts by type, by location, subscriptions and resource groups."""
+        query = """
+        Resources
+        | summarize TotalResources=count() by type
+        | order by TotalResources desc
+        """
+        type_counts = self.query_resources(query, subscriptions)
+
+        location_query = """
+        Resources
+        | summarize Count=count() by location
+        | order by Count desc
+        """
+        location_counts = self.query_resources(location_query, subscriptions)
+
+        rg_query = """
+        resourcecontainers
+        | where type =~ 'microsoft.resources/subscriptions/resourcegroups'
+        | summarize ResourceGroupCount=count() by subscriptionId
+        """
+        rg_counts = self.query_resources(rg_query, subscriptions)
+
+        return {
+            "inventory_type": "overview",
+            "resource_counts_by_type": type_counts,
+            "resource_counts_by_location": location_counts,
+            "resource_groups_by_subscription": rg_counts
+        }
+
+    def get_inventory_compute_vms(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get comprehensive VM inventory - status, sizes, OS, creation date, SQL extensions, availability sets."""
+        query = """
+        Resources
+        | where type == "microsoft.compute/virtualmachines"
+        | extend vmID = tolower(id)
+        | extend osDiskId = tolower(tostring(properties.storageProfile.osDisk.managedDisk.id))
+        | extend provisioningState = tostring(properties.extended.instanceView.powerState.displayStatus)
+        | extend vmSize = tostring(properties.hardwareProfile.vmSize)
+        | join kind=leftouter(
+            resources
+            | where type =~ 'microsoft.compute/disks'
+            | where properties !has 'Unattached'
+            | where properties has 'osType'
+            | project timeCreated = tostring(properties.timeCreated), OS = tostring(properties.osType), osSku = tostring(sku.name), osDiskSizeGB = toint(properties.diskSizeGB), osDiskId=tolower(tostring(id))
+        ) on osDiskId
+        | join kind=leftouter(
+            resources
+            | where type =~ 'microsoft.compute/availabilitysets'
+            | extend VirtualMachines = array_length(properties.virtualMachines)
+            | mv-expand VirtualMachine=properties.virtualMachines
+            | extend FaultDomainCount = properties.platformFaultDomainCount
+            | extend UpdateDomainCount = properties.platformUpdateDomainCount
+            | extend vmID = tolower(VirtualMachine.id)
+            | project AvailabilitySetID = id, vmID, FaultDomainCount, UpdateDomainCount
+        ) on vmID
+        | join kind=leftouter(
+            resources
+            | where type =~ 'microsoft.sqlvirtualmachine/sqlvirtualmachines'
+            | extend SQLLicense = properties.sqlServerLicenseType
+            | extend SQLImage = properties.sqlImageOffer
+            | extend SQLSku = properties.sqlImageSku
+            | extend SQLManagement = properties.sqlManagement
+            | extend vmID = tostring(tolower(properties.virtualMachineResourceId))
+            | project SQLId=id, SQLLicense, SQLImage, SQLSku, SQLManagement, vmID
+        ) on vmID
+        | project-away vmID1, vmID2, osDiskId1
+        | project vmID, vmSize, provisioningState, OS, resourceGroup, location, subscriptionId, SQLLicense, SQLImage, SQLSku, SQLManagement, FaultDomainCount, UpdateDomainCount, AvailabilitySetID, timeCreated
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_compute_vmss(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get VM Scale Sets inventory - sizes, capacity, OS, upgrade mode."""
+        query = """
+        resources
+        | where type has 'microsoft.compute/virtualmachinescalesets'
+        | extend Size = sku.name
+        | extend Capacity = sku.capacity
+        | extend UpgradeMode = properties.upgradePolicy.mode
+        | extend OSType = properties.virtualMachineProfile.storageProfile.osDisk.osType
+        | extend OS = properties.virtualMachineProfile.storageProfile.imageReference.offer
+        | extend OSVersion = properties.virtualMachineProfile.storageProfile.imageReference.sku
+        | extend OverProvision = properties.overprovision
+        | extend ZoneBalance = properties.zoneBalance
+        | project VMSS = id, location, resourceGroup, subscriptionId, Size, Capacity, OSType, UpgradeMode, OverProvision
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_compute_vm_networking(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get VM networking inventory - VMs with NICs, private IPs, public IPs."""
+        query = """
+        Resources
+        | where type =~ 'microsoft.compute/virtualmachines'
+        | extend nics=array_length(properties.networkProfile.networkInterfaces)
+        | mv-expand nic=properties.networkProfile.networkInterfaces
+        | where nics == 1 or nic.properties.primary =~ 'true' or isempty(nic)
+        | project vmId = id, vmName = name, vmSize=tostring(properties.hardwareProfile.vmSize), nicId = tostring(nic.id)
+        | join kind=leftouter (
+            Resources
+            | where type =~ 'microsoft.network/networkinterfaces'
+            | extend ipConfigsCount=array_length(properties.ipConfigurations)
+            | mv-expand ipconfig=properties.ipConfigurations
+            | where ipConfigsCount == 1 or ipconfig.properties.primary =~ 'true'
+            | project nicId = id, privateIP= tostring(ipconfig.properties.privateIPAddress), publicIpId = tostring(ipconfig.properties.publicIPAddress.id), subscriptionId
+        ) on nicId
+        | project-away nicId1
+        | summarize by vmId, vmSize, nicId, privateIP, publicIpId, subscriptionId
+        | join kind=leftouter (
+            Resources
+            | where type =~ 'microsoft.network/publicipaddresses'
+            | project publicIpId = id, publicIpAddress = tostring(properties.ipAddress)
+        ) on publicIpId
+        | project-away publicIpId1
+        | sort by publicIpAddress desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_compute_vm_disks(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get VM disk/storage inventory - OS disks and data disks per VM."""
+        query = """
+        Resources
+        | where type == "microsoft.compute/virtualmachines"
+        | extend osDiskId= tolower(tostring(properties.storageProfile.osDisk.managedDisk.id))
+        | join kind=leftouter(
+            resources
+            | where type =~ 'microsoft.compute/disks'
+            | where properties !has 'Unattached'
+            | where properties has 'osType'
+            | project timeCreated = tostring(properties.timeCreated), OS = tostring(properties.osType), osSku = tostring(sku.name), osDiskSizeGB = toint(properties.diskSizeGB), osDiskId=tolower(tostring(id))
+        ) on osDiskId
+        | join kind=leftouter(
+            Resources
+            | where type =~ 'microsoft.compute/disks'
+            | where properties !has "osType"
+            | where properties !has 'Unattached'
+            | project sku = tostring(sku.name), diskSizeGB = toint(properties.diskSizeGB), id = managedBy
+            | summarize DataDisksGB=sum(diskSizeGB), DataDiskCount=count(sku) by id, sku
+        ) on id
+        | project vmId=id, OS, location, resourceGroup, timeCreated, subscriptionId, osDiskId, osSku, osDiskSizeGB, DataDisksGB, DataDiskCount
+        | sort by DataDiskCount desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_compute_arc(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get hybrid/ARC machines inventory - on-premises and multi-cloud servers connected via Azure ARC."""
+        query = """
+        resources
+        | where type == "microsoft.hybridcompute/machines"
+        | extend MachineId=id,
+            NetworkProfile = properties.networkProfile,
+            SerialNumber = tostring(properties.detectedProperties.serialNumber),
+            OS = tostring(properties.osSku),
+            Status = tostring(properties.status),
+            FQDN = tostring(properties.dnsFqdn),
+            LastSeen = todatetime(properties.lastStatusChange),
+            ServerVersion = properties.osVersion
+        | extend ServerVersion = case(
+            ServerVersion has '10.0.20348', 'Server 2022',
+            ServerVersion has '10.0.17763', 'Server 2019',
+            ServerVersion has '10.0.14393', 'Server 2016',
+            ServerVersion has '6.3.9600', 'Server 2012 R2',
+            tostring(ServerVersion))
+        | mv-expand nic = NetworkProfile.networkInterfaces
+        | mv-expand IP = nic.ipAddresses
+        | extend IP = tostring(IP.address)
+        | summarize IPs = make_set(IP), arg_max(LastSeen, OS, FQDN, Status, SerialNumber) by MachineId
+        | project MachineId, OS, FQDN, Status, SerialNumber, LastSeen, IPs
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_paas_automation(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get automation resources inventory - Automation Accounts, Logic Apps, Custom APIs, Runbooks."""
+        query = """
+        resources
+        | where type has 'microsoft.automation'
+            or type has 'microsoft.logic'
+            or type has 'microsoft.web/customapis'
+        | extend type = case(
+            type =~ 'microsoft.automation/automationaccounts', 'Automation Accounts',
+            type =~ 'microsoft.web/connections', 'LogicApp Connectors',
+            type =~ 'microsoft.web/customapis','LogicApp API Connectors',
+            type =~ 'microsoft.logic/workflows','LogicApps',
+            type =~ 'microsoft.logic/integrationaccounts', 'Integration Accounts',
+            type =~ 'microsoft.automation/automationaccounts/runbooks', 'Automation Runbooks',
+            type =~ 'microsoft.automation/automationaccounts/configurations', 'Automation Configurations',
+            strcat("Not Translated: ", type))
+        | where type !has "Not Translated"
+        | extend RunbookType = tostring(properties.runbookType)
+        | extend State = case(
+            type =~ 'Automation Runbooks', tostring(properties.state),
+            type =~ 'LogicApps', tostring(properties.state),
+            type =~ 'Automation Accounts', tostring(properties.state),
+            type =~ 'Automation Configurations', tostring(properties.state),
+            ' ')
+        | project Resource=id, type, resourceGroup, subscriptionId, RunbookType, State, location
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_paas_apps(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get application resources inventory - App Services, Functions, API Management, Front Door, App Gateways."""
+        query = """
+        resources
+        | where type has 'microsoft.web'
+            or type =~ 'microsoft.apimanagement/service'
+            or type =~ 'microsoft.network/frontdoors'
+            or type =~ 'microsoft.network/applicationgateways'
+            or type =~ 'microsoft.appconfiguration/configurationstores'
+        | extend type = case(
+            type == 'microsoft.web/serverfarms', strcat("App Service Plans - ", properties.kind),
+            kind == 'functionapp', "Azure Functions",
+            kind == "api", "API Apps",
+            type == 'microsoft.web/sites', "App Services",
+            type =~ 'microsoft.network/applicationgateways', 'App Gateways',
+            type =~ 'microsoft.network/frontdoors', 'Front Door',
+            type =~ 'microsoft.apimanagement/service', 'API Management',
+            type =~ 'microsoft.web/certificates', 'App Certificates',
+            type =~ 'microsoft.appconfiguration/configurationstores', 'App Config Stores',
+            type =~ 'microsoft.web/connections', 'API Connections',
+            strcat("Not Translated: ", type))
+        | where type !has "Not Translated"
+        | extend Sku = case(
+            type =~ 'App Gateways', tostring(properties.sku.name),
+            type =~ 'Azure Functions', tostring(properties.sku),
+            type =~ 'API Management', tostring(sku.name),
+            type contains 'App Service Plans', tostring(sku.name),
+            type =~ 'App Services', tostring(properties.sku),
+            type =~ 'App Config Stores', tostring(sku.name),
+            ' ')
+        | extend State = case(
+            type =~ 'App Config Stores', tostring(properties.provisioningState),
+            type contains 'App Service Plans', tostring(properties.status),
+            type =~ 'Azure Functions', tostring(properties.enabled),
+            type =~ 'App Services', tostring(properties.state),
+            type =~ 'API Management', tostring(properties.provisioningState),
+            type =~ 'App Gateways', tostring(properties.provisioningState),
+            type =~ 'Front Door', tostring(properties.provisioningState),
+            ' ')
+        | project Resource=id, type, subscriptionId, resourceGroup, Sku, State, location
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_paas_containers(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get container resources inventory - AKS, ACR, ACI with details."""
+        query = """
+        resources
+        | where type =~ 'microsoft.containerservice/managedclusters'
+            or type =~ 'microsoft.containerregistry/registries'
+            or type =~ 'microsoft.containerinstance/containergroups'
+        | extend type = case(
+            type =~ 'microsoft.containerservice/managedclusters', 'AKS',
+            type =~ 'microsoft.containerregistry/registries', 'Container Registry',
+            type =~ 'microsoft.containerinstance/containergroups', 'Container Instances',
+            strcat("Not Translated: ", type))
+        | extend Tier = sku.tier
+        | extend sku = sku.name
+        | extend State = case(
+            type =~ 'Container Registry', tostring(properties.provisioningState),
+            type =~ 'Container Instances', tostring(properties.instanceView.state),
+            tostring(properties.powerState.code))
+        | extend Version = properties.kubernetesVersion
+        | extend AgentProfiles = properties.agentPoolProfiles
+        | mvexpand AgentProfiles
+        | extend NodeCount = AgentProfiles.["count"]
+        | project id, type, location, resourceGroup, subscriptionId, sku, Tier, State, Version, NodeCount
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_paas_data(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get data platform inventory - SQL, CosmosDB, MySQL, PostgreSQL, Synapse, ADX, Data Factory, Purview."""
+        query = """
+        resources
+        | where type has 'microsoft.documentdb'
+            or type has 'microsoft.sql'
+            or type has 'microsoft.dbformysql'
+            or type has 'microsoft.purview'
+            or type has 'microsoft.datafactory'
+            or type has 'microsoft.analysisservices'
+            or type has 'microsoft.datamigration'
+            or type has 'microsoft.synapse'
+            or type has 'microsoft.kusto'
+            or type has 'microsoft.dbforpostgresql'
+            or type has 'microsoft.digitaltwins'
+        | extend type = case(
+            type =~ 'microsoft.documentdb/databaseaccounts', 'CosmosDB',
+            type =~ 'microsoft.sql/servers/databases', 'SQL DBs',
+            type =~ 'microsoft.dbformysql/servers', 'MySQL',
+            type =~ 'microsoft.sql/servers', 'SQL Servers',
+            type =~ 'microsoft.purview/accounts', 'Purview Accounts',
+            type =~ 'microsoft.synapse/workspaces/sqlpools', 'Synapse SQL Pools',
+            type =~ 'microsoft.kusto/clusters', 'ADX Clusters',
+            type =~ 'microsoft.datafactory/factories', 'Data Factories',
+            type =~ 'microsoft.synapse/workspaces', 'Synapse Workspaces',
+            type =~ 'microsoft.analysisservices/servers', 'Analysis Services',
+            type =~ 'microsoft.datamigration/services', 'DB Migration Service',
+            type =~ 'microsoft.sql/managedinstances/databases', 'Managed Instance DBs',
+            type =~ 'microsoft.sql/managedinstances', 'Managed Instance',
+            type =~ 'microsoft.datamigration/services/projects', 'Data Migration Projects',
+            type =~ 'microsoft.sql/virtualclusters', 'SQL Virtual Clusters',
+            type =~ 'microsoft.dbforpostgresql/servers', 'PostgreSQL DBs',
+            type =~ 'microsoft.digitaltwins/digitaltwinsinstances', 'Digital Twins',
+            strcat("Not Translated: ", type))
+        | where type !has "Not Translated"
+        | extend Sku = case(
+            type =~ 'CosmosDB', tostring(properties.databaseAccountOfferType),
+            type =~ 'SQL DBs', tostring(sku.name),
+            type =~ 'MySQL', tostring(sku.name),
+            type =~ 'ADX Clusters', tostring(sku.name),
+            type =~ 'Purview Accounts', tostring(sku.name),
+            type =~ 'PostgreSQL DBs', strcat(tostring(sku.tier), ', ', tostring(sku.family)),
+            ' ')
+        | extend Status = case(
+            type =~ 'CosmosDB', tostring(properties.provisioningState),
+            type =~ 'SQL DBs', tostring(properties.status),
+            type =~ 'MySQL', tostring(properties.userVisibleState),
+            type =~ 'Managed Instance DBs', tostring(properties.status),
+            ' ')
+        | extend Endpoint = case(
+            type =~ 'MySQL', tostring(properties.fullyQualifiedDomainName),
+            type =~ 'SQL Servers', tostring(properties.fullyQualifiedDomainName),
+            type =~ 'CosmosDB', tostring(properties.documentEndpoint),
+            type =~ 'ADX Clusters', tostring(properties.uri),
+            type =~ 'Synapse Workspaces', tostring(properties.connectivityEndpoints),
+            ' ')
+        | extend Tier = sku.tier
+        | project Resource=id, resourceGroup, subscriptionId, type, Sku, Tier, Status, Endpoint, location
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_paas_events(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get event/messaging resources inventory - Service Bus, Event Hub, Event Grid, Relay."""
+        query = """
+        resources
+        | where type has 'microsoft.servicebus'
+            or type has 'microsoft.eventhub'
+            or type has 'microsoft.eventgrid'
+            or type has 'microsoft.relay'
+        | extend type = case(
+            type == 'microsoft.eventgrid/systemtopics', "EventGrid System Topics",
+            type =~ "microsoft.eventgrid/topics", "EventGrid Topics",
+            type =~ 'microsoft.eventhub/namespaces', "EventHub Namespaces",
+            type =~ 'microsoft.servicebus/namespaces', 'ServiceBus Namespaces',
+            type =~ 'microsoft.relay/namespaces', 'Relays',
+            strcat("Not Translated: ", type))
+        | where type !has "Not Translated"
+        | extend Sku = case(
+            type =~ 'Relays', tostring(sku.name),
+            type =~ 'EventGrid Topics', tostring(sku.name),
+            type =~ 'EventHub Namespaces', tostring(sku.name),
+            type =~ 'ServiceBus Namespaces', tostring(sku.name),
+            ' ')
+        | extend Status = case(
+            type =~ 'Relays', tostring(properties.provisioningState),
+            type =~ 'EventGrid System Topics', tostring(properties.provisioningState),
+            type =~ 'EventGrid Topics', tostring(properties.publicNetworkAccess),
+            type =~ 'EventHub Namespaces', tostring(properties.status),
+            type =~ 'ServiceBus Namespaces', tostring(properties.status),
+            ' ')
+        | extend Endpoint = case(
+            type =~ 'Relays', tostring(properties.serviceBusEndpoint),
+            type =~ 'EventGrid Topics', tostring(properties.endpoint),
+            type =~ 'EventHub Namespaces', tostring(properties.serviceBusEndpoint),
+            type =~ 'ServiceBus Namespaces', tostring(properties.serviceBusEndpoint),
+            ' ')
+        | project Resource=id, type, subscriptionId, resourceGroup, Sku, Status, Endpoint, location
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_paas_iot(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get IoT resources inventory - IoT Hubs, IoT Central Apps, IoT Security Solutions."""
+        query = """
+        resources
+        | where type =~ 'microsoft.devices/iothubs'
+            or type =~ 'microsoft.iotcentral/iotapps'
+            or type =~ 'microsoft.security/iotsecuritysolutions'
+        | extend type = case(
+            type =~ 'microsoft.devices/iothubs', 'IoT Hubs',
+            type =~ 'microsoft.iotcentral/iotapps', 'IoT Apps',
+            type =~ 'microsoft.security/iotsecuritysolutions', 'IoT Security',
+            strcat("Not Translated: ", type))
+        | extend Tier = sku.tier
+        | extend sku = sku.name
+        | extend State = tostring(properties.state)
+        | extend HostName = tostring(properties.hostName)
+        | extend EventHubEndPoint = tostring(properties.eventHubEndpoints.events.endpoint)
+        | project id, type, location, resourceGroup, subscriptionId, sku, Tier, State, HostName, EventHubEndPoint
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_paas_mlai(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get ML/AI resources inventory - Machine Learning Workspaces, Cognitive Services, OpenAI."""
+        query = """
+        resources
+        | where type =~ 'Microsoft.MachineLearningServices/workspaces'
+            or type =~ 'microsoft.cognitiveservices/accounts'
+        | extend type = case(
+            type =~ 'Microsoft.MachineLearningServices/workspaces', 'ML Workspaces',
+            type =~ 'microsoft.cognitiveservices/accounts', 'Cognitive Services',
+            strcat("Not Translated: ", type))
+        | where type !has "Not Translated"
+        | extend Tier = sku.tier
+        | extend sku = sku.name
+        | extend Endpoint = case(
+            type =~ 'ML Workspaces', tostring(properties.discoveryUrl),
+            type =~ 'Cognitive Services', tostring(properties.endpoint),
+            ' ')
+        | extend Storage = tostring(properties.storageAccount)
+        | extend AppInsights = tostring(properties.applicationInsights)
+        | project id, type, location, resourceGroup, subscriptionId, sku, Tier, Endpoint, Storage, AppInsights
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_paas_storage(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get storage & backup inventory - Storage Accounts, Key Vaults, Recovery Services, Azure File Sync."""
+        query = """
+        resources
+        | where type =~ 'microsoft.storagesync/storagesyncservices'
+            or type =~ 'microsoft.recoveryservices/vaults'
+            or type =~ 'microsoft.storage/storageaccounts'
+            or type =~ 'microsoft.keyvault/vaults'
+        | extend type = case(
+            type =~ 'microsoft.storagesync/storagesyncservices', 'Azure File Sync',
+            type =~ 'microsoft.recoveryservices/vaults', 'Azure Backup',
+            type =~ 'microsoft.storage/storageaccounts', 'Storage Accounts',
+            type =~ 'microsoft.keyvault/vaults', 'Key Vaults',
+            strcat("Not Translated: ", type))
+        | extend Sku = case(
+            type !has 'Key Vaults', tostring(sku.name),
+            type =~ 'Key Vaults', tostring(properties.sku.name),
+            ' ')
+        | project Resource=id, type, kind, subscriptionId, resourceGroup, Sku, location
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_paas_wvd(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Windows Virtual Desktop / Azure Virtual Desktop inventory - Host Pools, Workspaces, App Groups."""
+        query = """
+        resources
+        | where type has 'microsoft.desktopvirtualization'
+        | extend type = case(
+            type =~ 'microsoft.desktopvirtualization/applicationgroups', 'AVD App Groups',
+            type =~ 'microsoft.desktopvirtualization/hostpools', 'AVD Host Pools',
+            type =~ 'microsoft.desktopvirtualization/workspaces', 'AVD Workspaces',
+            strcat("Not Translated: ", type))
+        | where type !has "Not Translated"
+        | project id, type, resourceGroup, subscriptionId, kind, location
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_networking(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get networking resources overview - all network resource types with counts."""
+        query = """
+        Resources
+        | where type has "microsoft.network"
+            or type has 'microsoft.cdn'
+        | summarize Count=count() by type
+        | order by Count desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_networking_nsgs(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get NSG inventory including unassociated NSGs. Shows NSGs with their association status."""
+        query = """
+        Resources
+        | where type =~ 'microsoft.network/networksecuritygroups'
+        | extend HasNIC = isnotnull(properties.networkInterfaces)
+        | extend HasSubnet = isnotnull(properties.subnets)
+        | extend IsUnassociated = iif(isnull(properties.networkInterfaces) and isnull(properties.subnets), true, false)
+        | project Resource=id, resourceGroup, subscriptionId, location, HasNIC, HasSubnet, IsUnassociated
+        | order by IsUnassociated desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_networking_nsg_rules(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get NSG security rules inventory - all rules across all NSGs with access, direction, ports."""
+        query = """
+        Resources
+        | where type =~ 'microsoft.network/networksecuritygroups'
+        | project id, nsgRules = parse_json(parse_json(properties).securityRules), networksecurityGroupName = name, subscriptionId, resourceGroup, location
+        | mvexpand nsgRule = nsgRules
+        | project id, location,
+            access=nsgRule.properties.access,
+            protocol=nsgRule.properties.protocol,
+            direction=nsgRule.properties.direction,
+            priority=nsgRule.properties.priority,
+            sourceAddressPrefix = nsgRule.properties.sourceAddressPrefix,
+            destinationAddressPrefix = nsgRule.properties.destinationAddressPrefix,
+            networksecurityGroupName,
+            networksecurityRuleName = tostring(nsgRule.name),
+            subscriptionId, resourceGroup,
+            destinationPortRange = nsgRule.properties.destinationPortRange,
+            sourcePortRange = nsgRule.properties.sourcePortRange
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_networking_ip(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get IP address inventory per subnet - shows used/available IPs across VNets and subnets."""
+        query = """
+        resources
+        | where type =~ 'Microsoft.Network/virtualNetworks'
+        | extend addressPrefixes=array_length(properties.addressSpace.addressPrefixes)
+        | extend vNetAddressSpace=properties.addressSpace.addressPrefixes
+        | mv-expand subnet=properties.subnets
+        | extend virtualNetwork = name
+        | extend subnetPrefix = subnet.properties.addressPrefix
+        | extend subnetName = tostring(subnet.name)
+        | extend prefixLength = toint(split(subnetPrefix, "/")[1])
+        | extend numberOfIpAddresses = case(
+            prefixLength == 29, 3,
+            prefixLength == 28, 11,
+            prefixLength == 27, 27,
+            prefixLength == 26, 59,
+            prefixLength == 25, 123,
+            prefixLength == 24, 251,
+            prefixLength == 23, 507,
+            prefixLength == 22, 1019,
+            prefixLength == 21, 2043,
+            prefixLength == 20, 4091,
+            prefixLength == 19, 8187,
+            prefixLength == 18, 16379,
+            prefixLength == 17, 32763,
+            prefixLength == 16, 65531,
+            0)
+        | join kind=leftouter (
+            resources
+            | where type =~ 'microsoft.network/networkinterfaces'
+            | project id, ipConfigurations = properties.ipConfigurations, subscriptionId
+            | mvexpand ipConfigurations
+            | project id, subnetId = tostring(ipConfigurations.properties.subnet.id), subscriptionId
+            | parse kind=regex subnetId with '/virtualNetworks/' virtualNetwork '/subnets/' subnet
+            | extend resourceGroup = tostring(split(subnetId,"/",4)[0])
+            | extend subnetName = subnet
+            | summarize usedIPAddresses = count() by subnetName, virtualNetwork, subscriptionId
+        ) on subnetName, virtualNetwork, subscriptionId
+        | extend usedIPAddresses = iff(isnull(usedIPAddresses),0,usedIPAddresses)
+        | project subscriptionId, resourceGroup, virtualNetwork, SubnetName = subnetName, numberOfIpAddresses, usedIPAddresses, AvailableIPAddresses = (toint(numberOfIpAddresses) - usedIPAddresses)
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_monitoring_alerts(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get active fired alerts from Azure Monitor."""
+        query = """
+        AlertsManagementResources
+        | extend AlertStatus = tostring(properties.essentials.monitorCondition)
+        | extend AlertState = tostring(properties.essentials.alertState)
+        | extend AlertTime = tostring(properties.essentials.startDateTime)
+        | extend AlertSuppressed = tostring(properties.essentials.actionStatus.isSuppressed)
+        | extend Severity = tostring(properties.essentials.severity)
+        | where AlertStatus == 'Fired'
+        | project id, name, subscriptionId, resourceGroup, AlertStatus, AlertState, AlertTime, AlertSuppressed, Severity
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_monitoring_resources(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get monitoring/alerting resources - Workbooks, Alert Rules, Action Groups, Dashboards."""
+        query = """
+        resources
+        | where type has 'microsoft.insights/'
+            or type has 'microsoft.alertsmanagement/smartdetectoralertrules'
+            or type has 'microsoft.portal/dashboards'
+        | where type != 'microsoft.insights/components'
+        | extend type = case(
+            type == 'microsoft.insights/workbooks', "Workbooks",
+            type == 'microsoft.insights/activitylogalerts', "Activity Log Alerts",
+            type == 'microsoft.insights/scheduledqueryrules', "Log Search Alerts",
+            type == 'microsoft.insights/actiongroups', "Action Groups",
+            type == 'microsoft.insights/metricalerts', "Metric Alerts",
+            type =~ 'microsoft.alertsmanagement/smartdetectoralertrules','Smart Detection Rules',
+            type =~ 'microsoft.insights/webtests', 'URL Web Tests',
+            type =~ 'microsoft.portal/dashboards', 'Portal Dashboards',
+            type =~ 'microsoft.insights/datacollectionrules', 'Data Collection Rules',
+            type =~ 'microsoft.insights/autoscalesettings', 'Auto Scale Settings',
+            type =~ 'microsoft.insights/datacollectionendpoints', 'Data Collection Endpoints',
+            strcat("Not Translated: ", type))
+        | where type !has "Not Translated"
+        | extend Enabled = case(
+            type =~ 'Smart Detection Rules', tostring(properties.state),
+            tostring(properties.enabled))
+        | project name, type, subscriptionId, location, resourceGroup, Enabled
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_monitoring_appinsights(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Application Insights inventory - components with retention and ingestion mode."""
+        query = """
+        Resources
+        | where type =~ 'microsoft.insights/components'
+        | extend RetentionInDays = tostring(properties.RetentionInDays)
+        | extend IngestionMode = tostring(properties.IngestionMode)
+        | project Resource=id, location, resourceGroup, subscriptionId, IngestionMode, RetentionInDays
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_monitoring_log_analytics(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Log Analytics workspace inventory - workspaces with SKU and retention settings."""
+        query = """
+        Resources
+        | where type =~ 'microsoft.operationalinsights/workspaces'
+        | extend Sku = tostring(properties.sku.name)
+        | extend RetentionInDays = tostring(properties.retentionInDays)
+        | project Workspace=id, resourceGroup, location, subscriptionId, Sku, RetentionInDays
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_inventory_security_scores(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get Azure Security Center secure scores and controls by subscription."""
+        score_query = """
+        securityresources
+        | where type == "microsoft.security/securescores"
+        | extend subscriptionSecureScore = round(100 * bin((todouble(properties.score.current))/ todouble(properties.score.max), 0.001))
+        | where subscriptionSecureScore > 0
+        | project subscriptionSecureScore, subscriptionId
+        | order by subscriptionSecureScore asc
+        """
+        scores = self.query_resources(score_query, subscriptions)
+
+        controls_query = """
+        SecurityResources
+        | where type == 'microsoft.security/securescores/securescorecontrols'
+        | extend SecureControl = tostring(properties.displayName), unhealthy = toint(properties.unhealthyResourceCount), currentscore = tostring(properties.score.current), maxscore = tostring(properties.score.max), subscriptionId
+        | project SecureControl, unhealthy, currentscore, maxscore, subscriptionId
+        """
+        controls = self.query_resources(controls_query, subscriptions)
+
+        return {
+            "inventory_type": "security_scores",
+            "secure_scores": scores,
+            "secure_controls": controls
+        }
+
+    def get_inventory_governance_policy(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get governance policy inventory - policy assignments, compliance status, initiatives deployed."""
+        query = """
+        policyresources
+        | where type =~ 'microsoft.policyinsights/policystates'
+        | extend AssignmentName = tostring(properties.policyAssignmentName),
+            Initiative = tostring(properties.policySetDefinitionId),
+            PolicyDefintion = tostring(properties.policyDefinitionId),
+            Compliance = tostring(properties.complianceState),
+            Scope = tostring(properties.policyAssignmentScope),
+            PolicyAction = tostring(properties.policyDefinitionAction),
+            ResourceType = tostring(properties.resourceType)
+        | summarize Assignments = count(AssignmentName),
+            InitiativesDeployed = dcountif(Initiative, isnotnull(Initiative)),
+            PoliciesDeployed = dcountif(PolicyDefintion, isempty(Initiative)),
+            CompliantResources = countif(Compliance == 'Compliant'),
+            NonCompliantResources = countif(Compliance != 'Compliant') by subscriptionId
+        | order by Assignments desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_all_inventory_summary(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Get a comprehensive inventory summary across all Azure resource categories."""
+        summary = {
+            "inventory_type": "full_summary",
+            "categories": {},
+            "total_resources": 0
+        }
+
+        checks = [
+            ("Overview", self.get_inventory_overview),
+            ("Compute - VMs", self.get_inventory_compute_vms),
+            ("Compute - VMSS", self.get_inventory_compute_vmss),
+            ("Compute - ARC Machines", self.get_inventory_compute_arc),
+            ("PaaS - Automation", self.get_inventory_paas_automation),
+            ("PaaS - Applications", self.get_inventory_paas_apps),
+            ("PaaS - Containers", self.get_inventory_paas_containers),
+            ("PaaS - Data Platform", self.get_inventory_paas_data),
+            ("PaaS - Events/Messaging", self.get_inventory_paas_events),
+            ("PaaS - IoT", self.get_inventory_paas_iot),
+            ("PaaS - ML/AI", self.get_inventory_paas_mlai),
+            ("PaaS - Storage & Backup", self.get_inventory_paas_storage),
+            ("PaaS - Virtual Desktop", self.get_inventory_paas_wvd),
+            ("Networking", self.get_inventory_networking),
+            ("Networking - NSGs", self.get_inventory_networking_nsgs),
+            ("Monitoring - Alerts", self.get_inventory_monitoring_alerts),
+            ("Monitoring - Resources", self.get_inventory_monitoring_resources),
+            ("Monitoring - App Insights", self.get_inventory_monitoring_appinsights),
+            ("Monitoring - Log Analytics", self.get_inventory_monitoring_log_analytics),
+            ("Security Scores", self.get_inventory_security_scores),
+            ("Governance - Policy", self.get_inventory_governance_policy),
+        ]
+
+        for name, func in checks:
+            try:
+                result = func(subscriptions)
+                count = result.get("count", 0) or result.get("total_records", 0) or 0
+                summary["categories"][name] = {
+                    "count": count,
+                    "label": f"{name}: {count} resources"
+                }
+                summary["total_resources"] += count
+            except Exception as e:
+                summary["categories"][name] = {"count": 0, "error": str(e)}
+
+        return summary
+
+    # ==========================================
+    # CLOUD OPERATIONS HEALTH ASSESSMENT
+    # Based on: https://github.com/Azure/cloud-rolesandops
+    # Management Score + Environment + Operational Tasks
+    # ==========================================
+
+    def get_advisor_health_score(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Azure Advisor Management Score — percentage of resources WITHOUT active advisor recommendations."""
+        query = """
+        resources
+        | summarize resourcetotal=count()
+        | project key=1, resourcetotal
+        | join (
+            advisorresources
+            | where type == 'microsoft.advisor/recommendations'
+            | distinct tostring(properties.impactedValue)
+            | summarize advisoraffectedresourcetotal=count()
+            | project key=1, advisoraffectedresourcetotal
+        ) on key
+        | project
+            AdvisorManagementScore = iif(resourcetotal > 0, round(toreal(resourcetotal - advisoraffectedresourcetotal) / toreal(resourcetotal) * 100, 1), 0.0),
+            TotalResources = resourcetotal,
+            ResourcesWithRecommendations = advisoraffectedresourcetotal,
+            HealthyResources = resourcetotal - advisoraffectedresourcetotal
+        """
+        score_result = self.query_resources(query, subscriptions)
+        # Fetch resource-level detail: top impacted resources with recommendation info
+        detail_query = """
+        advisorresources
+        | where type == 'microsoft.advisor/recommendations'
+        | extend Category = tostring(properties.category)
+        | extend Impact = tostring(properties.impact)
+        | extend Problem = tostring(properties.shortDescription.problem)
+        | extend Solution = tostring(properties.shortDescription.solution)
+        | extend ResourceName = tostring(properties.impactedValue)
+        | extend ResourceType = tostring(properties.impactedField)
+        | project ResourceName, ResourceType, Category, Impact, Problem, Solution, ResourceGroup=resourceGroup, Location=location, SubscriptionId=subscriptionId
+        | order by Impact asc, Category asc
+        | take 30
+        """
+        detail_result = self.query_resources(detail_query, subscriptions)
+        # Merge: attach resource_details to score result
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
+
+    def get_advisor_recommendations_breakdown(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Azure Advisor recommendations breakdown by category and impact."""
+        query = """
+        advisorresources
+        | where type == 'microsoft.advisor/recommendations'
+        | extend Category = tostring(properties.category)
+        | extend Category = replace('HighAvailability', 'Reliability', Category)
+        | extend Description = tostring(properties.shortDescription.problem)
+        | extend ImpactedField = tostring(properties.impactedField)
+        | extend ImpactedValue = tostring(properties.impactedValue)
+        | extend Impact = tostring(properties.impact)
+        | extend LastUpdated = tostring(properties.lastUpdated)
+        | project Impact, ImpactedField, ImpactedValue, Description, resourceGroup, subscriptionId, Category, LastUpdated
+        | summarize Count = count() by Category, Impact
+        | order by Category asc, Impact desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_backup_protection_score(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Azure Backup Management Score — percentage of VMs protected by backup."""
+        query = """
+        resources
+        | where type in~ ('microsoft.compute/virtualmachines','microsoft.classiccompute/virtualmachines')
+        | extend resourceId=tolower(id)
+        | join kind = leftouter (
+            recoveryservicesresources
+            | where type == 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+            | extend protectedResourceId = tolower(tostring(properties.sourceResourceId))
+            | project protectedResourceId
+        ) on $left.resourceId == $right.protectedResourceId
+        | summarize
+            VMTotal = count(),
+            Protected = countif(isnotempty(protectedResourceId)),
+            Unprotected = countif(isempty(protectedResourceId))
+        | project
+            BackupManagementScore = iif(VMTotal > 0, round(toreal(Protected) / toreal(VMTotal) * 100, 1), 0.0),
+            VMTotal, Protected, Unprotected, key=1
+        """
+        score_result = self.query_resources(query, subscriptions)
+        # Fetch resource-level detail: unprotected VMs
+        detail_query = """
+        resources
+        | where type in~ ('microsoft.compute/virtualmachines','microsoft.classiccompute/virtualmachines')
+        | extend resourceId=tolower(id)
+        | join kind = leftouter (
+            recoveryservicesresources
+            | where type == 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+            | extend protectedResourceId = tolower(tostring(properties.sourceResourceId))
+            | project protectedResourceId
+        ) on $left.resourceId == $right.protectedResourceId
+        | extend BackupStatus = iif(isnotempty(protectedResourceId), 'Protected', 'Unprotected')
+        | where BackupStatus == 'Unprotected'
+        | project VMName=name, ResourceGroup=resourceGroup, Location=location, BackupStatus, SubscriptionId=subscriptionId
+        | order by ResourceGroup asc
+        | take 50
+        """
+        detail_result = self.query_resources(detail_query, subscriptions)
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
+
+    def get_monitor_alerts_score(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Azure Monitor Management Score — alert response effectiveness based on fired, acknowledged, and closed alerts."""
+        query = """
+        resources
+        | summarize resourcetotal=count()
+        | project key=1, resourcetotal
+        | join kind=leftouter (
+            alertsmanagementresources
+            | where type == 'microsoft.alertsmanagement/alerts'
+            | extend alertState = tostring(properties.essentials.alertState)
+            | extend monitorCondition = tostring(properties.essentials.monitorCondition)
+            | summarize
+                TotalAlerts = count(),
+                New = countif(alertState == 'New'),
+                Acknowledged = countif(alertState == 'Acknowledged'),
+                Closed = countif(alertState == 'Closed'),
+                Fired = countif(monitorCondition == 'Fired'),
+                Resolved = countif(monitorCondition == 'Resolved')
+            | extend pctClosed = iif(TotalAlerts > 0, round(toreal(Closed) / toreal(TotalAlerts) * 100, 1), 0.0)
+            | extend pctAck = iif(TotalAlerts > 0, round(toreal(Acknowledged) / toreal(TotalAlerts) * 100, 1), 0.0)
+            | project key=1, TotalAlerts, New, Acknowledged, Closed, Fired, Resolved, pctClosed, pctAck
+        ) on key
+        | extend TotalAlerts = coalesce(TotalAlerts, 0)
+        | extend Fired = coalesce(Fired, 0)
+        | extend pctClosed = coalesce(pctClosed, 0.0)
+        | extend pctAck = coalesce(pctAck, 0.0)
+        | extend Flag1 = iif(Fired > 0 and pctClosed < 20.0, 33.3, 0.0)
+        | extend Flag2 = iif(Fired > 0 and pctAck < 50.0, 33.3, 0.0)
+        | extend Flag3 = iif(TotalAlerts > resourcetotal, 33.3, 0.0)
+        | project
+            MonitorManagementScore = round(100.0 - Flag1 - Flag2 - Flag3, 1),
+            TotalResources = resourcetotal,
+            TotalAlerts, New = coalesce(New, 0), Acknowledged = coalesce(Acknowledged, 0),
+            Closed = coalesce(Closed, 0), Fired, Resolved = coalesce(Resolved, 0),
+            ClosedPct = pctClosed, AcknowledgedPct = pctAck
+        """
+        score_result = self.query_resources(query, subscriptions)
+        # Fetch resource-level detail: active unresolved alerts
+        detail_query = """
+        alertsmanagementresources
+        | where type == 'microsoft.alertsmanagement/alerts'
+        | extend alertState = tostring(properties.essentials.alertState)
+        | where alertState != 'Closed'
+        | extend severity = tostring(properties.essentials.severity)
+        | extend monitorCondition = tostring(properties.essentials.monitorCondition)
+        | extend targetResource = tostring(properties.essentials.targetResourceName)
+        | extend targetResourceType = tostring(properties.essentials.targetResourceType)
+        | extend targetResourceGroup = tostring(properties.essentials.targetResourceGroup)
+        | extend signalType = tostring(properties.essentials.signalType)
+        | extend startDateTime = tostring(properties.essentials.startDateTime)
+        | extend alertName = name
+        | project AlertName=alertName, Severity=severity, State=alertState, Condition=monitorCondition, TargetResource=targetResource, ResourceType=targetResourceType, TargetResourceGroup=targetResourceGroup, SignalType=signalType, StartTime=startDateTime, ResourceGroup=resourceGroup, Location=location, SubscriptionId=subscriptionId
+        | order by Severity asc
+        | take 30
+        """
+        detail_result = self.query_resources(detail_query, subscriptions)
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
+
+    def get_security_posture_score(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Defender for Cloud Management Score — percentage of healthy security assessments."""
+        query = """
+        securityresources
+        | where type == "microsoft.security/assessments"
+        | extend status = properties.status.code
+        | project tostring(status)
+        | summarize
+            TotalRecommendations = countif(status <> ""),
+            HealthyRecommendations = countif(status == "Healthy"),
+            UnhealthyRecommendations = countif(status == "Unhealthy"),
+            NotApplicableRecommendations = countif(status == "NotApplicable")
+        | project
+            DefenderManagementScore = iif(TotalRecommendations - NotApplicableRecommendations > 0,
+                round(toreal(HealthyRecommendations) / toreal(TotalRecommendations - NotApplicableRecommendations) * 100, 1), 0.0),
+            TotalRecommendations, HealthyRecommendations, UnhealthyRecommendations, NotApplicableRecommendations,
+            TotalMinNA = TotalRecommendations - NotApplicableRecommendations
+        """
+        score_result = self.query_resources(query, subscriptions)
+        # Fetch resource-level detail: top unhealthy security assessments with parsed resource context
+        detail_query = """
+        securityresources
+        | where type == "microsoft.security/assessments"
+        | extend status = tostring(properties.status.code)
+        | where status == "Unhealthy"
+        | extend displayName = tostring(properties.displayName)
+        | extend severity = tostring(properties.metadata.severity)
+        | extend category = tostring(properties.metadata.categories[0])
+        | extend description = tostring(properties.metadata.description)
+        | extend remediation = tostring(properties.metadata.remediationDescription)
+        | extend resourceSource = tostring(properties.resourceDetails.Id)
+        | extend parsedParts = split(resourceSource, '/')
+        | extend ResourceName = iif(array_length(parsedParts) > 0, tostring(parsedParts[array_length(parsedParts)-1]), 'Unknown')
+        | extend ResourceGroup = iif(array_length(parsedParts) >= 5, tostring(parsedParts[4]), resourceGroup)
+        | project Finding=displayName, Severity=severity, Category=category, ResourceName, ResourceGroup, Description=description, Remediation=remediation, AffectedResourceId=resourceSource, Location=location, SubscriptionId=subscriptionId
+        | order by Severity asc
+        | take 30
+        """
+        detail_result = self.query_resources(detail_query, subscriptions)
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
+
+    def get_update_compliance_score(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Update Management Score — based on system update assessment (assessment ID 4ab6e3c5-74dd-8b35-9ab9-f61b30875b27)."""
+        query = """
+        securityresources
+        | where type == "microsoft.security/assessments"
+        | where name == "4ab6e3c5-74dd-8b35-9ab9-f61b30875b27"
+        | extend state = tostring(properties.status.code)
+        | extend cause = trim(" ", tostring(properties.status.cause))
+        | summarize
+            Total = count(),
+            Healthy = countif(tostring(state) == "Healthy"),
+            Unhealthy = countif(tostring(state) == "Unhealthy"),
+            NotApplicable = countif(tostring(state) == "NotApplicable"),
+            NotApplicableOffByPolicy = countif(cause == "OffByPolicy"),
+            NotApplicableVmNotReportingHB = countif(cause == "VmNotReportingHB")
+        | extend Applicable = Total - NotApplicable
+        | project
+            UpdateManagementScore = iif(Applicable > 0, round(toreal(Healthy) / toreal(Applicable) * 100, 1), 0.0),
+            Total, Healthy, Unhealthy, NotApplicable,
+            OffByPolicy = NotApplicableOffByPolicy,
+            NotReportingHeartbeat = NotApplicableVmNotReportingHB, key=1
+        """
+        score_result = self.query_resources(query, subscriptions)
+        # Fetch resource-level detail: VMs needing updates with parsed resource context
+        detail_query = """
+        securityresources
+        | where type == "microsoft.security/assessments"
+        | where name == "4ab6e3c5-74dd-8b35-9ab9-f61b30875b27"
+        | extend state = tostring(properties.status.code)
+        | where state == "Unhealthy"
+        | extend resourceId = tostring(properties.resourceDetails.Id)
+        | extend cause = tostring(properties.status.cause)
+        | extend description = tostring(properties.status.description)
+        | extend parsedParts = split(resourceId, '/')
+        | extend ResourceName = iif(array_length(parsedParts) > 0, tostring(parsedParts[array_length(parsedParts)-1]), 'Unknown')
+        | extend ResourceGroup = iif(array_length(parsedParts) >= 5, tostring(parsedParts[4]), resourceGroup)
+        | extend ResourceType = iif(array_length(parsedParts) >= 8, strcat(tostring(parsedParts[6]), '/', tostring(parsedParts[7])), '')
+        | project ResourceName, ResourceGroup, ResourceType, State=state, Cause=cause, Description=description, Location=location, SubscriptionId=subscriptionId, FullResourceId=resourceId
+        | take 30
+        """
+        detail_result = self.query_resources(detail_query, subscriptions)
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
+
+    def get_policy_compliance_score(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Azure Policy Management Score — percentage of compliant policy resources."""
+        query = """
+        policyresources
+        | where type == "microsoft.policyinsights/policystates"
+        | where properties.complianceState <> ""
+        | extend complianceState = tostring(properties.complianceState)
+        | summarize
+            TotalResources = count(),
+            Compliant = countif(complianceState == "Compliant"),
+            Noncompliant = countif(complianceState == "NonCompliant"),
+            Exempt = countif(complianceState == "Exempt")
+        | project
+            PolicyManagementScore = iif(TotalResources - Exempt > 0,
+                toint(round(toreal(Compliant) / toreal(TotalResources - Exempt) * 100, 0)), 0),
+            Compliant, Noncompliant, Exempt, key=1
+        """
+        score_result = self.query_resources(query, subscriptions)
+        # Fetch resource-level detail: top noncompliant resources with parsed resource context
+        detail_query = """
+        policyresources
+        | where type == "microsoft.policyinsights/policystates"
+        | extend complianceState = tostring(properties.complianceState)
+        | where complianceState == "NonCompliant"
+        | extend policyName = tostring(properties.policyDefinitionName)
+        | extend policyAssignment = tostring(properties.policyAssignmentName)
+        | extend resourceId = tostring(properties.resourceId)
+        | extend resourceType = tostring(properties.resourceType)
+        | extend resourceLocation = tostring(properties.resourceLocation)
+        | extend parsedParts = split(resourceId, '/')
+        | extend ResourceName = iif(array_length(parsedParts) > 0, tostring(parsedParts[array_length(parsedParts)-1]), 'Unknown')
+        | extend ResourceGroup = iif(array_length(parsedParts) >= 5, tostring(parsedParts[4]), '')
+        | project PolicyAssignment=policyAssignment, PolicyDefinition=policyName, ResourceName, ResourceGroup, ResourceType=resourceType, Location=resourceLocation, SubscriptionId=subscriptionId, FullResourceId=resourceId
+        | take 30
+        """
+        detail_result = self.query_resources(detail_query, subscriptions)
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
+
+    def get_overall_ops_health_score(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Overall Cloud Operations Health — runs all 6 management pillar assessments and computes a combined score with resource-level insights."""
+        score_components = []
+
+        assessments = [
+            ("Azure Advisor", self.get_advisor_health_score),
+            ("Azure Backup", self.get_backup_protection_score),
+            ("Azure Monitor", self.get_monitor_alerts_score),
+            ("Defender for Cloud", self.get_security_posture_score),
+            ("Update Management", self.get_update_compliance_score),
+            ("Azure Policy", self.get_policy_compliance_score),
+        ]
+
+        for name, method in assessments:
+            try:
+                result = method(subscriptions=subscriptions)
+                data = result.get("data", [])
+                resource_details = result.get("resource_details", [])
+                if data and len(data) > 0:
+                    row = data[0]
+                    score_key = [k for k in row.keys() if "Score" in k or "score" in k]
+                    if score_key:
+                        score_val = row[score_key[0]]
+                        score_components.append({
+                            "pillar": name,
+                            "score": score_val,
+                            "details": row,
+                            "resource_details": resource_details[:15],
+                            "affected_resource_count": len(resource_details)
+                        })
+                    else:
+                        score_components.append({"pillar": name, "score": "N/A", "details": row, "resource_details": resource_details[:15], "affected_resource_count": len(resource_details)})
+                else:
+                    score_components.append({"pillar": name, "score": "N/A", "details": "No data returned", "resource_details": [], "affected_resource_count": 0})
+            except Exception as e:
+                score_components.append({"pillar": name, "score": "Error", "details": str(e), "resource_details": [], "affected_resource_count": 0})
+
+        # Calculate overall score as average of numeric scores
+        numeric_scores = [s["score"] for s in score_components if isinstance(s["score"], (int, float))]
+        overall_score = round(sum(numeric_scores) / len(numeric_scores), 1) if numeric_scores else 0
+
+        # Determine health grade
+        if overall_score >= 90:
+            grade = "A — Excellent"
+        elif overall_score >= 75:
+            grade = "B — Good"
+        elif overall_score >= 60:
+            grade = "C — Needs Improvement"
+        elif overall_score >= 40:
+            grade = "D — At Risk"
+        else:
+            grade = "F — Critical"
+
+        # Build priority actions from lowest-scoring pillars
+        sorted_pillars = sorted(
+            [s for s in score_components if isinstance(s["score"], (int, float))],
+            key=lambda x: x["score"]
+        )
+        priority_actions = []
+        for p in sorted_pillars[:3]:
+            if p["score"] < 50:
+                priority_actions.append(f"CRITICAL: {p['pillar']} is at {p['score']}% — immediate action required")
+            elif p["score"] < 75:
+                priority_actions.append(f"WARNING: {p['pillar']} is at {p['score']}% — improvement recommended")
+
+        return {
+            "query_name": "Overall Cloud Operations Health Score",
+            "overall_management_score": overall_score,
+            "health_grade": grade,
+            "pillars_assessed": len(score_components),
+            "pillars_with_data": len(numeric_scores),
+            "pillar_scores": score_components,
+            "priority_actions": priority_actions,
+            "scoring_methodology": "Average of 6 management pillars: Advisor, Backup, Monitor, Defender, Update, Policy (based on Azure Cloud Roles & Ops framework)",
+            "source": "https://github.com/Azure/cloud-rolesandops"
+        }
+
+    def get_environment_overview(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Environment Overview — comprehensive snapshot of monitoring, security, and operational resources."""
+        query = """
+        resources
+        | where type in (
+            'microsoft.operationalinsights/workspaces',
+            'microsoft.insights/components',
+            'microsoft.insights/actiongroups',
+            'microsoft.insights/activitylogalerts',
+            'microsoft.insights/metricalerts',
+            'microsoft.insights/scheduledqueryrules',
+            'microsoft.automation/automationaccounts',
+            'microsoft.logic/workflows',
+            'microsoft.keyvault/vaults',
+            'microsoft.recoveryservices/vaults',
+            'microsoft.security/automations',
+            'microsoft.network/networkwatchers',
+            'microsoft.network/networksecuritygroups',
+            'microsoft.network/azurefirewalls',
+            'microsoft.web/serverfarms',
+            'microsoft.compute/virtualmachines',
+            'microsoft.sql/servers',
+            'microsoft.storage/storageaccounts'
+        )
+        | extend resourceType = case(
+            type =~ 'microsoft.operationalinsights/workspaces', 'Log Analytics Workspaces',
+            type =~ 'microsoft.insights/components', 'Application Insights',
+            type =~ 'microsoft.insights/actiongroups', 'Action Groups',
+            type =~ 'microsoft.insights/activitylogalerts', 'Activity Log Alerts',
+            type =~ 'microsoft.insights/metricalerts', 'Metric Alerts',
+            type =~ 'microsoft.insights/scheduledqueryrules', 'Log Alert Rules',
+            type =~ 'microsoft.automation/automationaccounts', 'Automation Accounts',
+            type =~ 'microsoft.logic/workflows', 'Logic Apps',
+            type =~ 'microsoft.keyvault/vaults', 'Key Vaults',
+            type =~ 'microsoft.recoveryservices/vaults', 'Recovery Services Vaults',
+            type =~ 'microsoft.security/automations', 'Security Automations',
+            type =~ 'microsoft.network/networkwatchers', 'Network Watchers',
+            type =~ 'microsoft.network/networksecuritygroups', 'NSGs',
+            type =~ 'microsoft.network/azurefirewalls', 'Azure Firewalls',
+            type =~ 'microsoft.web/serverfarms', 'App Service Plans',
+            type =~ 'microsoft.compute/virtualmachines', 'Virtual Machines',
+            type =~ 'microsoft.sql/servers', 'SQL Servers',
+            type =~ 'microsoft.storage/storageaccounts', 'Storage Accounts',
+            type
+        )
+        | summarize Count = count() by resourceType
+        | order by Count desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_resource_tagging_health(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Tag governance health — percentage of resources with required tags (environment, owner, costcenter)."""
+        query = """
+        resources
+        | extend hasEnvironmentTag = isnotempty(tags['environment']) or isnotempty(tags['Environment']) or isnotempty(tags['env'])
+        | extend hasOwnerTag = isnotempty(tags['owner']) or isnotempty(tags['Owner']) or isnotempty(tags['createdBy'])
+        | extend hasCostCenterTag = isnotempty(tags['costcenter']) or isnotempty(tags['CostCenter']) or isnotempty(tags['cost-center'])
+        | summarize
+            TotalResources = count(),
+            WithEnvironmentTag = countif(hasEnvironmentTag),
+            WithOwnerTag = countif(hasOwnerTag),
+            WithCostCenterTag = countif(hasCostCenterTag),
+            WithAllTags = countif(hasEnvironmentTag and hasOwnerTag and hasCostCenterTag)
+        | project
+            TaggingScore = iif(TotalResources > 0, round(toreal(WithAllTags) / toreal(TotalResources) * 100, 1), 0.0),
+            TotalResources,
+            EnvironmentTagPct = iif(TotalResources > 0, round(toreal(WithEnvironmentTag) / toreal(TotalResources) * 100, 1), 0.0),
+            OwnerTagPct = iif(TotalResources > 0, round(toreal(WithOwnerTag) / toreal(TotalResources) * 100, 1), 0.0),
+            CostCenterTagPct = iif(TotalResources > 0, round(toreal(WithCostCenterTag) / toreal(TotalResources) * 100, 1), 0.0),
+            FullyTagged = WithAllTags, MissingTags = TotalResources - WithAllTags
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_network_security_health(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Network security posture — NSGs, Firewalls, WAFs, and private links."""
+        query = """
+        resources
+        | where type in~ (
+            'microsoft.network/networksecuritygroups',
+            'microsoft.network/azurefirewalls',
+            'microsoft.network/applicationgateways',
+            'microsoft.network/frontdoors',
+            'microsoft.network/privateendpoints',
+            'microsoft.network/privatednszones'
+        )
+        | extend resourceType = case(
+            type =~ 'microsoft.network/networksecuritygroups', 'NSGs',
+            type =~ 'microsoft.network/azurefirewalls', 'Azure Firewalls',
+            type =~ 'microsoft.network/applicationgateways', 'App Gateways (WAF)',
+            type =~ 'microsoft.network/frontdoors', 'Front Doors',
+            type =~ 'microsoft.network/privateendpoints', 'Private Endpoints',
+            type =~ 'microsoft.network/privatednszones', 'Private DNS Zones',
+            type
+        )
+        | summarize Count = count() by resourceType
+        | order by Count desc
+        """
+        return self.query_resources(query, subscriptions)
+
+    def get_disaster_recovery_readiness(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Disaster recovery readiness — backup vaults, replicated items, ASR status."""
+        query = """
+        recoveryservicesresources
+        | extend itemType = case(
+            type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems', 'Backup Protected Items',
+            type =~ 'microsoft.recoveryservices/vaults/replicationfabrics/replicationprotectioncontainers/replicationprotecteditems', 'ASR Replicated Items',
+            type
+        )
+        | summarize Count = count() by itemType
+        | union (
+            resources
+            | where type =~ 'microsoft.recoveryservices/vaults'
+            | summarize Count = count()
+            | extend itemType = 'Recovery Services Vaults'
+        )
+        | order by Count desc
         """
         return self.query_resources(query, subscriptions)
 

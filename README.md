@@ -7,7 +7,7 @@
 
 > **AI-Powered Azure Infrastructure Operations & Cloud Management Platform**
 
-An enterprise-grade AI agent that transforms Azure cloud operations through natural language conversations. Built on **Azure OpenAI GPT-4o** with **119 function-calling tools** across **29 operational categories**, it delivers real-time infrastructure insights, security posture assessment, cost optimization, and orphaned resource detection — all through an intuitive chat interface.
+An enterprise-grade AI agent that transforms Azure cloud operations through natural language conversations. Built on **Azure OpenAI GPT-4o** with **120+ function-calling tools** across **30 operational categories**, it delivers real-time infrastructure insights, **Cloud Operations Health scoring** across 6 management pillars, **AI-generated architecture diagrams**, security posture assessment, cost optimization, and orphaned resource detection — all through an intuitive chat interface.
 
 ---
 
@@ -18,6 +18,8 @@ An enterprise-grade AI agent that transforms Azure cloud operations through natu
 - [Architecture](#-architecture)
 - [Live Dashboard Widgets](#-live-dashboard-widgets)
 - [29 Operational Categories](#-29-operational-categories)
+- [Cloud Ops Health Assessment](#-cloud-ops-health-assessment)
+- [Architecture Diagram Generation](#-architecture-diagram-generation)
 - [Prerequisites](#-prerequisites)
 - [Quick Start — Automated Deployment](#-quick-start--automated-deployment)
 - [Private (Internal-Only) Deployment](#-private-internal-only-deployment)
@@ -36,8 +38,10 @@ An enterprise-grade AI agent that transforms Azure cloud operations through natu
 
 ## Overview
 
-Azure CloudOps Intelligence Agent is an AI-powered platform that enables natural language interaction for Azure infrastructure management. Built on Azure OpenAI GPT-4o with 119 tools, it provides:
+Azure CloudOps Intelligence Agent is an AI-powered platform that enables natural language interaction for Azure infrastructure management. Built on Azure OpenAI GPT-4o with 120+ tools, it provides:
 
+- **Cloud Ops Health Assessment** — Real-time scoring across 6 management pillars (Advisor, Backup, Monitor, Defender, Update, Policy) with resource-level detail and AI-driven remediation guidance
+- **Architecture Diagrams** — AI-generated Azure architecture diagrams from descriptions or actual deployed resources with 700+ Azure-native icons
 - **Cost Intelligence** — Real-time cost analysis, month-over-month trends, potential savings, and optimization recommendations
 - **Security & Compliance** — Defender for Cloud security score, Azure Policy compliance monitoring, public access exposure detection
 - **Resource Management** — Full inventory across multi-subscription environments with management group hierarchy navigation
@@ -101,6 +105,8 @@ Based on [Azure Orphan Resources](https://github.com/dolevshor/azure-orphan-reso
 - Cached credential singleton for performance
 
 ### Additional Capabilities
+- **Cloud Ops Health Assessment** — 6-pillar scoring engine (Advisor, Backup, Monitor, Defender, Update, Policy) with resource-level details, health grading (A–F), and AI-driven prioritized remediation
+- **Architecture Diagram Generation** — AI-powered diagrams from natural language or live Azure resources using Graphviz with 700+ Azure-native SVG icons
 - **Export to CSV** — Download any query result for reporting and offline analysis
 - **Azure Native Icons** — 700+ official Azure service SVG icons for intuitive category navigation
 - **Well-Architected Framework** — Assess workloads against WAF pillars (Reliability, Security, Cost, Operations, Performance)
@@ -151,7 +157,7 @@ Based on [Azure Orphan Resources](https://github.com/dolevshor/azure-orphan-reso
 |-----------|------------|
 | **Frontend** | HTML5, CSS3, JavaScript, MSAL.js 2.x |
 | **Backend** | Python 3.11+, FastAPI, Uvicorn |
-| **AI Engine** | Azure OpenAI GPT-4o (119 function-calling tools) |
+| **AI Engine** | Azure OpenAI GPT-4o (120+ function-calling tools) |
 | **Azure APIs** | Resource Graph, Microsoft Graph, Cost Management, ARM, Defender, Management Groups |
 | **Container** | Docker, Azure Container Apps |
 | **Authentication** | Entra ID (Azure AD) via MSAL.js + Managed Identity for backend |
@@ -173,7 +179,7 @@ The dashboard includes real-time sidebar widgets that automatically load when a 
 
 ## 📋 29 Operational Categories
 
-The agent organizes **249+ pre-built prompts** across **29 categories**, each with dedicated Azure-native icons:
+The agent organizes **260+ pre-built prompts** across **30 categories**, each with dedicated Azure-native icons:
 
 | # | Category | Quick Actions | Description |
 |---|----------|:---:|-------------|
@@ -181,31 +187,103 @@ The agent organizes **249+ pre-built prompts** across **29 categories**, each wi
 | 2 | **Access Control (IAM)** | 6 | RBAC role assignments, privileged access audit |
 | 3 | **Landing Zone (CAF)** | 22 | CAF assessment, Platform & Application LZ review |
 | 4 | **Well-Architected Framework** | 8 | Reliability, Security, Cost, Operations, Performance |
-| 5 | **Networking** | 32 | VNets, NSGs, Firewalls, Load Balancers, WAF, vWAN |
-| 6 | **Azure Private Link** | 14 | Private endpoints, PaaS security, connections |
-| 7 | **Private DNS Zones** | 14 | DNS zones, VNet links, resolution issues |
-| 8 | **Virtual Machines** | 15 | VM health, backup, monitoring, cost optimization |
-| 9 | **Resource Management** | 6 | Inventory, search, and filter Azure resources |
-| 10 | **Cost Optimization** | 7 | Cost analysis, comparisons, savings opportunities |
-| 11 | **Security & Compliance** | 10 | Defender, security score, alerts, compliance |
-| 12 | **Azure Policy** | 5 | Policy compliance and exemptions |
-| 13 | **Monitoring & Alerts** | 11 | Alerts, monitoring gaps, VM Insights status |
-| 14 | **Azure Backup** | 12 | VMs, disks, files, SQL backup protection status |
-| 15 | **Update Management** | 6 | VM and Arc machine patches and compliance |
-| 16 | **Tags Management** | 5 | Tag inventory and compliance |
-| 17 | **Azure Arc** | 3 | Hybrid infrastructure management |
-| 18 | **Azure Kubernetes (AKS)** | 5 | AKS clusters, monitoring, security posture |
-| 19 | **VM Scale Sets** | 4 | Scale set monitoring and configuration |
-| 20 | **App Services** | 5 | Web apps, monitoring, public access |
-| 21 | **Azure SQL PaaS** | 7 | SQL Database, Managed Instance optimization |
-| 22 | **PostgreSQL Servers** | 4 | PostgreSQL flexible servers management |
-| 23 | **MySQL Servers** | 4 | MySQL flexible servers management |
-| 24 | **Cosmos DB** | 4 | NoSQL database optimization |
-| 25 | **Storage Accounts** | 10 | Capacity, security, file shares, cost optimization |
-| 26 | **Orphaned Resources** | 24 | Unused disks, IPs, NICs, NSGs, empty RGs, and more |
-| 27 | **API Management** | 5 | APIM instances, APIs, policies, diagnostics |
-| 28 | **Automation** | 4 | Runbooks, automation accounts, scheduled tasks |
-| 29 | **About** | — | Agent capabilities, version info, help |
+| 5 | **Cloud Ops Health** | 12 | 6-pillar health scoring: Advisor, Backup, Monitor, Defender, Updates, Policy |
+| 6 | **Architecture Diagrams** | 5 | AI-generated diagrams from descriptions or live Azure resources |
+| 7 | **Networking** | 32 | VNets, NSGs, Firewalls, Load Balancers, WAF, vWAN |
+| 8 | **Azure Private Link** | 14 | Private endpoints, PaaS security, connections |
+| 9 | **Private DNS Zones** | 14 | DNS zones, VNet links, resolution issues |
+| 10 | **Virtual Machines** | 15 | VM health, backup, monitoring, cost optimization |
+| 11 | **Resource Management** | 6 | Inventory, search, and filter Azure resources |
+| 12 | **Cost Optimization** | 7 | Cost analysis, comparisons, savings opportunities |
+| 13 | **Security & Compliance** | 10 | Defender, security score, alerts, compliance |
+| 14 | **Azure Policy** | 5 | Policy compliance and exemptions |
+| 15 | **Monitoring & Alerts** | 11 | Alerts, monitoring gaps, VM Insights status |
+| 16 | **Azure Backup** | 12 | VMs, disks, files, SQL backup protection status |
+| 17 | **Update Management** | 6 | VM and Arc machine patches and compliance |
+| 18 | **Tags Management** | 5 | Tag inventory and compliance |
+| 19 | **Azure Arc** | 3 | Hybrid infrastructure management |
+| 20 | **Azure Kubernetes (AKS)** | 5 | AKS clusters, monitoring, security posture |
+| 21 | **VM Scale Sets** | 4 | Scale set monitoring and configuration |
+| 22 | **App Services** | 5 | Web apps, monitoring, public access |
+| 23 | **Azure SQL PaaS** | 7 | SQL Database, Managed Instance optimization |
+| 24 | **PostgreSQL Servers** | 4 | PostgreSQL flexible servers management |
+| 25 | **MySQL Servers** | 4 | MySQL flexible servers management |
+| 26 | **Cosmos DB** | 4 | NoSQL database optimization |
+| 27 | **Storage Accounts** | 10 | Capacity, security, file shares, cost optimization |
+| 28 | **Orphaned Resources** | 24 | Unused disks, IPs, NICs, NSGs, empty RGs, and more |
+| 29 | **API Management** | 5 | APIM instances, APIs, policies, diagnostics |
+| 30 | **Automation** | 4 | Runbooks, automation accounts, scheduled tasks |
+
+---
+
+## 🏥 Cloud Ops Health Assessment
+
+A comprehensive, real-time Cloud Operations Health scoring engine based on the [Azure Cloud Roles & Operations Management](https://github.com/Azure/cloud-rolesandops) framework. Scores your environment across **6 management pillars** with an overall health grade (A–F).
+
+### 6 Management Pillars
+
+| Pillar | What It Measures | Key Data Points |
+|--------|-----------------|-----------------|
+| **Azure Advisor** | Recommendation coverage across Cost, Security, Reliability, Performance, Operational Excellence | Resource name, RG, location, specific problem & solution per resource |
+| **Azure Backup** | VM backup protection percentage | Every unprotected VM listed by name, RG, location, subscription |
+| **Azure Monitor** | Alert response effectiveness (fired vs. acknowledged vs. closed) | Active alerts with severity, target resource, RG, and trigger time |
+| **Defender for Cloud** | Security assessment health (healthy vs. unhealthy recommendations) | Specific findings per resource with parsed name, severity, and remediation steps |
+| **Update Management** | System update compliance across VMs | Machines needing updates with name, RG, location, cause, and description |
+| **Azure Policy** | Policy compliance percentage (compliant vs. noncompliant resources) | Non-compliant resources by name, RG, location, and violating policy |
+
+### What Makes It Different
+
+- **Resource-Level Detail** — Every pillar returns specific resource names, resource groups, locations, and subscription IDs — not just aggregate scores
+- **AI-Driven Analysis** — GPT-4o analyzes the raw data and produces executive-grade reports with prioritized remediation actions per resource
+- **Health Grading** — Overall A–F grade with automatic priority actions for the weakest pillars
+- **Subscription-Scoped** — Automatically respects the subscription/management group selected in the UI dropdown
+
+### Sample Prompts
+```
+"Run a full Cloud Operations Health Assessment"
+"What is my Azure Advisor health score?"
+"Show my backup protection status — which VMs are unprotected?"
+"What is my Defender for Cloud security posture score?"
+"Show Azure Policy compliance — which resources are non-compliant?"
+"Assess my monitoring health — show active unresolved alerts"
+"What is my update compliance score?"
+"Show resource tagging governance health"
+"Assess disaster recovery readiness"
+"Show network security health posture"
+```
+
+---
+
+## 📐 Architecture Diagram Generation
+
+AI-powered Azure architecture diagram generation using actual Azure-native SVG icons. Generate diagrams from natural language descriptions or from your **actual deployed Azure resources**.
+
+### Diagram Types
+
+| Type | Description |
+|------|-------------|
+| **Environment Overview** | High-level estate view across all subscriptions, regions, and resource groups |
+| **Subscription Overview** | Resource group-level view with categorized resource icons |
+| **From Resources** | Diagram your ACTUAL Azure resources with dependencies auto-detected |
+| **Pre-Built Patterns** | Hub-spoke, microservices, serverless, 3-tier web, data platform, multi-region, zero-trust, IoT, DevOps CI/CD, AI/ML, hybrid-cloud, API management |
+| **Custom** | Describe any architecture in natural language and the AI generates it |
+
+### Key Capabilities
+
+- **700+ Azure-native SVG icons** — Official Microsoft Azure icons for accurate visual representation
+- **Live resource discovery** — Query your actual Azure environment and diagram what's deployed
+- **Dependency mapping** — Auto-detects relationships between VNets, subnets, VMs, databases, and more
+- **Inline rendering** — Diagrams render directly in the chat interface as downloadable images
+- **Sandboxed execution** — All diagram code runs in a security sandbox with restricted imports
+
+### Sample Prompts
+```
+"Generate a hub-spoke network architecture diagram"
+"Draw my actual Azure environment as a diagram"
+"Create a 3-tier web application architecture diagram"
+"Show my resource group 'production-rg' as an architecture diagram"
+"Generate a zero-trust network architecture for Azure"
+```
 
 ---
 
@@ -737,6 +815,24 @@ See [Private (Internal-Only) Deployment](#-private-internal-only-deployment) for
 "Find resources missing private endpoints"
 ```
 
+### Cloud Ops Health
+```
+"Run a full Cloud Operations Health Assessment"
+"What is my Azure Advisor health score? Show affected resources"
+"Show backup protection status — which VMs are unprotected?"
+"Assess my Defender for Cloud security posture with resource details"
+"Show Azure Policy compliance — which resources violate which policies?"
+"What is my update compliance score?"
+```
+
+### Architecture Diagrams
+```
+"Generate a hub-spoke network architecture diagram"
+"Draw my actual Azure resources in production-rg as a diagram"
+"Create a 3-tier web app architecture diagram"
+"Generate a zero-trust network architecture"
+```
+
 ---
 
 ## 🔌 API Reference
@@ -761,9 +857,14 @@ See [Private (Internal-Only) Deployment](#-private-internal-only-deployment) for
 
 ```
 ├── main.py                          # FastAPI application entry point
-├── openai_agent.py                  # Azure OpenAI GPT-4o with 119 tools
-├── azure_resource_manager.py        # Resource Graph, Management Groups, Defender
+├── openai_agent.py                  # Azure OpenAI GPT-4o with 120+ tools
+├── azure_resource_manager.py        # Resource Graph, Management Groups, Defender, Cloud Ops Health
+├── azure_diagram_generator.py       # AI-powered architecture diagram generation (Graphviz + diagrams)
 ├── azure_cost_manager.py            # Cost Management API integration
+├── conversation_manager.py          # Chat conversation history management
+├── deployment_manager.py            # Resource deployment orchestration
+├── resource_creator.py              # Azure resource creation helpers
+├── bicep_template_generator.py      # Bicep/ARM template generation
 ├── auth_manager.py                  # Entra ID token validation & Managed Identity
 ├── entra_id_manager.py              # Microsoft Graph API (users, groups, policies)
 ├── universal_azure_operations.py    # Universal Azure REST API operations
@@ -810,6 +911,8 @@ See [Private (Internal-Only) Deployment](#-private-internal-only-deployment) for
 | **OpenAI timeout** | Verify Azure OpenAI resource is deployed and GPT-4o model is available |
 | **Container not starting** | Check logs: `az containerapp logs show --name <app> --resource-group <rg>` |
 | **Orphaned resource scan slow** | Large subscriptions may take 30–60s; the agent scans 24 resource types |
+| **Cloud Ops Health score N/A** | Ensure **Reader** and **Security Reader** roles on target subscriptions; some pillars require Defender for Cloud enabled |
+| **Diagrams not rendering** | Graphviz must be installed in the container; verify Dockerfile includes `apt-get install graphviz` |
 | **Entra ID queries failing** | Grant **Directory Readers** role to the Managed Identity in Entra ID |
 
 ### View Container App Logs

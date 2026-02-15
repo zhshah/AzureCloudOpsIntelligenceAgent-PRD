@@ -1335,6 +1335,11 @@
                 padding: 16px 20px;
             }
         }
+
+        /* Diagram export dropdown */
+        .export-menu.show {
+            display: block !important;
+        }
     </style>
 </head>
 <body>
@@ -2890,6 +2895,258 @@
                 </div>
 
                 
+                <!-- Azure Inventory Category - Based on: https://github.com/scautomation/Azure-Inventory-Workbook -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('inventory')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Inventory"></div>
+                            <div class="category-name">Azure Inventory</div>
+                        </div>
+                        <div class="category-toggle">&#9660;</div>
+                    </div>
+                    <div class="category-prompts" id="category-inventory">
+                        <!-- Summary -->
+                        <div class="prompt-item" onclick="quickPrompt('Get a COMPLETE inventory summary of ALL Azure resources in my environment. Show counts by category: VMs, VMSS, ARC Machines, App Services, Containers (AKS/ACR/ACI), Data (SQL/CosmosDB/MySQL/PostgreSQL), Events (ServiceBus/EventHub), IoT, ML/AI, Storage/KeyVault/Backup, Virtual Desktop, Networking, NSGs, Monitoring, Security Scores, Governance/Policy. Give me a high-level overview of my entire Azure estate.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Summary" style="width:18px;height:18px;"></span>
+                            <span>Full Inventory Summary</span>
+                        </div>
+
+                        <!-- Overview -->
+                        <div class="prompt-item" onclick="quickPrompt('Get an overview of all Azure resources in my environment. Show total resource count, resource counts by type, resource counts by location/region, and subscription/resource group breakdown.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10349-icon-service-Resource-Explorer.svg" alt="Overview" style="width:18px;height:18px;"></span>
+                            <span>Resource Overview</span>
+                        </div>
+
+                        <!-- Compute VMs -->
+                        <div class="prompt-item" onclick="quickPrompt('Get a comprehensive inventory of all Virtual Machines. Include: VM name, size, power state, OS type, creation date, availability set, SQL extensions, resource group, location, subscription.')">
+                            <span class="prompt-icon"><img src="/Icons/compute/10021-icon-service-Virtual-Machine.svg" alt="VMs" style="width:18px;height:18px;"></span>
+                            <span>Virtual Machines</span>
+                        </div>
+
+                        <!-- Compute VMSS -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all VM Scale Sets. Include: VMSS name, size, capacity, OS type, upgrade mode, over-provision setting, resource group, location.')">
+                            <span class="prompt-icon"><img src="/Icons/compute/10034-icon-service-VM-Scale-Sets.svg" alt="VMSS" style="width:18px;height:18px;"></span>
+                            <span>VM Scale Sets</span>
+                        </div>
+
+                        <!-- VM Networking -->
+                        <div class="prompt-item" onclick="quickPrompt('Get VM networking inventory. Show each VM with its NIC, private IP address, and public IP address. Include VM size and subscription.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10080-icon-service-Network-Interfaces.svg" alt="VM NICs" style="width:18px;height:18px;"></span>
+                            <span>VM Networking (IPs)</span>
+                        </div>
+
+                        <!-- VM Disks -->
+                        <div class="prompt-item" onclick="quickPrompt('Get VM disk/storage inventory. Show each VM with OS disk size, OS SKU, data disk count, total data disk size in GB, and creation date.')">
+                            <span class="prompt-icon"><img src="/Icons/compute/10032-icon-service-Disks.svg" alt="Disks" style="width:18px;height:18px;"></span>
+                            <span>VM Disks & Storage</span>
+                        </div>
+
+                        <!-- ARC Machines -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all Azure ARC hybrid machines. Include: machine name, OS, FQDN, status, serial number, last seen date, IP addresses.')">
+                            <span class="prompt-icon"><img src="/Icons/compute/10021-icon-service-Virtual-Machine.svg" alt="ARC" style="width:18px;height:18px;"></span>
+                            <span>ARC (Hybrid) Machines</span>
+                        </div>
+
+                        <!-- PaaS Automation -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all Automation resources. Include: Automation Accounts, Logic Apps, Runbooks, Custom APIs, Integration Accounts with their state and type.')">
+                            <span class="prompt-icon"><img src="/Icons/management%20+%20governance/00022-icon-service-Automation-Accounts.svg" alt="Automation" style="width:18px;height:18px;"></span>
+                            <span>Automation & Logic Apps</span>
+                        </div>
+
+                        <!-- PaaS Apps -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all Application resources. Include: App Services, Azure Functions, API Management, Front Door, App Gateways, App Config Stores with SKU and state.')">
+                            <span class="prompt-icon"><img src="/Icons/compute/10035-icon-service-App-Services.svg" alt="Apps" style="width:18px;height:18px;"></span>
+                            <span>App Services & Functions</span>
+                        </div>
+
+                        <!-- PaaS Containers -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all Container resources. Include: AKS clusters with Kubernetes version and node count, Container Registries with SKU, Container Instances with state.')">
+                            <span class="prompt-icon"><img src="/Icons/compute/10023-icon-service-Kubernetes-Services.svg" alt="Containers" style="width:18px;height:18px;"></span>
+                            <span>Containers (AKS/ACR/ACI)</span>
+                        </div>
+
+                        <!-- PaaS Data -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all Data Platform resources. Include: SQL Servers, SQL DBs, CosmosDB, MySQL, PostgreSQL, Synapse, ADX Clusters, Data Factory, Purview with SKU, tier, status, and endpoints.')">
+                            <span class="prompt-icon"><img src="/Icons/databases/10130-icon-service-SQL-Database.svg" alt="Data" style="width:18px;height:18px;"></span>
+                            <span>Data Platform (SQL/Cosmos/etc)</span>
+                        </div>
+
+                        <!-- PaaS Events -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all Event/Messaging resources. Include: Service Bus namespaces, Event Hub namespaces, Event Grid topics, Azure Relay with SKU, status, and endpoints.')">
+                            <span class="prompt-icon"><img src="/Icons/analytics/10149-icon-service-Event-Hub-Clusters.svg" alt="Events" style="width:18px;height:18px;"></span>
+                            <span>Events (ServiceBus/EventHub)</span>
+                        </div>
+
+                        <!-- PaaS IoT -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all IoT resources. Include: IoT Hubs, IoT Central Apps, IoT Security Solutions with SKU, tier, state, hostname, and Event Hub endpoints.')">
+                            <span class="prompt-icon"><img src="/Icons/iot/10182-icon-service-IoT-Hub.svg" alt="IoT" style="width:18px;height:18px;"></span>
+                            <span>IoT Resources</span>
+                        </div>
+
+                        <!-- PaaS ML/AI -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all ML/AI resources. Include: Machine Learning Workspaces, Cognitive Services/OpenAI with SKU, tier, endpoints, linked storage, and App Insights.')">
+                            <span class="prompt-icon"><img src="/Icons/iot/00030-icon-service-Machine-Learning-Studio-(Classic)-Web-Services.svg" alt="ML/AI" style="width:18px;height:18px;"></span>
+                            <span>ML/AI & Cognitive Services</span>
+                        </div>
+
+                        <!-- PaaS Storage -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all Storage & Backup resources. Include: Storage Accounts, Key Vaults, Recovery Services vaults, Azure File Sync with SKU and kind.')">
+                            <span class="prompt-icon"><img src="/Icons/storage/10086-icon-service-Storage-Accounts.svg" alt="Storage" style="width:18px;height:18px;"></span>
+                            <span>Storage & Key Vaults</span>
+                        </div>
+
+                        <!-- PaaS WVD/AVD -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all Azure Virtual Desktop resources. Include: Host Pools, Workspaces, Application Groups with type, location, and resource group.')">
+                            <span class="prompt-icon"><img src="/Icons/compute/00328-icon-service-Host-Pools.svg" alt="AVD" style="width:18px;height:18px;"></span>
+                            <span>Azure Virtual Desktop</span>
+                        </div>
+
+                        <!-- Networking -->
+                        <div class="prompt-item" onclick="quickPrompt('Get overview of all Networking resources with counts by type. Include: VNets, Subnets, NSGs, Load Balancers, Application Gateways, Public IPs, Private Endpoints, CDN, etc.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" alt="Network" style="width:18px;height:18px;"></span>
+                            <span>Network Resources Overview</span>
+                        </div>
+
+                        <!-- NSGs -->
+                        <div class="prompt-item" onclick="quickPrompt('Get NSG inventory including which NSGs are unassociated (not linked to any NIC or subnet). Show association status for each NSG.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10067-icon-service-Network-Security-Groups.svg" alt="NSG" style="width:18px;height:18px;"></span>
+                            <span>NSGs & Association Status</span>
+                        </div>
+
+                        <!-- NSG Rules -->
+                        <div class="prompt-item" onclick="quickPrompt('Get all NSG security rules across my environment. Show: NSG name, rule name, access (Allow/Deny), direction, protocol, priority, source/destination address prefix, port ranges.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10067-icon-service-Network-Security-Groups.svg" alt="NSG Rules" style="width:18px;height:18px;"></span>
+                            <span>NSG Security Rules</span>
+                        </div>
+
+                        <!-- IP Inventory -->
+                        <div class="prompt-item" onclick="quickPrompt('Get IP address inventory per subnet. Show each VNet and subnet with: total IPs available, IPs in use, available IPs remaining. Help me understand IP address utilization.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10069-icon-service-Public-IP-Addresses.svg" alt="IPs" style="width:18px;height:18px;"></span>
+                            <span>IP Address Inventory</span>
+                        </div>
+
+                        <!-- Monitoring Alerts -->
+                        <div class="prompt-item" onclick="quickPrompt('Get all active fired alerts from Azure Monitor. Show: alert name, status, state, severity, time fired, suppression status, resource group, subscription.')">
+                            <span class="prompt-icon"><img src="/Icons/management%20+%20governance/00002-icon-service-Alerts.svg" alt="Alerts" style="width:18px;height:18px;"></span>
+                            <span>Active Alerts (Fired)</span>
+                        </div>
+
+                        <!-- Monitoring Resources -->
+                        <div class="prompt-item" onclick="quickPrompt('Get inventory of all Monitoring & Alerting resources. Include: Workbooks, Activity Log Alerts, Log Search Alerts, Action Groups, Metric Alerts, Smart Detection Rules, Portal Dashboards.')">
+                            <span class="prompt-icon"><img src="/Icons/monitor/00001-icon-service-Monitor.svg" alt="Monitor" style="width:18px;height:18px;"></span>
+                            <span>Monitoring Resources</span>
+                        </div>
+
+                        <!-- App Insights -->
+                        <div class="prompt-item" onclick="quickPrompt('Get Application Insights inventory. Show each component with: retention period, ingestion mode, resource group, location, subscription.')">
+                            <span class="prompt-icon"><img src="/Icons/monitor/00012-icon-service-Application-Insights.svg" alt="AppInsights" style="width:18px;height:18px;"></span>
+                            <span>Application Insights</span>
+                        </div>
+
+                        <!-- Log Analytics -->
+                        <div class="prompt-item" onclick="quickPrompt('Get Log Analytics workspace inventory. Show each workspace with: SKU, retention period in days, resource group, location, subscription.')">
+                            <span class="prompt-icon"><img src="/Icons/monitor/00009-icon-service-Log-Analytics-Workspaces.svg" alt="LogAnalytics" style="width:18px;height:18px;"></span>
+                            <span>Log Analytics Workspaces</span>
+                        </div>
+
+                        <!-- Security Scores -->
+                        <div class="prompt-item" onclick="quickPrompt('Get Azure Security Center secure scores by subscription and security controls. Show subscription scores and list all security controls with healthy/unhealthy resources and current/max scores.')">
+                            <span class="prompt-icon"><img src="/Icons/security/10245-icon-service-Key-Vaults.svg" alt="Security" style="width:18px;height:18px;"></span>
+                            <span>Security Scores</span>
+                        </div>
+
+                        <!-- Governance Policy -->
+                        <div class="prompt-item" onclick="quickPrompt('Get governance policy inventory. Show: total policy assignments, initiatives deployed, policies deployed, compliant vs non-compliant resources by subscription.')">
+                            <span class="prompt-icon"><img src="/Icons/management%20+%20governance/10316-icon-service-Policy.svg" alt="Policy" style="width:18px;height:18px;"></span>
+                            <span>Policy & Compliance</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cloud Operations Health Category - Based on: https://github.com/Azure/cloud-rolesandops -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('opshealth')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/monitor/00001-icon-service-Monitor.svg" alt="Ops Health"></div>
+                            <div class="category-name">Cloud Ops Health</div>
+                        </div>
+                        <div class="category-toggle">&#9660;</div>
+                    </div>
+                    <div class="category-prompts" id="category-opshealth">
+                        <!-- Overall Management Score -->
+                        <div class="prompt-item" onclick="quickPrompt('Run a full Cloud Operations Health Assessment across all 6 management pillars: Advisor, Backup, Monitor, Defender for Cloud, Update Management, and Azure Policy. Show me the overall management score and each pillar score with recommendations to improve.')">
+                            <span class="prompt-icon"><img src="/Icons/monitor/00001-icon-service-Monitor.svg" alt="Overall" style="width:18px;height:18px;"></span>
+                            <span>Overall Management Score</span>
+                        </div>
+
+                        <!-- Advisor Health -->
+                        <div class="prompt-item" onclick="quickPrompt('What is my Azure Advisor Health Score? Show the percentage of resources without active advisor recommendations and highlight areas for improvement.')">
+                            <span class="prompt-icon"><img src="/Icons/management%20+%20governance/00003-icon-service-Advisor.svg" alt="Advisor" style="width:18px;height:18px;"></span>
+                            <span>Advisor Health Score</span>
+                        </div>
+
+                        <!-- Advisor Recommendations Breakdown -->
+                        <div class="prompt-item" onclick="quickPrompt('Show me a breakdown of all Azure Advisor recommendations by category (Reliability, Security, Performance, Cost, Operational Excellence) and impact level.')">
+                            <span class="prompt-icon"><img src="/Icons/management%20+%20governance/00003-icon-service-Advisor.svg" alt="Advisor" style="width:18px;height:18px;"></span>
+                            <span>Advisor Recommendations</span>
+                        </div>
+
+                        <!-- Backup Protection -->
+                        <div class="prompt-item" onclick="quickPrompt('What is my Backup Protection Score? Show how many virtual machines are protected by Azure Backup vs unprotected. List any VMs at risk.')">
+                            <span class="prompt-icon"><img src="/Icons/management%20+%20governance/00017-icon-service-Recovery-Services-Vaults.svg" alt="Backup" style="width:18px;height:18px;"></span>
+                            <span>Backup Protection Score</span>
+                        </div>
+
+                        <!-- Monitor & Alerts -->
+                        <div class="prompt-item" onclick="quickPrompt('Assess my Azure Monitor and Alerts management score. Show alert response effectiveness: total alerts, fired, acknowledged, closed rates, and overall monitoring health.')">
+                            <span class="prompt-icon"><img src="/Icons/management%20+%20governance/00002-icon-service-Alerts.svg" alt="Alerts" style="width:18px;height:18px;"></span>
+                            <span>Monitor & Alerts Score</span>
+                        </div>
+
+                        <!-- Security Posture -->
+                        <div class="prompt-item" onclick="quickPrompt('What is my Defender for Cloud security posture score? Show total security assessments, healthy vs unhealthy recommendations, and the overall security management score.')">
+                            <span class="prompt-icon"><img src="/Icons/security/10241-icon-service-Microsoft-Defender-for-Cloud.svg" alt="Security" style="width:18px;height:18px;"></span>
+                            <span>Security Posture Score</span>
+                        </div>
+
+                        <!-- Update Compliance -->
+                        <div class="prompt-item" onclick="quickPrompt('Check my Update Management compliance score. Show how many systems have pending updates, which are healthy vs unhealthy, and the percentage compliant with update policies.')">
+                            <span class="prompt-icon"><img src="/Icons/management%20+%20governance/00022-icon-service-Automation-Accounts.svg" alt="Updates" style="width:18px;height:18px;"></span>
+                            <span>Update Compliance Score</span>
+                        </div>
+
+                        <!-- Policy Compliance -->
+                        <div class="prompt-item" onclick="quickPrompt('What is my Azure Policy compliance score? Show compliant vs non-compliant resources, exempt resources, and the policy management score percentage.')">
+                            <span class="prompt-icon"><img src="/Icons/management%20+%20governance/10316-icon-service-Policy.svg" alt="Policy" style="width:18px;height:18px;"></span>
+                            <span>Policy Compliance Score</span>
+                        </div>
+
+                        <!-- Environment Overview -->
+                        <div class="prompt-item" onclick="quickPrompt('Show me a full environment overview of my monitoring and operational resources: Log Analytics workspaces, Application Insights, alert rules, action groups, automation accounts, key vaults, and recovery vaults.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Environment" style="width:18px;height:18px;"></span>
+                            <span>Environment Overview</span>
+                        </div>
+
+                        <!-- Tagging Governance -->
+                        <div class="prompt-item" onclick="quickPrompt('Assess my resource tagging governance health. Show what percentage of resources have environment, owner, and cost center tags. Identify resources missing critical tags.')">
+                            <span class="prompt-icon"><img src="/Icons/general/10014-icon-service-Tag.svg" alt="Tags" style="width:18px;height:18px;"></span>
+                            <span>Tagging Governance</span>
+                        </div>
+
+                        <!-- Network Security -->
+                        <div class="prompt-item" onclick="quickPrompt('Show my network security health posture: count of NSGs, Azure Firewalls, Application Gateways (WAF), Front Doors, Private Endpoints, and Private DNS Zones deployed.')">
+                            <span class="prompt-icon"><img src="/Icons/networking/10061-icon-service-Virtual-Networks.svg" alt="Network" style="width:18px;height:18px;"></span>
+                            <span>Network Security Health</span>
+                        </div>
+
+                        <!-- Disaster Recovery -->
+                        <div class="prompt-item" onclick="quickPrompt('Assess my disaster recovery readiness. Show Recovery Services Vaults, backup protected items, ASR replicated items, and overall DR coverage.')">
+                            <span class="prompt-icon"><img src="/Icons/management%20+%20governance/00017-icon-service-Recovery-Services-Vaults.svg" alt="DR" style="width:18px;height:18px;"></span>
+                            <span>Disaster Recovery Readiness</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Orphaned Resources Category - Based on: https://github.com/dolevshor/azure-orphan-resources -->
                 <div class="category-section">
                     <div class="category-header" onclick="toggleCategory('orphaned')">
@@ -3024,6 +3281,110 @@
                         <div class="prompt-item" onclick="quickPrompt('Find expired App Service Certificates. Include: Certificate Name, Resource Group, Subject Name, Expiration Date, Issuer, Tags.')">
                             <span class="prompt-icon"><img src="/Icons/security/10245-icon-service-Key-Vaults.svg" alt="Certificate" style="width:18px;height:18px;"></span>
                             <span>Expired Certificates</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Architecture Diagrams Category -->
+                <div class="category-section">
+                    <div class="category-header" onclick="toggleCategory('diagrams')">
+                        <div class="category-info">
+                            <div class="category-icon"><img src="/Icons/general/10349-icon-service-Resource-Explorer.svg" alt="Diagrams"></div>
+                            <div class="category-name">Architecture Diagrams</div>
+                        </div>
+                        <div class="category-toggle"></div>
+                    </div>
+                    <div class="category-prompts" id="category-diagrams">
+                        <!-- GOVERNANCE & ESTATE -->
+                        <div class="prompt-item" style="font-weight:600; color:#0078d4; pointer-events:none; opacity:0.85; font-size:11px; padding:4px 14px 2px;">
+                            <span>── Governance &amp; Estate ──</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Generate an environment overview diagram showing all my subscriptions, regions, and resource groups with resource counts - I want to see my full Azure estate')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>My Azure estate overview</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Generate a subscription overview diagram showing all resource groups with resources grouped by category - I want to see how my subscription is organized')">
+                            <span class="prompt-icon">📋</span>
+                            <span>My subscription layout</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('List all my resource groups with resource counts, then let me pick one to generate a full architecture diagram showing all resources and their relationships')">
+                            <span class="prompt-icon">📦</span>
+                            <span>Diagram a Resource Group</span>
+                        </div>
+
+                        <!-- WORKLOAD DIAGRAMS -->
+                        <div class="prompt-item" style="font-weight:600; color:#0078d4; pointer-events:none; opacity:0.85; font-size:11px; padding:8px 14px 2px;">
+                            <span>── Workload Diagrams ──</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Discover my web application workloads - find all App Services, App Service Plans, Function Apps, and their connected resources like databases, storage, and Key Vaults. Show me the workloads so I can generate an architecture diagram.')">
+                            <span class="prompt-icon">🌐</span>
+                            <span>Web app workloads</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Discover my containerized workloads - find AKS clusters, Container Apps, Container Registries, and their connected resources. List them so I can select which to diagram.')">
+                            <span class="prompt-icon">☸️</span>
+                            <span>Container &amp; Kubernetes</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Discover my Virtual Machine workloads - find all VMs with their NICs, Disks, NSGs, and Virtual Networks. Group them by resource group so I can select a VM workload to diagram.')">
+                            <span class="prompt-icon">🖥️</span>
+                            <span>VM workloads</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Discover my database workloads - find all SQL Servers, SQL Databases, Cosmos DB accounts, PostgreSQL, MySQL, and Redis Cache instances with their connected resources. List them so I can diagram.')">
+                            <span class="prompt-icon">🗄️</span>
+                            <span>Database workloads</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Discover my API and integration workloads - find API Management instances, Logic Apps, Service Bus, Event Grid, Event Hubs, and their backend connections. List them so I can diagram the integration architecture.')">
+                            <span class="prompt-icon">🔌</span>
+                            <span>API &amp; Integration</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Discover my AI and Machine Learning workloads - find Azure OpenAI, Cognitive Services, Machine Learning workspaces, and their connected storage and Key Vaults. List them so I can diagram the AI architecture.')">
+                            <span class="prompt-icon">🤖</span>
+                            <span>AI &amp; ML workloads</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Discover my data platform workloads - find Data Factory, Databricks, Synapse, Event Hubs, Stream Analytics, and Storage accounts. List them so I can diagram the data pipeline architecture.')">
+                            <span class="prompt-icon">📊</span>
+                            <span>Data platform</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Discover my Azure Virtual Desktop (AVD) workloads - find host pools, session hosts, workspaces, application groups, and the underlying networking and storage. List them so I can generate the AVD architecture diagram.')">
+                            <span class="prompt-icon">🖥️</span>
+                            <span>AVD / Virtual Desktop</span>
+                        </div>
+
+                        <!-- NETWORKING & SECURITY -->
+                        <div class="prompt-item" style="font-weight:600; color:#0078d4; pointer-events:none; opacity:0.85; font-size:11px; padding:8px 14px 2px;">
+                            <span>── Networking &amp; Security ──</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Diagram my network topology - find all Virtual Networks, Subnets, NSGs, Route Tables, VPN Gateways, ExpressRoute, Firewalls, and Bastion hosts. Show the network architecture with peering and connectivity.')">
+                            <span class="prompt-icon">🔗</span>
+                            <span>Network topology</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Diagram my security architecture - find all Key Vaults, Managed Identities, NSGs, Firewalls, Private Endpoints, and their connections to protected resources. Show the security posture.')">
+                            <span class="prompt-icon">🔒</span>
+                            <span>Security architecture</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Diagram my monitoring setup - find all Application Insights, Log Analytics workspaces, and the resources they monitor. Show the observability architecture.')">
+                            <span class="prompt-icon">📈</span>
+                            <span>Monitoring &amp; observability</span>
+                        </div>
+
+                        <!-- SMART DISCOVERY -->
+                        <div class="prompt-item" style="font-weight:600; color:#0078d4; pointer-events:none; opacity:0.85; font-size:11px; padding:8px 14px 2px;">
+                            <span>── Smart Discovery ──</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Find resources that share the same tags and group them as a workload. Show me the unique tag combinations (like Environment, Application, Owner) so I can select a tag-based workload to diagram together.')">
+                            <span class="prompt-icon">🏷️</span>
+                            <span>Tag-based workloads</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('I want to build a custom multi-workload diagram. Help me step by step: 1) Show my resource groups, 2) Let me pick multiple RGs or resource types to combine, 3) Generate a single unified architecture diagram showing all selected workloads together with their cross-dependencies.')">
+                            <span class="prompt-icon">🧩</span>
+                            <span>Multi-workload builder</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Show me all my Azure resources grouped by resource group with counts, then let me select multiple resources across different resource groups to combine into a single cross-RG architecture diagram.')">
+                            <span class="prompt-icon">🏗️</span>
+                            <span>Cross-RG diagram</span>
+                        </div>
+                        <div class="prompt-item" onclick="quickPrompt('Discover all resources in my environment and automatically identify distinct workload clusters based on naming patterns, shared resource groups, and resource dependencies. Show me the detected workloads so I can pick one to diagram.')">
+                            <span class="prompt-icon">🔍</span>
+                            <span>Auto-detect workloads</span>
                         </div>
                     </div>
                 </div>
@@ -3216,6 +3577,20 @@
                             <div class="welcome-category-count">10 Quick Actions</div>
                         </div>
 
+                        <div class="welcome-category-card" onclick="showCategory('inventory')">
+                            <span class="welcome-category-icon"><img src="/Icons/general/10001-icon-service-All-Resources.svg" alt="Inventory"></span>
+                            <div class="welcome-category-title">Azure Inventory</div>
+                            <div class="welcome-category-desc">Complete resource inventory - Compute, PaaS, Networking, Monitoring, Governance</div>
+                            <div class="welcome-category-count">26 Inventory Types</div>
+                        </div>
+
+                        <div class="welcome-category-card" onclick="showCategory('opshealth')">
+                            <span class="welcome-category-icon"><img src="/Icons/monitor/00001-icon-service-Monitor.svg" alt="Ops Health"></span>
+                            <div class="welcome-category-title">Cloud Ops Health</div>
+                            <div class="welcome-category-desc">Management score across 6 pillars — Advisor, Backup, Monitor, Security, Updates, Policy</div>
+                            <div class="welcome-category-count">12 Assessments</div>
+                        </div>
+
                         <div class="welcome-category-card" onclick="showCategory('orphaned')">
                             <span class="welcome-category-icon"><img src="/Icons/general/10349-icon-service-Resource-Explorer.svg" alt="Orphaned"></span>
                             <div class="welcome-category-title">Orphaned Resources</div>
@@ -3235,6 +3610,13 @@
                             <div class="welcome-category-title">Automation</div>
                             <div class="welcome-category-desc">Runbooks, automation accounts, scheduled tasks</div>
                             <div class="welcome-category-count">4 Quick Actions</div>
+                        </div>
+
+                        <div class="welcome-category-card" onclick="showCategory('diagrams')">
+                            <span class="welcome-category-icon"><img src="/Icons/general/10349-icon-service-Resource-Explorer.svg" alt="Diagrams"></span>
+                            <div class="welcome-category-title">Architecture Diagrams</div>
+                            <div class="welcome-category-desc">Generate Azure architecture diagrams, network topology, data flow visuals</div>
+                            <div class="welcome-category-count">12 Quick Actions</div>
                         </div>
 
                         <div class="welcome-category-card" onclick="showCategory('about')">
@@ -3950,6 +4332,42 @@
             // Convert markdown to HTML with proper table rendering
             let formattedText = text;
             
+            // Process [DIAGRAM:id:TITLE:title] tags - render architecture diagram images
+            formattedText = formattedText.replace(/\[DIAGRAM:([a-zA-Z0-9-]+):TITLE:([^\]]+)\]/g, function(match, diagramId, diagramTitle) {
+                return `<div class="diagram-container" style="margin: 16px 0; padding: 12px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 12px;">
+                    <div style="overflow-x: auto; overflow-y: hidden; background: white; border-radius: 8px; padding: 8px; border: 1px solid #e8e8e8; max-height: 600px;">
+                        <img src="/api/diagram/${diagramId}" alt="${diagramTitle}" style="display: block; max-width: none; min-width: 100%; height: auto; max-height: 580px; object-fit: contain; border-radius: 4px;" onerror="this.parentElement.innerHTML='<div style=\\'padding:40px;color:#888;\\'>Diagram image could not be loaded. Try regenerating.</div>'" />
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding: 4px 0;">
+                        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                            <span style="font-size: 16px; flex-shrink: 0;">🏗️</span>
+                            <strong style="font-size: 13px; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${diagramTitle}</strong>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0; margin-left: 12px;">
+                            <button onclick="window.open('/api/diagram/${diagramId}', '_blank')" style="padding: 5px 12px; background: #0078d4; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; white-space: nowrap;" onmouseover="this.style.background='#106ebe'" onmouseout="this.style.background='#0078d4'">
+                                🔍 Full Size
+                            </button>
+                            <div style="position: relative; display: inline-block;" class="diagram-export-dropdown">
+                                <button onclick="this.parentElement.querySelector('.export-menu').classList.toggle('show')" style="padding: 5px 12px; background: #107c10; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; white-space: nowrap;" onmouseover="this.style.background='#0b6a0b'" onmouseout="this.style.background='#107c10'">
+                                    ⬇️ Export ▾
+                                </button>
+                                <div class="export-menu" style="display:none; position:absolute; bottom:100%; right:0; margin-bottom:4px; background:white; border:1px solid #e0e0e0; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:100; min-width:140px; overflow:hidden;">
+                                    <div onclick="downloadDiagram('${diagramId}', '${diagramTitle.replace(/'/g, "\\'")}', 'png'); this.closest('.export-menu').classList.remove('show');" style="padding:8px 14px; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:6px; color:#333;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='white'">
+                                        🖼️ PNG (High Quality)
+                                    </div>
+                                    <div onclick="downloadDiagram('${diagramId}', '${diagramTitle.replace(/'/g, "\\'")}', 'jpeg'); this.closest('.export-menu').classList.remove('show');" style="padding:8px 14px; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:6px; color:#333; border-top:1px solid #f0f0f0;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='white'">
+                                        📷 JPEG (Compressed)
+                                    </div>
+                                    <div onclick="downloadDiagram('${diagramId}', '${diagramTitle.replace(/'/g, "\\'")}', 'svg'); this.closest('.export-menu').classList.remove('show');" style="padding:8px 14px; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:6px; color:#333; border-top:1px solid #f0f0f0;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='white'">
+                                        📐 SVG (Scalable)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            
             // Convert markdown tables to HTML tables
             formattedText = convertMarkdownTablesToHTML(formattedText);
             
@@ -4211,6 +4629,49 @@
                 showNotification(`Export failed: ${error.message}`, 'error');
             }
         }
+
+        async function downloadDiagram(diagramId, title, format = 'png') {
+            try {
+                const formatLabels = { png: 'PNG', jpeg: 'JPEG', svg: 'SVG' };
+                showNotification(`Downloading diagram as ${formatLabels[format] || format.toUpperCase()}...`);
+
+                const response = await fetch(`/api/diagram-download/${diagramId}?format=${format}`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Download failed');
+                }
+
+                const blob = await response.blob();
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = `azure_diagram_${diagramId}.${format}`;
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="(.+)"/);
+                    if (match) filename = match[1];
+                }
+
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                showNotification(`Downloaded diagram: ${title} (${formatLabels[format] || format.toUpperCase()})`);
+            } catch (error) {
+                console.error('Diagram download error:', error);
+                showNotification(`Download failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Close export dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.diagram-export-dropdown')) {
+                document.querySelectorAll('.export-menu.show').forEach(m => m.classList.remove('show'));
+            }
+        });
 
         // Event listeners
         document.getElementById('userInput').addEventListener('keypress', (e) => {

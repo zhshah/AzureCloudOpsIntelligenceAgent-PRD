@@ -17,6 +17,7 @@ from modern_resource_deployment import ModernResourceDeployment
 from azure_schema_provider import AzureSchemaProvider
 from universal_azure_operations import UniversalAzureOperations
 from universal_cli_deployment import UniversalCLIDeployment
+from azure_diagram_generator import get_diagram_generator, _find_related_resources
 
 
 
@@ -2153,6 +2154,157 @@ class OpenAIAgent:
                         "required": ["resource_type"]
                     }
                 }
+            },
+            # AZURE INVENTORY (Consolidated - 26 types in 1 tool) - Based on: https://github.com/scautomation/Azure-Inventory-Workbook
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_azure_inventory",
+                    "description": "Get comprehensive Azure resource inventory by category. Provides detailed inventory of all Azure resources across your environment. INVENTORY TYPES: overview (resource counts by type/location/RG), compute_vms (VM status/sizes/OS/SQL/AvSets), compute_vmss (VM Scale Sets), compute_vm_networking (VMs with NICs/IPs), compute_vm_disks (VMs with disk details), compute_arc (hybrid ARC machines), paas_automation (Automation/Logic Apps), paas_apps (App Services/Functions/APIM/Front Door), paas_containers (AKS/ACR/ACI), paas_data (SQL/CosmosDB/MySQL/PostgreSQL/Synapse/ADX), paas_events (ServiceBus/EventHub/EventGrid), paas_iot (IoT Hubs/Apps), paas_mlai (ML Workspaces/Cognitive Services), paas_storage (Storage/KeyVault/Backup/FileSync), paas_wvd (Azure Virtual Desktop), networking (network resource counts), networking_nsgs (NSG details/unassociated), networking_nsg_rules (NSG security rules), networking_ip_inventory (subnet IP usage), monitoring_alerts (active fired alerts), monitoring_resources (workbooks/alert rules/action groups), monitoring_appinsights (Application Insights), monitoring_log_analytics (Log Analytics workspaces), security_scores (Security Center scores), governance_policy (policy compliance), ALL (full summary). Use when user asks about inventory, resource listing, environment overview, what resources exist, asset inventory.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "inventory_type": {
+                                "type": "string",
+                                "enum": ["overview", "compute_vms", "compute_vmss", "compute_vm_networking", "compute_vm_disks", "compute_arc", "paas_automation", "paas_apps", "paas_containers", "paas_data", "paas_events", "paas_iot", "paas_mlai", "paas_storage", "paas_wvd", "networking", "networking_nsgs", "networking_nsg_rules", "networking_ip_inventory", "monitoring_alerts", "monitoring_resources", "monitoring_appinsights", "monitoring_log_analytics", "security_scores", "governance_policy", "ALL"],
+                                "description": "Type of inventory to retrieve. Use 'ALL' for complete summary across all categories."
+                            },
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        },
+                        "required": ["inventory_type"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_cloud_ops_health",
+                    "description": "Run Cloud Operations Health Assessment on the Azure environment. Based on the Azure Cloud Roles & Operations Management framework. Performs real-time scoring across 6 management pillars: Azure Advisor, Backup Protection, Monitor & Alerts, Defender for Cloud, Update Management, and Azure Policy. Also provides environment overview, network security health, tagging governance, and disaster recovery readiness. Use when the user asks about management score, operations health, cloud ops assessment, compliance readiness, environment health check, or overall Azure posture.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "assessment_type": {
+                                "type": "string",
+                                "enum": [
+                                    "OVERALL_SCORE",
+                                    "ADVISOR_HEALTH",
+                                    "ADVISOR_RECOMMENDATIONS",
+                                    "BACKUP_PROTECTION",
+                                    "MONITOR_ALERTS",
+                                    "SECURITY_POSTURE",
+                                    "UPDATE_COMPLIANCE",
+                                    "POLICY_COMPLIANCE",
+                                    "ENVIRONMENT_OVERVIEW",
+                                    "TAGGING_GOVERNANCE",
+                                    "NETWORK_SECURITY",
+                                    "DISASTER_RECOVERY"
+                                ],
+                                "description": "Type of assessment: OVERALL_SCORE (all 6 pillars combined), ADVISOR_HEALTH (Advisor score), ADVISOR_RECOMMENDATIONS (recommendations breakdown), BACKUP_PROTECTION (VM backup coverage), MONITOR_ALERTS (alert response efficiency), SECURITY_POSTURE (Defender for Cloud), UPDATE_COMPLIANCE (system updates), POLICY_COMPLIANCE (Azure Policy), ENVIRONMENT_OVERVIEW (monitoring/ops resources), TAGGING_GOVERNANCE (tag compliance), NETWORK_SECURITY (NSGs/Firewalls/WAF), DISASTER_RECOVERY (backup/ASR readiness)"
+                            },
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs."
+                            }
+                        },
+                        "required": ["assessment_type"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generate_azure_diagram",
+                    "description": "Generate an Azure architecture diagram. Use when user asks to create, generate, draw, or visualize architecture diagrams, network topology, data flow, infrastructure layout, landing zone diagrams, or any visual representation of Azure resources. Supports pre-built patterns (hub-spoke, microservices, serverless, etc.), custom diagrams from descriptions, or diagrams from ACTUAL Azure resources. When user wants to diagram their real resources, FIRST call get_diagram_resource_options to discover resources, then call this with the selected resource names.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "diagram_type": {
+                                "type": "string",
+                                "enum": ["environment-overview", "subscription-overview", "web-3tier", "microservices", "serverless", "hub-spoke", "data-platform", "multi-region", "zero-trust", "iot-solution", "devops-cicd", "ai-ml", "hybrid-cloud", "api-management", "custom", "from-resources"],
+                                "description": "Type of diagram. 'environment-overview' for high-level estate view (all subs, regions, RGs). 'subscription-overview' for RG-level view with resource categories. 'from-resources' for specific resource with dependencies. Pre-built patterns for common architectures. 'custom' for AI-generated."
+                            },
+                            "title": {
+                                "type": "string",
+                                "description": "Title for the diagram (e.g., 'Production Network Topology', 'My Azure Landing Zone')"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Natural language description of the architecture to diagram. Used for 'custom' type or to customize patterns."
+                            },
+                            "scope": {
+                                "type": "string",
+                                "description": "Scope for 'from-resources' type: subscription ID, resource group name, or 'all' for entire environment."
+                            },
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of subscription IDs for 'from-resources' type."
+                            },
+                            "resource_type_filter": {
+                                "type": "string",
+                                "description": "Filter resources by type when using 'from-resources'. E.g., 'microsoft.web/sites' for App Services, 'microsoft.compute/virtualmachines' for VMs, 'microsoft.sql/servers' for SQL. Partial match supported."
+                            },
+                            "resource_names": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Specific resource names to include in the diagram. Use after get_diagram_resource_options to generate a diagram for user-selected resources only."
+                            }
+                        },
+                        "required": ["diagram_type"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "list_diagram_patterns",
+                    "description": "List all available pre-built Azure architecture diagram patterns. Use when user asks what types of diagrams are available or wants to see diagram options.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_diagram_resource_options",
+                    "description": "Discover actual Azure resources in the user's environment for diagram generation. Call this FIRST when user wants to diagram their real infrastructure. Returns a list of resources that can be presented as numbered options for the user to select from. After they choose, call generate_azure_diagram with the selected resource_names.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "resource_category": {
+                                "type": "string",
+                                "enum": ["all", "app_services", "virtual_machines", "sql_databases", "aks_clusters", "storage_accounts", "networking", "cosmosdb", "key_vaults", "load_balancers", "firewalls", "apim", "containers", "ai_ml", "data_platform", "security", "monitoring", "avd", "by_resource_group"],
+                                "description": "Category of resources to discover. 'all' for everything. 'containers' for AKS+Container Apps+ACR. 'ai_ml' for OpenAI+Cognitive+ML workspaces. 'data_platform' for Data Factory+Databricks+Synapse+Event Hubs. 'security' for Key Vaults+Managed Identities+Firewalls+Private Endpoints. 'monitoring' for App Insights+Log Analytics. 'avd' for Virtual Desktop host pools+workspaces. 'by_resource_group' to list all RGs with resource counts for selection."
+                            },
+                            "subscriptions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Optional list of subscription IDs to scope the query."
+                            },
+                            "tag_name": {
+                                "type": "string",
+                                "description": "Optional tag name to filter resources by (e.g., 'Environment', 'Application', 'Owner'). Use with tag_value for tag-based workload discovery."
+                            },
+                            "tag_value": {
+                                "type": "string",
+                                "description": "Optional tag value to match (e.g., 'Production', 'MyApp'). Use with tag_name."
+                            },
+                            "resource_group_filter": {
+                                "type": "string",
+                                "description": "Optional resource group name to scope resource discovery to a specific RG."
+                            }
+                        },
+                        "required": ["resource_category"]
+                    }
+                }
             }
         ]
         
@@ -2560,6 +2712,89 @@ IMPORTANT RULES:
 - If parameters missing, ask user for them, then deploy
 - After calling function, explain what happens next (approval email, deployment)
 
+🏥 **CLOUD OPS HEALTH ASSESSMENT — AI ANALYSIS GUIDE (CRITICAL)**:
+When presenting Cloud Operations Health Assessment results, you MUST follow these rules to deliver executive-grade, actionable insights — NOT generic summaries.
+
+**CRITICAL RULE — EVERY OUTPUT MUST INCLUDE RESOURCE CONTEXT:**
+Every recommendation, finding, or issue MUST reference the SPECIFIC: Resource Name, Resource Group, Location/Region, and Subscription ID.
+NEVER give generic advice like "Enable backup for VMs" — ALWAYS say "Enable backup for VM 'prod-web-01' in Resource Group 'production-rg' (West Europe, Sub: b28cc86b...)".
+If resource_details are available, you MUST present them in a detailed table. Generic summaries without resource context are NOT acceptable.
+
+**OVERALL SCORE PRESENTATION:**
+- Show the overall score prominently with the health_grade (A/B/C/D/F)
+- Show priority_actions from the result data — these are pre-computed from the lowest-scoring pillars
+- List which subscriptions were assessed (extract unique SubscriptionId values from pillar resource_details)
+- Present a visual score breakdown table for all 6 pillars
+
+**PER-PILLAR ANALYSIS — MUST INCLUDE RESOURCE-LEVEL DETAIL:**
+Each pillar result now includes a `resource_details` array with ACTUAL affected resources.
+You MUST use this data to provide specific, actionable insights. NEVER give generic advice.
+
+For each pillar, present:
+1. **Score** with visual indicator (🟢 ≥75, 🟡 50-74, 🔴 <50)
+2. **What's happening** — Explain the score using the summary data (e.g., "104 out of 352 resources have active Advisor recommendations")
+3. **Which resources are affected** — Present a TABLE from resource_details. ALWAYS include columns: Resource Name, Resource Group, Location, Subscription ID. Show top 5-10 resources minimum.
+4. **Why it matters** — Business impact explanation (cost, risk, compliance) linked to SPECIFIC resources
+5. **How to fix it** — Specific remediation steps referencing EACH listed resource by name, RG, and location
+
+**PILLAR-SPECIFIC ANALYSIS RULES:**
+
+📌 **Azure Advisor** (resource_details has: ResourceName, ResourceType, Category, Impact, Problem, Solution, ResourceGroup, Location, SubscriptionId):
+- Group recommendations by Category (Cost, Security, Reliability, Performance, OperationalExcellence)
+- Show EACH impacted resource with its specific Problem and Solution in a table
+- Table MUST include: ResourceName | ResourceGroup | Location | Category | Impact | Problem | Solution
+- Highlight High-impact items first
+- Example: "VM 'prod-web-01' in RG 'production-rg' (West Europe) → Problem: VM is underutilized (avg CPU 5%). Solution: Right-size to Standard_B2s to save ~60%"
+
+📌 **Azure Backup** (resource_details has: VMName, ResourceGroup, Location, BackupStatus, SubscriptionId):
+- List EVERY unprotected VM in a table with: VMName | ResourceGroup | Location | SubscriptionId
+- Explain the risk per VM: "VM 'sql-prod-01' in 'production-rg' (westeurope) has NO backup. If this VM fails, all data is permanently lost."
+- Provide specific fix: "Enable Azure Backup for each VM listed. Recommended: Daily backup with 30-day retention using Standard policy."
+
+📌 **Azure Monitor** (resource_details has: AlertName, Severity, State, Condition, TargetResource, ResourceType, TargetResourceGroup, SignalType, StartTime, ResourceGroup, Location, SubscriptionId):
+- List active/unresolved alerts in a table with: AlertName | Severity | State | TargetResource | TargetResourceGroup | StartTime | SubscriptionId
+- Show WHICH resource each alert is for, in WHICH resource group, and WHEN it started
+- Example: "Alert 'High CPU on prod-db-01' (Sev1) in RG 'database-rg' (westeurope) has been firing since Jan 15 — investigate immediately"
+- Recommend acknowledgment workflow and auto-resolution rules
+
+📌 **Defender for Cloud** (resource_details has: Finding, Severity, Category, ResourceName, ResourceGroup, Description, Remediation, AffectedResourceId, Location, SubscriptionId):
+- Group findings by severity (High → Medium → Low)
+- Table MUST include: Finding | Severity | ResourceName | ResourceGroup | Location | Remediation
+- Show PARSED resource name (not the full resource ID path) — the ResourceName field is pre-parsed
+- Example: "Finding: 'Disk encryption should be applied' → VM 'prod-web-01' in RG 'production-rg' (westeurope). Remediation: Enable Azure Disk Encryption."
+
+📌 **Update Management** (resource_details has: ResourceName, ResourceGroup, ResourceType, State, Cause, Description, Location, SubscriptionId, FullResourceId):
+- Table MUST include: ResourceName | ResourceGroup | Location | Cause | Description | SubscriptionId
+- List machines needing updates with their NAMES (not raw resource IDs), resource groups, and locations
+- If score is 0.0 and Total is 0: "Update Management is NOT configured for any VMs. This means: no visibility into patch compliance, no automated patching."
+- Provide setup guidance: "Enable Azure Update Manager → Go to Azure Portal → Update Manager → Enable for all VMs"
+
+📌 **Azure Policy** (resource_details has: PolicyAssignment, PolicyDefinition, ResourceName, ResourceGroup, ResourceType, Location, SubscriptionId, FullResourceId):
+- Table MUST include: PolicyAssignment | ResourceName | ResourceGroup | ResourceType | Location | SubscriptionId
+- Group noncompliant resources by policy assignment name
+- Show which specific resources (by NAME, not full ID) violate which specific policies
+- Example: "Policy 'Azure_Security_Baseline' → 'prod-web-01' (VM) in RG 'production-rg' (westeurope), 'devlogs01' (Storage) in RG 'dev-rg' (qatarcentral)"
+- Recommend remediation tasks or policy exemptions where appropriate
+
+**FORMATTING REQUIREMENTS:**
+- Use tables for ALL resource-level data — ALWAYS include Resource Name, Resource Group, Location, and Subscription ID columns
+- Use progress-bar style indicators: █████░░░░░ 50%
+- Group related findings together
+- Always end with a prioritized "Top 3 Actions to Improve Score" section with SPECIFIC resource references
+- When score is 0%: Flag as 🚨 CRITICAL with prominent warning box explanation
+- For the Overall Assessment: Show a summary table per pillar, then show the MOST CRITICAL resource-level details from the worst-performing pillars
+
+**WHEN USER ASKS ABOUT INDIVIDUAL PILLAR:**
+If user asks "What is my Advisor score?" or "Show backup status" — call the specific assessment type.
+The resource_details are included in the function result. Use ALL of them in your analysis.
+Do NOT just show the score number — always show the affected resources table with ResourceName, ResourceGroup, Location, SubscriptionId and specific recommendations.
+NEVER present just a score with generic text. ALWAYS present the full resource detail table.
+
+**SUBSCRIPTION SCOPING:**
+- Cloud Ops Health assessments respect the subscription_context from the UI dropdown
+- If user selects a specific subscription or management group in the dropdown, the queries automatically scope to those subscriptions
+- The subscriptions parameter is passed through from the UI — it works for individual subscriptions, management groups (all child subscriptions), or all subscriptions
+
 📊 **CSV EXPORT - LARGE DATASET HANDLING (CRITICAL)**:
 When function results include "query_id" and "total_rows" fields, this means data has been cached for full CSV export.
 - ALWAYS show the query_id at the END of your table in this EXACT format on a new line:
@@ -2568,6 +2803,103 @@ When function results include "query_id" and "total_rows" fields, this means dat
 - If "message" field exists in result, include it after the table
 - The frontend will parse this tag to enable "Download Full Report" button
 - Example: If result has query_id="abc123" and total_rows=454, add: [EXPORT:abc123:ROWS:454] after the table
+
+🏗️ **ARCHITECTURE DIAGRAM GENERATION (IMPORTANT)**:
+You can generate professional Azure architecture diagrams from the customer's ACTUAL environment! When user asks for diagrams, visuals, or architecture visualization:
+
+**CONVERSATIONAL RESOURCE-AWARE DIAGRAM FLOW (FOLLOW THIS STRICTLY):**
+When the user asks to diagram their ACTUAL Azure resources (not just templates):
+1. **FIRST** call `get_diagram_resource_options` with the relevant category (e.g., "app_services", "virtual_machines", "containers", "ai_ml", "all")
+2. Present the discovered resources as a NUMBERED LIST with name, resource group, and location
+3. Ask the user to select which resources to include (e.g., "Select 1, 3, 5 or type 'all'")
+4. **CRITICAL: When the user responds with numbers (e.g., "1", "1, 3, 5", "all"), you ALREADY HAVE the resource names from step 2. 
+   DO NOT call get_diagram_resource_options again! Instead, IMMEDIATELY call generate_azure_diagram with:**
+   - diagram_type="from-resources"
+   - resource_names=[list of ACTUAL resource names the user selected from your numbered list]
+   - scope=[resource group name if all selected resources are in the same RG, or "all"]
+   - title=[descriptive title based on the selected resources]
+5. Display the generated diagram with the [DIAGRAM:...] tag
+
+**CRITICAL RULE: Once you have presented a numbered list of resources to the user, the NEXT user message with numbers means they are selecting from that list. Map the numbers back to resource names and call generate_azure_diagram DIRECTLY. Never re-query resources after the user makes a selection.**
+
+**MULTI-WORKLOAD DIAGRAM FLOW:**
+When user wants to combine multiple resource groups or workloads into one diagram:
+1. Call get_diagram_resource_options(resource_category="by_resource_group") to show RGs with counts
+2. Let user pick multiple RGs (e.g., "1, 3, 5")
+3. Call get_diagram_resource_options(resource_category="all", resource_group_filter=<first_rg>) for each RG
+4. Collect all resource names and call generate_azure_diagram with all names, scope="all"
+
+**TAG-BASED WORKLOAD DISCOVERY FLOW:**
+When user wants to diagram resources by tags:
+1. Call get_diagram_resource_options(resource_category="all", tag_name="Environment", tag_value="Production")
+2. Present discovered tag-grouped resources
+3. User selects → generate_azure_diagram with selected names
+
+**AVAILABLE DIAGRAM CATEGORIES:**
+
+**GOVERNANCE & ESTATE:**
+- environment-overview: High-level estate view showing ALL subscriptions, regions, and resource groups with resource counts. Use when user asks to see their entire Azure environment.
+- subscription-overview: Shows all resource groups in a subscription with resources grouped by category.
+- from-resources (with scope=<rg_name>): Full diagram of a specific resource group showing all resources and relationships.
+
+**WORKLOAD DIAGRAMS (use get_diagram_resource_options with these categories):**
+- app_services: Web Apps, Function Apps, App Service Plans and connected databases/storage/Key Vaults
+- containers: AKS clusters, Container Apps, Container Registries and connected resources
+- virtual_machines: VMs with NICs, Disks, NSGs, VNets, Availability Sets
+- sql_databases: SQL Servers, Databases, Cosmos DB, PostgreSQL, MySQL, Redis Cache
+- ai_ml: Azure OpenAI, Cognitive Services, ML workspaces and connected storage/Key Vaults
+- data_platform: Data Factory, Databricks, Synapse, Event Hubs, Stream Analytics, Storage
+- apim: API Management with backend APIs, Logic Apps, Service Bus, Event Grid
+- avd: Azure Virtual Desktop host pools, session hosts, workspaces, application groups
+
+**NETWORKING & SECURITY:**
+- networking: Virtual Networks, Subnets, NSGs, Route Tables, VPN Gateways, ExpressRoute, Firewalls, Bastion
+- security: Key Vaults, Managed Identities, NSGs, Firewalls, Private Endpoints
+- monitoring: Application Insights, Log Analytics workspaces and monitored resources
+
+**SMART DISCOVERY:**
+- by_resource_group: List all RGs with counts to pick specific RGs to diagram
+- all + tag_name/tag_value: Tag-based workload grouping
+- all + resource_group_filter: Scope to specific RG
+
+**Template Patterns (reference architectures):**
+- web-3tier, microservices, serverless, hub-spoke, data-platform, multi-region
+- zero-trust, iot-solution, devops-cicd, ai-ml, hybrid-cloud, api-management
+- custom: Free-form diagram from user description
+
+**WHICH CATEGORY TO USE:**
+- "Show my environment" / "all subscriptions" / "estate overview" → environment-overview
+- "Show my subscription" / "landing zone" / "resource groups" → subscription-overview
+- "Diagram my web apps" / "app services" → from-resources (via get_diagram_resource_options with "app_services")
+- "Diagram my VMs" → from-resources (via "virtual_machines")
+- "Diagram my containers" / "AKS" → from-resources (via "containers")
+- "Diagram my databases" → from-resources (via "sql_databases")
+- "Diagram my AI workload" / "OpenAI" → from-resources (via "ai_ml")
+- "Diagram my network" → from-resources (via "networking")
+- "Show resources with tag Environment=Production" → from-resources (via "all" + tag_name + tag_value)
+- "Build a multi-workload diagram" → multi-workload flow with by_resource_group
+- "Diagram this resource group" → from-resources with scope=<rg_name> (all resources shown)
+
+**RESOURCE CATEGORIES for get_diagram_resource_options:**
+- all, app_services, virtual_machines, sql_databases, aks_clusters, storage_accounts,
+  networking, cosmosdb, key_vaults, load_balancers, firewalls, apim,
+  containers, ai_ml, data_platform, security, monitoring, avd, by_resource_group
+
+**DIAGRAM TAG FORMAT (CRITICAL)**:
+When diagram generation succeeds (result has "success": true and "diagram_id"):
+- ALWAYS include the diagram_id in this EXACT format on its own line:
+  `[DIAGRAM:diagram_id:TITLE:diagram_title]`
+- Example: [DIAGRAM:a1b2c3d4:TITLE:Hub-Spoke Network Topology]
+- The frontend will automatically render the diagram image and provide download button
+- After the tag, add a brief description of what the diagram shows
+- If diagram also has resource_count, mention it (e.g., "Diagram includes 45 resources across 8 resource groups")
+
+**WHEN TO USE DIAGRAMS:**
+- User asks "create a diagram", "draw", "visualize", "show architecture"
+- User asks for network topology, data flow, infrastructure layout
+- User asks to diagram their subscription/resource group resources
+- User mentions "landing zone", "architecture diagram", "ERD", "topology"
+- User asks "diagram my app services", "show my VMs", "visualize my network" → use get_diagram_resource_options FIRST
 
 📋 **MANDATORY OUTPUT COLUMNS (CRITICAL - ALWAYS INCLUDE THESE)**:
 When displaying data in tables, ALWAYS include these standard columns based on query type:
@@ -2666,6 +2998,27 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
             Tuple of (response_text, updated_conversation_history)
         """
         try:
+            # Helper: API call with automatic retry on 429 rate limit
+            async def _api_call_with_retry(**kwargs):
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        return await asyncio.to_thread(
+                            self.client.chat.completions.create, **kwargs
+                        )
+                    except Exception as api_err:
+                        err_str = str(api_err)
+                        if "429" in err_str or "RateLimitReached" in err_str or "rate limit" in err_str.lower():
+                            # Extract wait time from error message if available
+                            import re as _re
+                            wait_match = _re.search(r'retry after (\d+)', err_str, _re.IGNORECASE)
+                            wait_time = int(wait_match.group(1)) if wait_match else (2 ** attempt + 1)
+                            if attempt < max_retries - 1:
+                                print(f"[Rate Limit] 429 hit, waiting {wait_time}s before retry {attempt+2}/{max_retries}...")
+                                await asyncio.sleep(wait_time)
+                                continue
+                        raise
+
             # Build messages array
             messages = [{"role": "system", "content": self.system_message}]
             
@@ -2676,9 +3029,8 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
             # Add current user message
             messages.append({"role": "user", "content": user_message})
             
-            # Initial API call - run in thread pool to avoid blocking the event loop
-            response = await asyncio.to_thread(
-                self.client.chat.completions.create,
+            # Initial API call with retry
+            response = await _api_call_with_retry(
                 model=self.deployment_name,
                 messages=messages,
                 tools=self.tools,
@@ -2720,9 +3072,8 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                     "content": json.dumps(function_result)
                 })
                 
-                # Get final response from AI - run in thread pool to avoid blocking the event loop
-                second_response = await asyncio.to_thread(
-                    self.client.chat.completions.create,
+                # Get final response from AI with retry
+                second_response = await _api_call_with_retry(
                     model=self.deployment_name,
                     messages=messages,
                     temperature=0.7,  # Balanced for accurate, well-formatted insights
@@ -3656,6 +4007,596 @@ Always be proactive, intelligent, and ACTION-ORIENTED. When user wants something
                     return self._cache_query_results(result, f"orphaned_{resource_type}")
                 else:
                     return {"error": f"Unknown orphaned resource type: {resource_type}. Valid types: {', '.join(orphan_functions.keys())}, ALL"}
+
+            # AZURE INVENTORY (Consolidated)
+            elif function_name == "get_azure_inventory":
+                inventory_type = arguments.get("inventory_type", "ALL")
+                subs = arguments.get("subscriptions")
+
+                inventory_functions = {
+                    "overview": self.resource_manager.get_inventory_overview,
+                    "compute_vms": self.resource_manager.get_inventory_compute_vms,
+                    "compute_vmss": self.resource_manager.get_inventory_compute_vmss,
+                    "compute_vm_networking": self.resource_manager.get_inventory_compute_vm_networking,
+                    "compute_vm_disks": self.resource_manager.get_inventory_compute_vm_disks,
+                    "compute_arc": self.resource_manager.get_inventory_compute_arc,
+                    "paas_automation": self.resource_manager.get_inventory_paas_automation,
+                    "paas_apps": self.resource_manager.get_inventory_paas_apps,
+                    "paas_containers": self.resource_manager.get_inventory_paas_containers,
+                    "paas_data": self.resource_manager.get_inventory_paas_data,
+                    "paas_events": self.resource_manager.get_inventory_paas_events,
+                    "paas_iot": self.resource_manager.get_inventory_paas_iot,
+                    "paas_mlai": self.resource_manager.get_inventory_paas_mlai,
+                    "paas_storage": self.resource_manager.get_inventory_paas_storage,
+                    "paas_wvd": self.resource_manager.get_inventory_paas_wvd,
+                    "networking": self.resource_manager.get_inventory_networking,
+                    "networking_nsgs": self.resource_manager.get_inventory_networking_nsgs,
+                    "networking_nsg_rules": self.resource_manager.get_inventory_networking_nsg_rules,
+                    "networking_ip_inventory": self.resource_manager.get_inventory_networking_ip,
+                    "monitoring_alerts": self.resource_manager.get_inventory_monitoring_alerts,
+                    "monitoring_resources": self.resource_manager.get_inventory_monitoring_resources,
+                    "monitoring_appinsights": self.resource_manager.get_inventory_monitoring_appinsights,
+                    "monitoring_log_analytics": self.resource_manager.get_inventory_monitoring_log_analytics,
+                    "security_scores": self.resource_manager.get_inventory_security_scores,
+                    "governance_policy": self.resource_manager.get_inventory_governance_policy,
+                }
+
+                if inventory_type == "ALL":
+                    result = self.resource_manager.get_all_inventory_summary(subscriptions=subs)
+                    return result
+                elif inventory_type in inventory_functions:
+                    result = inventory_functions[inventory_type](subscriptions=subs)
+                    return self._cache_query_results(result, f"inventory_{inventory_type}")
+                else:
+                    return {"error": f"Unknown inventory type: {inventory_type}. Valid types: {', '.join(inventory_functions.keys())}, ALL"}
+
+            # ═══════════════════════════════════════════════════════
+            # CLOUD OPERATIONS HEALTH ASSESSMENT
+            # Based on: https://github.com/Azure/cloud-rolesandops
+            # ═══════════════════════════════════════════════════════
+            elif function_name == "get_cloud_ops_health":
+                assessment_type = arguments.get("assessment_type", "OVERALL_SCORE")
+                subs = arguments.get("subscriptions", None)
+
+                assessment_functions = {
+                    "OVERALL_SCORE": self.resource_manager.get_overall_ops_health_score,
+                    "ADVISOR_HEALTH": self.resource_manager.get_advisor_health_score,
+                    "ADVISOR_RECOMMENDATIONS": self.resource_manager.get_advisor_recommendations_breakdown,
+                    "BACKUP_PROTECTION": self.resource_manager.get_backup_protection_score,
+                    "MONITOR_ALERTS": self.resource_manager.get_monitor_alerts_score,
+                    "SECURITY_POSTURE": self.resource_manager.get_security_posture_score,
+                    "UPDATE_COMPLIANCE": self.resource_manager.get_update_compliance_score,
+                    "POLICY_COMPLIANCE": self.resource_manager.get_policy_compliance_score,
+                    "ENVIRONMENT_OVERVIEW": self.resource_manager.get_environment_overview,
+                    "TAGGING_GOVERNANCE": self.resource_manager.get_resource_tagging_health,
+                    "NETWORK_SECURITY": self.resource_manager.get_network_security_health,
+                    "DISASTER_RECOVERY": self.resource_manager.get_disaster_recovery_readiness,
+                }
+
+                if assessment_type in assessment_functions:
+                    result = assessment_functions[assessment_type](subscriptions=subs)
+                    # For OVERALL_SCORE, return the rich structure directly (not cacheable as CSV rows)
+                    if assessment_type == "OVERALL_SCORE":
+                        return result
+                    # For individual pillars, preserve resource_details alongside cached score data
+                    resource_details = result.pop("resource_details", []) if isinstance(result, dict) else []
+                    cached = self._cache_query_results(result, f"ops_health_{assessment_type}")
+                    if resource_details:
+                        cached["resource_details"] = resource_details
+                    return cached
+                else:
+                    return {"error": f"Unknown assessment type: {assessment_type}. Valid types: {', '.join(assessment_functions.keys())}"}
+
+            # ═══════════════════════════════════════════════════════
+            # ARCHITECTURE DIAGRAM GENERATION
+            # ═══════════════════════════════════════════════════════
+            elif function_name == "generate_azure_diagram":
+                diagram_type = arguments.get("diagram_type", "custom")
+                title = arguments.get("title", "Azure Architecture")
+                description = arguments.get("description", "")
+                scope = arguments.get("scope", "")
+                subscriptions = arguments.get("subscriptions", [])
+                resource_type_filter = arguments.get("resource_type_filter", "")
+                resource_names = arguments.get("resource_names", [])
+
+                generator = get_diagram_generator()
+
+                if diagram_type == "from-resources":
+                    # Query actual Azure resources and generate diagram
+                    try:
+                        # Use enriched query for RG-scoped diagrams (richer labels with VM size, IP, SKU)
+                        if scope and scope.lower() not in ["all", ""]:
+                            resources_result = self.resource_manager.get_resources_for_diagram(
+                                resource_group=scope,
+                                subscriptions=subscriptions if subscriptions else None
+                            )
+                        else:
+                            resources_result = self.resource_manager.get_all_resources_detailed(
+                                subscriptions=subscriptions if subscriptions else None
+                            )
+
+                        resources = []
+                        if isinstance(resources_result, dict):
+                            resources = resources_result.get("data", resources_result.get("resources", []))
+                        elif isinstance(resources_result, list):
+                            resources = resources_result
+
+                        # Normalize field names - each resource manager method uses different keys
+                        # Name variants: name, ResourceName, APIMName, AppName, ClusterName, DatabaseName,
+                        #   StorageAccountName, AccountName, LBName, FirewallName
+                        def _extract_name(r):
+                            for key in ["name", "ResourceName", "Name", "APIMName", "AppName",
+                                        "ClusterName", "DatabaseName", "StorageAccountName",
+                                        "AccountName", "LBName", "FirewallName"]:
+                                val = r.get(key)
+                                if val:
+                                    return val
+                            return "Unknown"
+
+                        normalized = []
+                        for r in resources:
+                            entry = {
+                                "name": _extract_name(r),
+                                "type": r.get("type") or r.get("ResourceType", ""),
+                                "resourceGroup": r.get("resourceGroup") or r.get("ResourceGroup", "Unknown"),
+                                "location": r.get("location") or r.get("Location", ""),
+                                "subscriptionName": r.get("SubscriptionName") or r.get("subscriptionName", ""),
+                            }
+                            # Include enriched properties if available (from get_resources_for_diagram)
+                            for prop in ["vmSize", "diskSizeGB", "osType", "privateIP", "publicIPAddr",
+                                         "skuName", "skuTier", "availabilitySet"]:
+                                val = r.get(prop, "")
+                                if val and str(val) not in ["", "0", "None"]:
+                                    entry[prop] = str(val)
+                            normalized.append(entry)
+                        resources = normalized
+
+                        # Filter by resource type if specified (e.g., show only App Services)
+                        if resource_type_filter:
+                            resources = [r for r in resources if resource_type_filter.lower() in r.get("type", "").lower()]
+
+                        # Filter out child/noise resource types that clutter diagrams
+                        NOISE_TYPE_PATTERNS = [
+                            "/extensions",           # VM extensions
+                            "/virtualnetworklinks",  # VNet links
+                            "/webtests",             # Web tests
+                            "microsoft.insights/actiongroups",  # Action groups (noise)
+                            "microsoft.alertsmanagement/",      # Alert rules
+                            "microsoft.portal/dashboards",      # Portal dashboards
+                        ]
+                        resources = [
+                            r for r in resources
+                            if not any(pat in r.get("type", "").lower() for pat in NOISE_TYPE_PATTERNS)
+                        ]
+
+                        # Filter by specific resource names if provided
+                        if resource_names:
+                            name_set = {n.lower() for n in resource_names}
+                            primary_resources = [r for r in resources if r.get("name", "").lower() in name_set]
+
+                            if not primary_resources:
+                                return {"error": f"No resources found matching names: {', '.join(resource_names)}. Try different resource names or check scope/subscription."}
+
+                            # When scope is an RG, show ALL resources in the RG
+                            # (selected names highlighted as primary, rest as context)
+                            # This prevents missing resources when names don't correlate
+                            if scope and scope.lower() not in ["all", ""]:
+                                # All other resources in the same RG(s) become context
+                                primary_rgs = {r["resourceGroup"] for r in primary_resources}
+                                context_resources = [
+                                    r for r in resources
+                                    if r.get("name", "").lower() not in name_set
+                                    and r["resourceGroup"] in primary_rgs
+                                ]
+                            else:
+                                # No specific RG scope — use smart dependency discovery
+                                primary_rgs = {r["resourceGroup"] for r in primary_resources}
+                                all_rg_resources = [
+                                    r for r in resources
+                                    if r["resourceGroup"] in primary_rgs
+                                ]
+                                context_resources = _find_related_resources(primary_resources, all_rg_resources)
+
+                            # Get subscription name
+                            sub_name = ""
+                            for r in primary_resources:
+                                sn = r.get("subscriptionName", "")
+                                if sn:
+                                    sub_name = sn
+                                    break
+
+                            if scope and scope.lower() not in ["all", ""]:
+                                diagram_title = title or f"Resource Group {scope} Architecture"
+                            else:
+                                diagram_title = title or f"{', '.join(resource_names[:3])} Architecture"
+                            result = generator.generate_comprehensive_diagram(
+                                primary_resources=primary_resources,
+                                context_resources=context_resources,
+                                subscription_name=sub_name,
+                                title=diagram_title
+                            )
+                        else:
+                            if not resources:
+                                return {"error": f"No resources found for scope '{scope}'{' with type filter ' + resource_type_filter if resource_type_filter else ''}. Try specifying a different resource group, subscription, or resource type."}
+
+                            # If scope is a specific RG, use comprehensive diagram showing
+                            # ALL resources with categories, edges, and enriched labels
+                            if scope and scope.lower() not in ["all", ""]:
+                                sub_name = ""
+                                for r in resources:
+                                    sn = r.get("subscriptionName", "")
+                                    if sn:
+                                        sub_name = sn
+                                        break
+
+                                diagram_title = title or f"Resource Group {scope} Architecture"
+                                # All resources are primary in RG overview
+                                result = generator.generate_comprehensive_diagram(
+                                    primary_resources=resources,
+                                    context_resources=[],
+                                    subscription_name=sub_name,
+                                    title=diagram_title
+                                )
+                            else:
+                                diagram_title = title or f"Azure Resources - {scope or 'Subscription'}"
+                                result = generator.generate_from_resources(resources, title=diagram_title, scope=scope)
+                    except Exception as e:
+                        return {"error": f"Failed to query Azure resources for diagram: {str(e)}"}
+
+                elif diagram_type == "environment-overview":
+                    # High-level view: all subscriptions, regions, RGs
+                    try:
+                        resources_result = self.resource_manager.get_all_resources_detailed(
+                            subscriptions=subscriptions if subscriptions else None
+                        )
+                        resources = []
+                        if isinstance(resources_result, dict):
+                            resources = resources_result.get("data", resources_result.get("resources", []))
+                        elif isinstance(resources_result, list):
+                            resources = resources_result
+
+                        def _extract_name_env(r):
+                            for key in ["name", "ResourceName", "Name", "APIMName", "AppName",
+                                        "ClusterName", "DatabaseName", "StorageAccountName",
+                                        "AccountName", "LBName", "FirewallName"]:
+                                val = r.get(key)
+                                if val:
+                                    return val
+                            return "Unknown"
+
+                        normalized = []
+                        for r in resources:
+                            normalized.append({
+                                "name": _extract_name_env(r),
+                                "type": r.get("type") or r.get("ResourceType", ""),
+                                "resourceGroup": r.get("resourceGroup") or r.get("ResourceGroup", "Unknown"),
+                                "location": r.get("location") or r.get("Location", ""),
+                                "subscriptionName": r.get("SubscriptionName") or r.get("subscriptionName", ""),
+                            })
+
+                        diagram_title = title or "Azure Environment Overview"
+                        result = generator.generate_environment_overview(normalized, title=diagram_title)
+                    except Exception as e:
+                        return {"error": f"Failed to generate environment overview: {str(e)}"}
+
+                elif diagram_type == "subscription-overview":
+                    # Subscription-level: all RGs with resource categories
+                    try:
+                        if scope and scope.lower() not in ["all", ""]:
+                            resources_result = self.resource_manager.get_resources_by_resource_group(
+                                resource_group=scope,
+                                subscriptions=subscriptions if subscriptions else None
+                            )
+                        else:
+                            resources_result = self.resource_manager.get_all_resources_detailed(
+                                subscriptions=subscriptions if subscriptions else None
+                            )
+
+                        resources = []
+                        if isinstance(resources_result, dict):
+                            resources = resources_result.get("data", resources_result.get("resources", []))
+                        elif isinstance(resources_result, list):
+                            resources = resources_result
+
+                        def _extract_name_sub(r):
+                            for key in ["name", "ResourceName", "Name", "APIMName", "AppName",
+                                        "ClusterName", "DatabaseName", "StorageAccountName",
+                                        "AccountName", "LBName", "FirewallName"]:
+                                val = r.get(key)
+                                if val:
+                                    return val
+                            return "Unknown"
+
+                        normalized = []
+                        for r in resources:
+                            normalized.append({
+                                "name": _extract_name_sub(r),
+                                "type": r.get("type") or r.get("ResourceType", ""),
+                                "resourceGroup": r.get("resourceGroup") or r.get("ResourceGroup", "Unknown"),
+                                "location": r.get("location") or r.get("Location", ""),
+                                "subscriptionName": r.get("SubscriptionName") or r.get("subscriptionName", ""),
+                            })
+
+                        sub_name = ""
+                        for r in normalized:
+                            sn = r.get("subscriptionName", "")
+                            if sn:
+                                sub_name = sn
+                                break
+
+                        diagram_title = title or f"{sub_name or 'Subscription'} - Resource Overview"
+                        result = generator.generate_subscription_overview(
+                            normalized, subscription_name=sub_name, title=diagram_title
+                        )
+                    except Exception as e:
+                        return {"error": f"Failed to generate subscription overview: {str(e)}"}
+
+                elif diagram_type == "custom":
+                    return {
+                        "message": "For custom diagrams, please specify the architecture components and connections you want to visualize.",
+                        "available_patterns": generator.get_available_patterns(),
+                        "hint": "You can also use one of the pre-built patterns: " + ", ".join(generator.get_available_patterns().keys())
+                    }
+                else:
+                    # Pre-built pattern
+                    result = generator.generate_from_pattern(diagram_type, title=title)
+
+                if result.get("success"):
+                    # Cache the diagram image for the API endpoint
+                    diagram_id = result["diagram_id"]
+                    if not hasattr(self, 'diagram_cache'):
+                        self.diagram_cache = {}
+                    self.diagram_cache[diagram_id] = {
+                        "base64_image": result["base64_image"],
+                        "title": result["title"],
+                        "format": result["format"],
+                        "image_size_kb": result["image_size_kb"],
+                        "pattern": result["pattern"],
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                    return {
+                        "success": True,
+                        "diagram_id": diagram_id,
+                        "title": result["title"],
+                        "image_size_kb": result["image_size_kb"],
+                        "pattern": result["pattern"],
+                        "resource_count": result.get("resource_count"),
+                        "resource_group_count": result.get("resource_group_count"),
+                        "message": result["message"]
+                    }
+                else:
+                    return result
+
+            elif function_name == "list_diagram_patterns":
+                generator = get_diagram_generator()
+                patterns = generator.get_available_patterns()
+                return {
+                    "patterns": patterns,
+                    "total": len(patterns),
+                    "message": "Available architecture diagram patterns. Use generate_azure_diagram with the pattern key to create a diagram."
+                }
+
+            elif function_name == "get_diagram_resource_options":
+                # Query real Azure resources to present selection options for diagram generation
+                resource_category = arguments.get("resource_category", "all")
+                subs = arguments.get("subscriptions", [])
+                tag_name = arguments.get("tag_name", "")
+                tag_value = arguments.get("tag_value", "")
+                rg_filter = arguments.get("resource_group_filter", "")
+
+                # ── SPECIAL: by_resource_group → list RGs with counts ──
+                if resource_category == "by_resource_group":
+                    try:
+                        rg_result = self.resource_manager.get_all_resources_detailed(
+                            subscriptions=subs if subs else None
+                        )
+                        rg_resources = rg_result.get("data", []) if isinstance(rg_result, dict) else rg_result
+                        # Group by RG
+                        rg_counts = {}
+                        for r in rg_resources:
+                            rg = r.get("resourceGroup") or r.get("ResourceGroup") or r.get("resource_group", "Unknown")
+                            sub = r.get("SubscriptionName", "")
+                            loc = r.get("location") or r.get("Location", "")
+                            key = rg
+                            if key not in rg_counts:
+                                rg_counts[key] = {"resourceGroup": rg, "count": 0, "subscription": sub, "location": loc, "types": set()}
+                            rg_counts[key]["count"] += 1
+                            rt = r.get("type") or r.get("ResourceType") or ""
+                            if rt:
+                                rg_counts[key]["types"].add(rt.split("/")[-1])
+                        # Sort by count descending
+                        rg_list = sorted(rg_counts.values(), key=lambda x: x["count"], reverse=True)
+                        options = []
+                        for rg_info in rg_list:
+                            top_types = sorted(rg_info["types"])[:5]
+                            options.append({
+                                "name": rg_info["resourceGroup"],
+                                "resourceGroup": rg_info["resourceGroup"],
+                                "type": f"{rg_info['count']} resources",
+                                "location": rg_info["location"],
+                                "subscription": rg_info["subscription"],
+                                "summary": ", ".join(top_types) if top_types else ""
+                            })
+                        return {
+                            "category": "Resource Groups",
+                            "total_found": len(options),
+                            "resources": options[:50],
+                            "message": f"Found {len(options)} resource groups. Present as numbered list with resource counts and top resource types. User can select one or more RGs to diagram."
+                        }
+                    except Exception as e:
+                        return {"error": f"Failed to query resource groups: {str(e)}"}
+
+                # ── Category queries using existing resource manager methods ──
+                category_queries = {
+                    "app_services": (self.resource_manager.get_app_services_detailed, "App Services", True),
+                    "virtual_machines": (self.resource_manager.get_all_vms, "Virtual Machines", True),
+                    "sql_databases": (self.resource_manager.get_sql_databases_detailed, "SQL Databases", True),
+                    "aks_clusters": (self.resource_manager.get_aks_clusters, "AKS Clusters", True),
+                    "storage_accounts": (self.resource_manager.get_storage_accounts_detailed, "Storage Accounts", True),
+                    "networking": (self.resource_manager.get_all_vnets, "Virtual Networks", False),
+                    "cosmosdb": (self.resource_manager.get_cosmosdb_accounts, "Cosmos DB Accounts", True),
+                    "key_vaults": (self.resource_manager.get_key_vaults, "Key Vaults", False),
+                    "load_balancers": (self.resource_manager.get_load_balancers, "Load Balancers", True),
+                    "firewalls": (self.resource_manager.get_azure_firewalls, "Azure Firewalls", True),
+                    "apim": (self.resource_manager.get_apim_instances, "API Management", True),
+                    "all": (self.resource_manager.get_all_resources_detailed, "All Resources", True),
+                }
+
+                # ── New workload categories: query ALL resources then filter by type ──
+                WORKLOAD_TYPE_FILTERS = {
+                    "containers": {
+                        "label": "Container & Kubernetes Workloads",
+                        "type_patterns": [
+                            "containerservice/managedclusters", "app/containerapps",
+                            "app/managedenvironments", "containerregistry/registries",
+                            "containerinstance/containergroups"
+                        ]
+                    },
+                    "ai_ml": {
+                        "label": "AI & Machine Learning Workloads",
+                        "type_patterns": [
+                            "cognitiveservices/accounts", "machinelearningservices/workspaces",
+                            "search/searchservices", "botservice/botservices"
+                        ]
+                    },
+                    "data_platform": {
+                        "label": "Data Platform Workloads",
+                        "type_patterns": [
+                            "datafactory/factories", "databricks/workspaces",
+                            "synapse/workspaces", "eventhub/namespaces",
+                            "streamanalytics/streamingjobs", "hdinsight/clusters",
+                            "kusto/clusters", "purview/accounts"
+                        ]
+                    },
+                    "security": {
+                        "label": "Security Resources",
+                        "type_patterns": [
+                            "keyvault/vaults", "managedidentity/userassignedidentities",
+                            "network/azurefirewalls", "network/privateendpoints",
+                            "network/networksecuritygroups", "network/bastionhosts",
+                            "network/applicationgateways", "network/frontdoors"
+                        ]
+                    },
+                    "monitoring": {
+                        "label": "Monitoring & Observability",
+                        "type_patterns": [
+                            "insights/components", "operationalinsights/workspaces",
+                            "insights/actiongroups", "alertsmanagement/",
+                            "monitor/autoscalesettings", "insights/scheduledqueryrules"
+                        ]
+                    },
+                    "avd": {
+                        "label": "Azure Virtual Desktop Workloads",
+                        "type_patterns": [
+                            "desktopvirtualization/hostpools",
+                            "desktopvirtualization/workspaces",
+                            "desktopvirtualization/applicationgroups",
+                            "desktopvirtualization/scalingplans",
+                            "compute/galleries"
+                        ]
+                    },
+                }
+
+                # ── Route to workload-filter or direct query ──
+                if resource_category in WORKLOAD_TYPE_FILTERS:
+                    # Query all resources then filter by workload type patterns
+                    wf = WORKLOAD_TYPE_FILTERS[resource_category]
+                    try:
+                        all_result = self.resource_manager.get_all_resources_detailed(
+                            subscriptions=subs if subs else None
+                        )
+                        all_resources = all_result.get("data", []) if isinstance(all_result, dict) else (all_result if isinstance(all_result, list) else [])
+                        # Filter by type patterns
+                        filtered = []
+                        for r in all_resources:
+                            rt = (r.get("type") or r.get("ResourceType") or "").lower()
+                            if any(pat in rt for pat in wf["type_patterns"]):
+                                filtered.append(r)
+                        resources = filtered
+                        label = wf["label"]
+                    except Exception as e:
+                        return {"error": f"Failed to query {resource_category} resources: {str(e)}"}
+
+                elif resource_category in category_queries:
+                    query_func, label, accepts_subs = category_queries[resource_category]
+                    try:
+                        if accepts_subs:
+                            result = query_func(subscriptions=subs if subs else None)
+                        else:
+                            result = query_func()
+                    except TypeError:
+                        result = query_func()
+
+                    resources = []
+                    if isinstance(result, dict):
+                        resources = result.get("data", result.get("resources", []))
+                    elif isinstance(result, list):
+                        resources = result
+                else:
+                    return {
+                        "available_categories": list(category_queries.keys()) + list(WORKLOAD_TYPE_FILTERS.keys()) + ["by_resource_group"],
+                        "message": f"Unknown category '{resource_category}'. Choose from the available categories."
+                    }
+
+                # ── Apply optional filters (tag, resource group) ──
+                if tag_name and tag_value:
+                    tag_name_lower = tag_name.lower()
+                    tag_value_lower = tag_value.lower()
+                    def matches_tag(r):
+                        tags = r.get("tags") or r.get("Tags") or {}
+                        if isinstance(tags, dict):
+                            for k, v in tags.items():
+                                if k.lower() == tag_name_lower and str(v).lower() == tag_value_lower:
+                                    return True
+                        return False
+                    resources = [r for r in resources if matches_tag(r)]
+
+                if rg_filter:
+                    rg_filter_lower = rg_filter.lower()
+                    resources = [
+                        r for r in resources
+                        if (r.get("resourceGroup") or r.get("ResourceGroup") or r.get("resource_group", "")).lower() == rg_filter_lower
+                    ]
+
+                # ── Build selection list ──
+                NAME_KEYS = ["name", "ResourceName", "Name", "APIMName", "AppName",
+                             "ClusterName", "DatabaseName", "StorageAccountName",
+                             "AccountName", "LBName", "FirewallName"]
+
+                options = []
+                for r in resources:
+                    name = "Unknown"
+                    for k in NAME_KEYS:
+                        if r.get(k):
+                            name = r[k]
+                            break
+                    rg = r.get("resourceGroup") or r.get("ResourceGroup") or r.get("resource_group", "")
+                    rtype = r.get("type") or r.get("ResourceType") or r.get("Type", "")
+                    loc = r.get("location") or r.get("Location") or r.get("Region", "")
+                    sub_name = r.get("SubscriptionName", "")
+                    tags = r.get("tags") or r.get("Tags") or {}
+                    tag_str = ""
+                    if isinstance(tags, dict) and tags:
+                        top_tags = list(tags.items())[:3]
+                        tag_str = ", ".join(f"{k}={v}" for k, v in top_tags)
+
+                    opt = {
+                        "name": name,
+                        "resourceGroup": rg,
+                        "type": rtype,
+                        "location": loc,
+                        "subscription": sub_name
+                    }
+                    if tag_str:
+                        opt["tags"] = tag_str
+                    options.append(opt)
+
+                return {
+                    "category": label,
+                    "total_found": len(options),
+                    "resources": options[:100],
+                    "message": f"Found {len(options)} {label} resources. Present these to the user as a numbered list and ask which ones to include in the diagram."
+                }
 
             else:
                 return {"error": f"Unknown function: {function_name}"}
