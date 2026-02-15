@@ -412,8 +412,8 @@ After the model is deployed, the script waits for stabilisation and then attempt
 | `-VNetName` | ⚠️ | — | Existing VNet name to deploy into (**required for Private mode**) |
 | `-SubnetName` | ⚠️ | — | Subnet for Container Apps Environment (**required for Private mode**, see subnet requirements below) |
 | `-PrivateEndpointSubnetName` | ❌ | `pe-subnet` | Subnet for Private Endpoints (ACR, OpenAI) — auto-created if absent |
-| `-PrivateDnsZoneSubscriptionId` | ❌ | Deployment sub | Centralized subscription for Private DNS Zones (enterprise hub/connectivity sub) |
-| `-PrivateDnsZoneResourceGroupName` | ❌ | Deployment RG | Resource group for Private DNS Zones in the centralized subscription |
+| `-PrivateDnsZoneSubscriptionId` | ❌ | Interactive prompt | Centralized subscription for Private DNS Zones — if not passed, script **asks interactively** |
+| `-PrivateDnsZoneResourceGroupName` | ❌ | Interactive prompt | Resource group for Private DNS Zones — if not passed, script **asks interactively** |
 
 ### Step 4: After Deployment — Add Redirect URI
 
@@ -433,16 +433,16 @@ After deployment completes, you'll receive the application URL. Then:
 
 For enterprise customers who require **zero public exposure** — the deployment script supports a fully automated **Private deployment mode** that deploys **every resource privately** with Private Endpoints, disables public network access on all PaaS services, and configures Private DNS Zones (with support for centralized DNS subscriptions).
 
-> **🔑 Key Point:** In Private mode, **all** resources are private. Azure OpenAI and ACR get Private Endpoints with public access disabled. The Container App runs inside your VNet with internal-only ingress. Private DNS Zones are auto-created and linked. Zero manual network configuration required.
+> **🔑 Key Point:** In Private mode, **all** resources are private. Azure OpenAI and ACR get Private Endpoints with public access disabled. The Container App is deployed directly inside your VNet via **VNet injection** with internal-only ingress (no PE needed). The script **discovers and reuses existing Private DNS Zones** (e.g., from AI Foundry or other PE-enabled resources) and only creates DNS zones that are missing — fully automated, truly zero-touch.
 
 ### What Gets Deployed Privately?
 
 | Resource | Private Mechanism | Public Access |
 |----------|-------------------|---------------|
-| **Azure Container App** | VNet injection + internal-only ingress | ❌ Disabled |
-| **Azure OpenAI (GPT-4o)** | Private Endpoint (`privatelink.openai.azure.com`) | ❌ Disabled |
+| **Azure Container App** | VNet injection + internal-only ingress (no PE needed) | ❌ Disabled |
+| **Azure OpenAI (AI Foundry)** | Private Endpoint (`privatelink.openai.azure.com`) | ❌ Disabled |
 | **Azure Container Registry** | Private Endpoint (`privatelink.azurecr.io`) | ❌ Disabled |
-| **Private DNS Zones** | Auto-created in centralized or deployment subscription | N/A |
+| **Private DNS Zones** | **Discovered & reused** if existing, created if missing | N/A |
 | **DNS → VNet Links** | Auto-linked to your VNet for name resolution | N/A |
 
 ### Why Private Deployment?
@@ -454,7 +454,8 @@ For enterprise customers who require **zero public exposure** — the deployment
 | **Zero Public Exposure** | Public network access **disabled** on OpenAI, ACR, and Container App |
 | **Network Isolation** | Private Endpoints + VNet injection — all communication over Azure backbone |
 | **Enterprise DNS** | Supports centralized Private DNS Zones in hub/connectivity subscription |
-| **Zero-Touch** | Fully automated — no manual PE, DNS zone, or VNet link creation |
+| **Reuse Existing Zones** | Discovers and reuses existing DNS zones (e.g., from AI Foundry PEs) — creates only what's missing |
+| **Zero-Touch** | Fully automated — interactive prompt for DNS location, upfront discovery, no manual PE or DNS configuration |
 
 ### Prerequisites for Private Deployment
 
@@ -468,7 +469,7 @@ Before running the script in Private mode, ensure you have:
 3. **A subnet for Private Endpoints** (optional — script auto-creates `pe-subnet` /27 if not provided)
    - Must be a **different** subnet from the Container Apps subnet (delegated subnets cannot host PEs)
 4. **Network connectivity** from your users to the VNet (VPN Gateway, ExpressRoute, or peered VNets)
-5. **(Optional) Centralized DNS subscription** — If your organization keeps Private DNS Zones in a hub/connectivity subscription, provide `-PrivateDnsZoneSubscriptionId` and `-PrivateDnsZoneResourceGroupName`
+5. **(Optional) Existing Private DNS Zones** — If you already have PE-enabled resources (e.g., AI Foundry with Private Endpoints), you likely have DNS zones the script can reuse. The script will **ask interactively** for the subscription and RG where your DNS zones live — or you can pass `-PrivateDnsZoneSubscriptionId` and `-PrivateDnsZoneResourceGroupName` as parameters
 
 ### Private Deployment Command
 
@@ -507,7 +508,7 @@ Before running the script in Private mode, ensure you have:
 
 ### What the Script Does in Private Mode
 
-The script performs **18 automated steps** for a complete zero-trust deployment:
+The script performs **19 automated steps** for a complete zero-trust deployment:
 
 | Step | Action |
 |------|--------|
@@ -517,20 +518,44 @@ The script performs **18 automated steps** for a complete zero-trust deployment:
 | **PE Network Policies** | Disables private endpoint network policies on the PE subnet |
 | **Region Matching** | Auto-adjusts deployment location if VNet is in a different region |
 | **Subnet Delegation** | Checks for `Microsoft.App/environments` delegation — auto-applies if missing |
-| **DNS Subscription** | Validates access to centralized DNS subscription (if provided) |
-| **Create OpenAI** | Creates Azure OpenAI resource + deploys GPT-4o model |
-| **OpenAI PE** | Creates Private Endpoint for OpenAI → `privatelink.openai.azure.com` |
-| **OpenAI DNS** | Creates/finds Private DNS Zone, links to VNet, auto-registers A records |
+| **DNS Location** | Interactive prompt if DNS params not provided — asks for existing DNS zone subscription and RG |
+| **DNS Discovery** | Scans the target RG for all required Private DNS Zones — shows which exist and which are missing |
+| **DNS Zone Creation** | Creates only the missing DNS zones in the user-specified RG (reuses existing ones) |
+| **DNS VNet Links** | Ensures all DNS zones are linked to the VNet (idempotent — skips existing links) |
+| **Create OpenAI** | Creates Azure OpenAI (AI Foundry) resource + deploys GPT-4o model |
+| **OpenAI PE** | Creates Private Endpoint for OpenAI → references discovered/created `privatelink.openai.azure.com` |
 | **OpenAI Lockdown** | Disables public network access on Azure OpenAI |
 | **Create ACR** | Creates Azure Container Registry (Premium SKU for PE support) |
 | **Build Image** | Builds and pushes container image **before** disabling public ACR access |
-| **ACR PE** | Creates Private Endpoint for ACR → `privatelink.azurecr.io` |
-| **ACR DNS** | Creates/finds Private DNS Zone, links to VNet, auto-registers A records |
+| **ACR PE** | Creates Private Endpoint for ACR → references discovered/created `privatelink.azurecr.io` |
 | **ACR Lockdown** | Disables public network access on ACR |
-| **Internal Env** | Creates Container Apps Environment with `--internal-only` + VNet integration |
+| **Internal Env** | Creates Container Apps Environment with `--internal-only` + VNet injection (no PE needed) |
 | **Env DNS** | Creates Private DNS Zone for Container App Env domain + wildcard A record + VNet link |
 
 > **💡 Build-Before-Lockdown Pattern:** The script intentionally builds and pushes the container image to ACR **before** disabling public access. After the Private Endpoint and DNS zone are configured, the Container App pulls images through the private network.
+
+### DNS Zone Discovery — Reuse Existing, Create Missing
+
+If your organization already has PE-enabled resources (e.g., AI Foundry with Private Endpoints), the required Private DNS Zones likely already exist. The script handles this automatically:
+
+1. **Interactive Prompt** — If you don't pass `-PrivateDnsZoneSubscriptionId` and `-PrivateDnsZoneResourceGroupName`, the script asks:
+   ```
+   Do you have existing Private DNS Zones (e.g., from AI Foundry with PE)? [Y/N]
+   ```
+   If **Yes**: prompts for the subscription ID and resource group name.
+   If **No**: creates all DNS zones in the deployment subscription/RG.
+
+2. **Upfront Discovery** — The script scans the target RG for all required DNS zones:
+   ```
+   ✅ FOUND:   privatelink.openai.azure.com  →  Azure OpenAI (AI Foundry)
+   ➕ MISSING: privatelink.azurecr.io        →  will be created for Azure Container Registry
+   ```
+
+3. **Create Only Missing** — Only zones that don't exist are created. Existing zones are reused as-is.
+
+4. **VNet Linking** — All zones (existing + new) are checked for VNet links. Missing links are created automatically.
+
+This means a customer who already deployed AI Foundry with Private Endpoints will see their `privatelink.openai.azure.com` zone **reused** — zero duplication, zero conflict.
 
 ### Centralized Private DNS Zones (Enterprise Pattern)
 
