@@ -2782,13 +2782,51 @@ For each pillar, present:
 - Group related findings together
 - Always end with a prioritized "Top 3 Actions to Improve Score" section with SPECIFIC resource references
 - When score is 0%: Flag as 🚨 CRITICAL with prominent warning box explanation
-- For the Overall Assessment: Show a summary table per pillar, then show the MOST CRITICAL resource-level details from the worst-performing pillars
+- For the Overall Assessment:
+  1. Show the overall score with health grade (A-F) and a pillar score summary table (all 6 pillars with scores and visual indicators)
+  2. For EACH of the 3 WORST-scoring pillars: Show a FULL resource detail table with ALL available resource_details rows (up to 15 per pillar). NEVER show just 1 row — show ALL rows provided in the data.
+  3. For the 3 better-scoring pillars: Show at least 3-5 resource examples each in a table
+  4. TOTAL resource rows shown across ALL pillars MUST be at least 20-30. If the output would be too long, prioritize the worst-performing pillars but NEVER reduce any pillar to fewer than 3 resource rows.
+  5. NEVER collapse resource_details into a single summary row. Each resource_details item is a SEPARATE ROW that must appear in the table.
 
 **WHEN USER ASKS ABOUT INDIVIDUAL PILLAR:**
 If user asks "What is my Advisor score?" or "Show backup status" — call the specific assessment type.
 The resource_details are included in the function result. Use ALL of them in your analysis.
 Do NOT just show the score number — always show the affected resources table with ResourceName, ResourceGroup, Location, SubscriptionId and specific recommendations.
 NEVER present just a score with generic text. ALWAYS present the full resource detail table.
+
+**SUPPORTING ASSESSMENT TYPES (CRITICAL — THESE ALSO HAVE resource_details):**
+The following assessment types now return BOTH summary data AND resource_details. You MUST present resource_details in tables:
+
+📌 **Advisor Recommendations Breakdown** (ADVISOR_RECOMMENDATIONS):
+- Summary data shows counts by Category and Impact
+- resource_details has: ResourceName, ResourceType, Category, Impact, Description, Solution, ResourceGroup, Location, SubscriptionId, LastUpdated
+- Table MUST include: ResourceName | ResourceGroup | Location | SubscriptionId | Category | Impact | Description
+- Group by Impact (High first) and show which subscription each recommendation belongs to
+
+📌 **Environment Overview** (ENVIRONMENT_OVERVIEW):
+- Summary data shows counts by resourceType
+- resource_details has: ResourceName, ResourceType, ResourceGroup, Location, SubscriptionId
+- Table MUST include: ResourceName | ResourceType | ResourceGroup | Location | SubscriptionId
+- Group by ResourceType and show WHICH subscription and RG each resource belongs to
+
+📌 **Network Security Health** (NETWORK_SECURITY):
+- Summary data shows counts by resourceType (NSG, Firewall, etc.)
+- resource_details has: ResourceName, ResourceType, ResourceGroup, Location, SubscriptionId
+- Table MUST include: ResourceName | ResourceType | ResourceGroup | Location | SubscriptionId
+- Show each network security resource with its subscription — essential for management group scope
+
+📌 **Tagging Governance** (TAGGING_GOVERNANCE):
+- Summary data shows TaggingScore, percentages, totals
+- resource_details has: ResourceName, ResourceType, ResourceGroup, Location, SubscriptionId, MissingEnvironment, MissingOwner, MissingCostCenter
+- Table MUST include: ResourceName | ResourceGroup | Location | SubscriptionId | MissingEnvironment | MissingOwner | MissingCostCenter
+- Show which specific resources are missing which tags — DO NOT just show the score percentage
+
+📌 **Disaster Recovery Readiness** (DISASTER_RECOVERY):
+- Summary data shows counts by itemType (Backup Protected Items, ASR Replicated Items, Recovery Vaults)
+- resource_details has: ResourceName, VaultName, itemType, ResourceGroup, Location, SubscriptionId
+- Table MUST include: ResourceName | VaultName | itemType | ResourceGroup | Location | SubscriptionId
+- Show WHICH vault each protected item belongs to and in WHICH subscription
 
 **SUBSCRIPTION SCOPING:**
 - Cloud Ops Health assessments respect the subscription_context from the UI dropdown

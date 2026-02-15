@@ -4184,22 +4184,38 @@ class AzureResourceManager:
         return score_result
 
     def get_advisor_recommendations_breakdown(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Azure Advisor recommendations breakdown by category and impact."""
-        query = """
+        """Azure Advisor recommendations breakdown by category and impact with resource-level detail."""
+        # Score / summary query — counts by category and impact
+        score_query = """
+        advisorresources
+        | where type == 'microsoft.advisor/recommendations'
+        | extend Category = tostring(properties.category)
+        | extend Category = replace('HighAvailability', 'Reliability', Category)
+        | extend Impact = tostring(properties.impact)
+        | summarize Count = count() by Category, Impact
+        | order by Category asc, Impact desc
+        """
+        score_result = self.query_resources(score_query, subscriptions)
+
+        # Detail query — per-resource rows with resource name, RG, subscription
+        detail_query = """
         advisorresources
         | where type == 'microsoft.advisor/recommendations'
         | extend Category = tostring(properties.category)
         | extend Category = replace('HighAvailability', 'Reliability', Category)
         | extend Description = tostring(properties.shortDescription.problem)
+        | extend Solution = tostring(properties.shortDescription.solution)
         | extend ImpactedField = tostring(properties.impactedField)
         | extend ImpactedValue = tostring(properties.impactedValue)
         | extend Impact = tostring(properties.impact)
         | extend LastUpdated = tostring(properties.lastUpdated)
-        | project Impact, ImpactedField, ImpactedValue, Description, resourceGroup, subscriptionId, Category, LastUpdated
-        | summarize Count = count() by Category, Impact
-        | order by Category asc, Impact desc
+        | project ResourceName = ImpactedValue, ResourceType = ImpactedField, Category, Impact, Description, Solution, ResourceGroup = resourceGroup, Location = location, SubscriptionId = subscriptionId, LastUpdated
+        | order by Impact desc, Category asc, SubscriptionId asc
         """
-        return self.query_resources(query, subscriptions)
+        detail_result = self.query_resources(detail_query, subscriptions)
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
 
     def get_backup_protection_score(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
         """Azure Backup Management Score — percentage of VMs protected by backup."""
@@ -4511,7 +4527,8 @@ class AzureResourceManager:
 
     def get_environment_overview(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
         """Environment Overview — comprehensive snapshot of monitoring, security, and operational resources."""
-        query = """
+        # Score / summary query — counts by resource type
+        score_query = """
         resources
         | where type in (
             'microsoft.operationalinsights/workspaces',
@@ -4557,11 +4574,64 @@ class AzureResourceManager:
         | summarize Count = count() by resourceType
         | order by Count desc
         """
-        return self.query_resources(query, subscriptions)
+        score_result = self.query_resources(score_query, subscriptions)
+
+        # Detail query — per-resource rows with name, RG, location, subscription
+        detail_query = """
+        resources
+        | where type in (
+            'microsoft.operationalinsights/workspaces',
+            'microsoft.insights/components',
+            'microsoft.insights/actiongroups',
+            'microsoft.insights/activitylogalerts',
+            'microsoft.insights/metricalerts',
+            'microsoft.insights/scheduledqueryrules',
+            'microsoft.automation/automationaccounts',
+            'microsoft.logic/workflows',
+            'microsoft.keyvault/vaults',
+            'microsoft.recoveryservices/vaults',
+            'microsoft.security/automations',
+            'microsoft.network/networkwatchers',
+            'microsoft.network/networksecuritygroups',
+            'microsoft.network/azurefirewalls',
+            'microsoft.web/serverfarms',
+            'microsoft.compute/virtualmachines',
+            'microsoft.sql/servers',
+            'microsoft.storage/storageaccounts'
+        )
+        | extend ResourceType = case(
+            type =~ 'microsoft.operationalinsights/workspaces', 'Log Analytics Workspace',
+            type =~ 'microsoft.insights/components', 'Application Insights',
+            type =~ 'microsoft.insights/actiongroups', 'Action Group',
+            type =~ 'microsoft.insights/activitylogalerts', 'Activity Log Alert',
+            type =~ 'microsoft.insights/metricalerts', 'Metric Alert',
+            type =~ 'microsoft.insights/scheduledqueryrules', 'Log Alert Rule',
+            type =~ 'microsoft.automation/automationaccounts', 'Automation Account',
+            type =~ 'microsoft.logic/workflows', 'Logic App',
+            type =~ 'microsoft.keyvault/vaults', 'Key Vault',
+            type =~ 'microsoft.recoveryservices/vaults', 'Recovery Services Vault',
+            type =~ 'microsoft.security/automations', 'Security Automation',
+            type =~ 'microsoft.network/networkwatchers', 'Network Watcher',
+            type =~ 'microsoft.network/networksecuritygroups', 'NSG',
+            type =~ 'microsoft.network/azurefirewalls', 'Azure Firewall',
+            type =~ 'microsoft.web/serverfarms', 'App Service Plan',
+            type =~ 'microsoft.compute/virtualmachines', 'Virtual Machine',
+            type =~ 'microsoft.sql/servers', 'SQL Server',
+            type =~ 'microsoft.storage/storageaccounts', 'Storage Account',
+            type
+        )
+        | project ResourceName = name, ResourceType, ResourceGroup = resourceGroup, Location = location, SubscriptionId = subscriptionId
+        | order by ResourceType asc, SubscriptionId asc, ResourceGroup asc
+        """
+        detail_result = self.query_resources(detail_query, subscriptions)
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
 
     def get_resource_tagging_health(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
         """Tag governance health — percentage of resources with required tags (environment, owner, costcenter)."""
-        query = """
+        # Score / summary query — overall tagging percentages
+        score_query = """
         resources
         | extend hasEnvironmentTag = isnotempty(tags['environment']) or isnotempty(tags['Environment']) or isnotempty(tags['env'])
         | extend hasOwnerTag = isnotempty(tags['owner']) or isnotempty(tags['Owner']) or isnotempty(tags['createdBy'])
@@ -4580,11 +4650,31 @@ class AzureResourceManager:
             CostCenterTagPct = iif(TotalResources > 0, round(toreal(WithCostCenterTag) / toreal(TotalResources) * 100, 1), 0.0),
             FullyTagged = WithAllTags, MissingTags = TotalResources - WithAllTags
         """
-        return self.query_resources(query, subscriptions)
+        score_result = self.query_resources(score_query, subscriptions)
+
+        # Detail query — resources MISSING at least one required tag, with specifics
+        detail_query = """
+        resources
+        | extend hasEnvironmentTag = isnotempty(tags['environment']) or isnotempty(tags['Environment']) or isnotempty(tags['env'])
+        | extend hasOwnerTag = isnotempty(tags['owner']) or isnotempty(tags['Owner']) or isnotempty(tags['createdBy'])
+        | extend hasCostCenterTag = isnotempty(tags['costcenter']) or isnotempty(tags['CostCenter']) or isnotempty(tags['cost-center'])
+        | where not(hasEnvironmentTag and hasOwnerTag and hasCostCenterTag)
+        | extend MissingEnvironment = iff(hasEnvironmentTag, '', 'MISSING')
+        | extend MissingOwner = iff(hasOwnerTag, '', 'MISSING')
+        | extend MissingCostCenter = iff(hasCostCenterTag, '', 'MISSING')
+        | project ResourceName = name, ResourceType = type, ResourceGroup = resourceGroup, Location = location, SubscriptionId = subscriptionId, MissingEnvironment, MissingOwner, MissingCostCenter
+        | order by SubscriptionId asc, ResourceGroup asc, ResourceName asc
+        | take 50
+        """
+        detail_result = self.query_resources(detail_query, subscriptions)
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
 
     def get_network_security_health(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Network security posture — NSGs, Firewalls, WAFs, and private links."""
-        query = """
+        """Network security posture — NSGs, Firewalls, WAFs, and private links with resource-level detail."""
+        # Score / summary query — counts by resource type
+        score_query = """
         resources
         | where type in~ (
             'microsoft.network/networksecuritygroups',
@@ -4606,11 +4696,40 @@ class AzureResourceManager:
         | summarize Count = count() by resourceType
         | order by Count desc
         """
-        return self.query_resources(query, subscriptions)
+        score_result = self.query_resources(score_query, subscriptions)
+
+        # Detail query — per-resource rows with name, type, RG, location, subscription
+        detail_query = """
+        resources
+        | where type in~ (
+            'microsoft.network/networksecuritygroups',
+            'microsoft.network/azurefirewalls',
+            'microsoft.network/applicationgateways',
+            'microsoft.network/frontdoors',
+            'microsoft.network/privateendpoints',
+            'microsoft.network/privatednszones'
+        )
+        | extend ResourceType = case(
+            type =~ 'microsoft.network/networksecuritygroups', 'NSG',
+            type =~ 'microsoft.network/azurefirewalls', 'Azure Firewall',
+            type =~ 'microsoft.network/applicationgateways', 'App Gateway (WAF)',
+            type =~ 'microsoft.network/frontdoors', 'Front Door',
+            type =~ 'microsoft.network/privateendpoints', 'Private Endpoint',
+            type =~ 'microsoft.network/privatednszones', 'Private DNS Zone',
+            type
+        )
+        | project ResourceName = name, ResourceType, ResourceGroup = resourceGroup, Location = location, SubscriptionId = subscriptionId
+        | order by ResourceType asc, SubscriptionId asc, ResourceGroup asc
+        """
+        detail_result = self.query_resources(detail_query, subscriptions)
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
 
     def get_disaster_recovery_readiness(self, subscriptions: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Disaster recovery readiness — backup vaults, replicated items, ASR status."""
-        query = """
+        """Disaster recovery readiness — backup vaults, replicated items, ASR status with resource-level detail."""
+        # Score / summary query — counts by category
+        score_query = """
         recoveryservicesresources
         | extend itemType = case(
             type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems', 'Backup Protected Items',
@@ -4626,7 +4745,29 @@ class AzureResourceManager:
         )
         | order by Count desc
         """
-        return self.query_resources(query, subscriptions)
+        score_result = self.query_resources(score_query, subscriptions)
+
+        # Detail query — per-resource rows with vault name, RG, location, subscription
+        detail_query = """
+        recoveryservicesresources
+        | extend itemType = case(
+            type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems', 'Backup Protected Item',
+            type =~ 'microsoft.recoveryservices/vaults/replicationfabrics/replicationprotectioncontainers/replicationprotecteditems', 'ASR Replicated Item',
+            type
+        )
+        | extend VaultName = tostring(split(id, '/')[8])
+        | project ResourceName = name, VaultName, itemType, ResourceGroup = resourceGroup, Location = location, SubscriptionId = subscriptionId
+        | union (
+            resources
+            | where type =~ 'microsoft.recoveryservices/vaults'
+            | project ResourceName = name, VaultName = name, itemType = 'Recovery Services Vault', ResourceGroup = resourceGroup, Location = location, SubscriptionId = subscriptionId
+        )
+        | order by itemType asc, SubscriptionId asc, ResourceGroup asc
+        """
+        detail_result = self.query_resources(detail_query, subscriptions)
+        if isinstance(score_result, dict) and "error" not in score_result:
+            score_result["resource_details"] = detail_result.get("data", []) if isinstance(detail_result, dict) else []
+        return score_result
 
     # ==========================================
     # ORPHANED RESOURCES FUNCTIONS
