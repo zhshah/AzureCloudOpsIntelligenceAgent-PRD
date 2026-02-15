@@ -12,8 +12,12 @@
     
     DEPLOYMENT MODES:
     - PUBLIC:  Container App is publicly accessible via HTTPS (default)
-    - PRIVATE: Container App is deployed inside a VNet with internal-only ingress
-               Only accessible from within the corporate/internal network
+    - PRIVATE: Full zero-trust private deployment:
+               - Container App deployed inside a VNet with internal-only ingress
+               - Private Endpoints for Azure OpenAI and Azure Container Registry
+               - Public network access DISABLED on all PaaS resources
+               - Private DNS Zones created/linked (supports centralized DNS subscription)
+               - Only accessible from within the corporate/internal network
     
     NO manual configuration required - everything is 100% automated!
     When the script completes, the application is fully running.
@@ -70,6 +74,21 @@
     - Must be delegated to Microsoft.App/environments
     - Must not have any other resources deployed in it
 
+.PARAMETER PrivateEndpointSubnetName
+    Subnet for Private Endpoints (ACR, OpenAI) within the same VNet (OPTIONAL for Private deployment)
+    If not provided, the script auto-creates a 'pe-subnet' (/27) in the VNet
+    This MUST be a DIFFERENT subnet from the Container Apps subnet (delegated subnets cannot host PEs)
+
+.PARAMETER PrivateDnsZoneSubscriptionId
+    Subscription ID where Private DNS Zones should be created or looked up (OPTIONAL for Private deployment)
+    Enterprises typically keep Private DNS Zones in a centralized "connectivity" or "shared services" subscription
+    If not provided, DNS zones are created in the DEPLOYMENT subscription
+
+.PARAMETER PrivateDnsZoneResourceGroupName
+    Resource group for Private DNS Zones in the centralized subscription (OPTIONAL for Private deployment)
+    If not provided, defaults to the deployment resource group
+    Common enterprise names: 'rg-dns', 'rg-private-dns-zones', 'rg-connectivity'
+
 .EXAMPLE
     # PUBLIC deployment (default - accessible from internet)
     .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname" -EntraAppClientId "your-app-client-id" -EntraTenantId "your-tenant-id" -SubscriptionId "your-subscription-id"
@@ -77,6 +96,10 @@
 .EXAMPLE
     # PRIVATE deployment (VNet-integrated, internal access only)
     .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname" -EntraAppClientId "your-app-client-id" -EntraTenantId "your-tenant-id" -SubscriptionId "your-subscription-id" -DeploymentMode "Private" -VNetResourceGroupName "rg-networking" -VNetName "corp-vnet" -SubnetName "container-apps-subnet"
+
+.EXAMPLE
+    # PRIVATE deployment with centralized DNS (enterprise pattern)
+    .\deploy-automated.ps1 -ResourceGroupName "rg-cloudops-agent" -Location "westeurope" -ContainerRegistryName "mycrname" -EntraAppClientId "your-app-client-id" -EntraTenantId "your-tenant-id" -SubscriptionId "your-subscription-id" -DeploymentMode "Private" -VNetResourceGroupName "rg-networking" -VNetName "corp-vnet" -SubnetName "container-apps-subnet" -PrivateEndpointSubnetName "pe-subnet" -PrivateDnsZoneSubscriptionId "dns-subscription-id" -PrivateDnsZoneResourceGroupName "rg-private-dns-zones"
 
 .EXAMPLE
     # Deploy with Log Analytics enabled
@@ -284,7 +307,18 @@ param(
     [string]$VNetName = "",
     
     [Parameter(Mandatory=$false)]
-    [string]$SubnetName = ""
+    [string]$SubnetName = "",
+    
+    # --- Private Endpoint & Centralized DNS Parameters ---
+    
+    [Parameter(Mandatory=$false)]
+    [string]$PrivateEndpointSubnetName = "",
+    
+    [Parameter(Mandatory=$false)]
+    [string]$PrivateDnsZoneSubscriptionId = "",
+    
+    [Parameter(Mandatory=$false)]
+    [string]$PrivateDnsZoneResourceGroupName = ""
 )
 
 # ============================================
@@ -559,6 +593,129 @@ if ($DeploymentMode -eq "Private") {
     Write-Host "    Subnet:     $SubnetName ($($subnetInfo.addressPrefix))" -ForegroundColor White
     Write-Host "    Delegation: Microsoft.App/environments ✓" -ForegroundColor White
     Write-Host "    Region:     $Location" -ForegroundColor White
+    Write-Host ""
+    
+    # ==================================================================
+    # PRIVATE ENDPOINT SUBNET VALIDATION
+    # ==================================================================
+    Write-Step "Private Deployment: Validating Private Endpoint Subnet"
+    
+    # Private endpoints CANNOT be placed in a delegated subnet, so we need a separate one
+    if ([string]::IsNullOrEmpty($PrivateEndpointSubnetName)) {
+        $PrivateEndpointSubnetName = "pe-subnet"
+        Write-Info "No PrivateEndpointSubnetName provided — defaulting to '$PrivateEndpointSubnetName'"
+    }
+    
+    Write-Info "Validating Private Endpoint subnet '$PrivateEndpointSubnetName' in VNet '$VNetName'..."
+    $peSubnetCheck = az network vnet subnet show --name $PrivateEndpointSubnetName --vnet-name $VNetName --resource-group $VNetResourceGroupName --query "{name:name, addressPrefix:addressPrefix}" -o json 2>&1
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Info "Subnet '$PrivateEndpointSubnetName' does not exist — creating it..."
+        
+        # Calculate a /27 CIDR in the VNet address space for the PE subnet
+        # We'll try common ranges; the user can override with an existing subnet
+        $peSubnetCandidates = @("10.0.254.0/27", "10.0.253.0/27", "10.0.252.0/27", "172.16.254.0/27", "192.168.254.0/27")
+        $peSubnetCreated = $false
+        
+        foreach ($cidr in $peSubnetCandidates) {
+            Write-Info "  Trying CIDR $cidr for PE subnet..."
+            az network vnet subnet create `
+                --name $PrivateEndpointSubnetName `
+                --vnet-name $VNetName `
+                --resource-group $VNetResourceGroupName `
+                --address-prefixes $cidr `
+                --output none 2>$null
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-Success "Created PE subnet: $PrivateEndpointSubnetName ($cidr)"
+                $peSubnetCreated = $true
+                break
+            }
+        }
+        
+        if (-not $peSubnetCreated) {
+            Write-Error "Could not auto-create PE subnet. Please create a /27 subnet manually:"
+            Write-Host "  az network vnet subnet create --name $PrivateEndpointSubnetName --vnet-name $VNetName --resource-group $VNetResourceGroupName --address-prefixes '<available-cidr>/27'" -ForegroundColor DarkGray
+            Write-Host "  Then re-run this script with -PrivateEndpointSubnetName '$PrivateEndpointSubnetName'" -ForegroundColor Yellow
+            exit 1
+        }
+    } else {
+        $peSubnetInfo = $peSubnetCheck | ConvertFrom-Json
+        Write-Success "PE subnet found: $PrivateEndpointSubnetName ($($peSubnetInfo.addressPrefix))"
+    }
+    
+    $peSubnetResourceId = "/subscriptions/$vnetSubId/resourceGroups/$VNetResourceGroupName/providers/Microsoft.Network/virtualNetworks/$VNetName/subnets/$PrivateEndpointSubnetName"
+    Write-Success "PE Subnet Resource ID: $peSubnetResourceId"
+    
+    # Disable private endpoint network policies on the PE subnet (required for PE creation)
+    Write-Info "Ensuring private endpoint network policies are disabled on PE subnet..."
+    az network vnet subnet update `
+        --name $PrivateEndpointSubnetName `
+        --vnet-name $VNetName `
+        --resource-group $VNetResourceGroupName `
+        --disable-private-endpoint-network-policies true `
+        --output none 2>$null
+    Write-Success "Private endpoint network policies disabled on PE subnet"
+    
+    # ==================================================================
+    # CENTRALIZED PRIVATE DNS ZONE CONFIGURATION
+    # ==================================================================
+    Write-Step "Private Deployment: Configuring Private DNS Zone Location"
+    
+    # Determine where Private DNS Zones will be created/looked up
+    if ([string]::IsNullOrEmpty($PrivateDnsZoneSubscriptionId)) {
+        $dnsZoneSubscriptionId = $subscriptionId
+        Write-Info "No PrivateDnsZoneSubscriptionId provided — using deployment subscription"
+    } else {
+        $dnsZoneSubscriptionId = $PrivateDnsZoneSubscriptionId
+        Write-Info "Using centralized DNS subscription: $PrivateDnsZoneSubscriptionId"
+    }
+    
+    if ([string]::IsNullOrEmpty($PrivateDnsZoneResourceGroupName)) {
+        $dnsZoneResourceGroup = $ResourceGroupName
+        Write-Info "No PrivateDnsZoneResourceGroupName provided — using deployment RG: $ResourceGroupName"
+    } else {
+        $dnsZoneResourceGroup = $PrivateDnsZoneResourceGroupName
+        Write-Info "Using centralized DNS RG: $PrivateDnsZoneResourceGroupName"
+    }
+    
+    # If centralized subscription is different, validate access
+    if ($dnsZoneSubscriptionId -ne $subscriptionId) {
+        Write-Info "Validating access to centralized DNS subscription..."
+        $dnsSubAccess = az account show --subscription $dnsZoneSubscriptionId --query "id" -o tsv 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Cannot access DNS subscription '$dnsZoneSubscriptionId'. Ensure you have Contributor/DNS Zone Contributor access."
+            exit 1
+        }
+        Write-Success "Access to centralized DNS subscription confirmed"
+        
+        # Validate the RG exists in the DNS subscription
+        $dnsRgExists = az group exists --name $dnsZoneResourceGroup --subscription $dnsZoneSubscriptionId 2>$null
+        if ($dnsRgExists -ne "true") {
+            Write-Info "Resource group '$dnsZoneResourceGroup' does not exist in DNS subscription — creating..."
+            az group create --name $dnsZoneResourceGroup --location $Location --subscription $dnsZoneSubscriptionId --output none
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Failed to create DNS RG '$dnsZoneResourceGroup' in subscription $dnsZoneSubscriptionId"
+                exit 1
+            }
+            Write-Success "Created DNS RG: $dnsZoneResourceGroup in subscription $dnsZoneSubscriptionId"
+        }
+    }
+    
+    # Get VNet Resource ID for DNS zone links (needed later)
+    $vnetResourceId = "/subscriptions/$vnetSubId/resourceGroups/$VNetResourceGroupName/providers/Microsoft.Network/virtualNetworks/$VNetName"
+    
+    Write-Host ""
+    Write-Host "  ╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
+    Write-Host "  ║  🔒 PRIVATE ENDPOINT CONFIGURATION SUMMARY                    ║" -ForegroundColor Magenta
+    Write-Host "  ╠════════════════════════════════════════════════════════════════╣" -ForegroundColor Magenta
+    Write-Host "  ║  VNet:                    $VNetName" -ForegroundColor White
+    Write-Host "  ║  Container Apps Subnet:   $SubnetName" -ForegroundColor White
+    Write-Host "  ║  Private Endpoint Subnet: $PrivateEndpointSubnetName" -ForegroundColor White
+    Write-Host "  ║  DNS Zone Subscription:   $dnsZoneSubscriptionId" -ForegroundColor White
+    Write-Host "  ║  DNS Zone RG:             $dnsZoneResourceGroup" -ForegroundColor White
+    Write-Host "  ║  Resources with PEs:      Azure OpenAI, ACR, Container App Env" -ForegroundColor White
+    Write-Host "  ╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
     Write-Host ""
 } else {
     Write-Host ""
@@ -938,6 +1095,153 @@ if ($deployedCapacity -gt 0 -and $deployedCapacity -lt $targetCapacityMax) {
 Write-Success "Model deployment ready: $OpenAIDeploymentName ($deployedModel)"
 
 # ============================================
+# STEP 3b (PRIVATE): PRIVATE ENDPOINT FOR AZURE OPENAI
+# ============================================
+if ($DeploymentMode -eq "Private") {
+    Write-Step "Step 3b: Creating Private Endpoint for Azure OpenAI"
+    
+    $openaiResourceId = "/subscriptions/$subscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.CognitiveServices/accounts/$OpenAIResourceName"
+    $openaiPeName = "${OpenAIResourceName}-pe"
+    $openaiDnsZoneName = "privatelink.openai.azure.com"
+    
+    # Check if PE already exists
+    $openaiPeExists = az network private-endpoint show --name $openaiPeName --resource-group $ResourceGroupName 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Info "Private Endpoint '$openaiPeName' already exists"
+    } else {
+        Write-Info "Creating Private Endpoint for Azure OpenAI..."
+        az network private-endpoint create `
+            --name $openaiPeName `
+            --resource-group $ResourceGroupName `
+            --location $Location `
+            --vnet-name $VNetName `
+            --subnet $PrivateEndpointSubnetName `
+            --private-connection-resource-id $openaiResourceId `
+            --group-id "account" `
+            --connection-name "${OpenAIResourceName}-connection" `
+            --output none 2>$null
+        
+        if ($LASTEXITCODE -ne 0) {
+            # If VNet is in a different RG, use full subnet resource ID
+            Write-Info "Retrying with full subnet resource ID..."
+            az network private-endpoint create `
+                --name $openaiPeName `
+                --resource-group $ResourceGroupName `
+                --location $Location `
+                --subnet $peSubnetResourceId `
+                --private-connection-resource-id $openaiResourceId `
+                --group-id "account" `
+                --connection-name "${OpenAIResourceName}-connection" `
+                --output none
+            
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Failed to create Private Endpoint for Azure OpenAI"
+                Write-Host "  Ensure the PE subnet exists and has no conflicting delegations." -ForegroundColor Yellow
+                exit 1
+            }
+        }
+        Write-Success "Private Endpoint created: $openaiPeName"
+    }
+    
+    # Create/find Private DNS Zone for OpenAI (in centralized subscription if specified)
+    Write-Info "Configuring Private DNS Zone: $openaiDnsZoneName"
+    
+    $dnsZoneExists = az network private-dns zone show `
+        --name $openaiDnsZoneName `
+        --resource-group $dnsZoneResourceGroup `
+        --subscription $dnsZoneSubscriptionId `
+        --query "name" -o tsv 2>&1
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Private DNS Zone already exists: $openaiDnsZoneName (RG: $dnsZoneResourceGroup, Sub: $dnsZoneSubscriptionId)"
+    } else {
+        Write-Info "Creating Private DNS Zone: $openaiDnsZoneName in RG '$dnsZoneResourceGroup' (Sub: $dnsZoneSubscriptionId)..."
+        az network private-dns zone create `
+            --name $openaiDnsZoneName `
+            --resource-group $dnsZoneResourceGroup `
+            --subscription $dnsZoneSubscriptionId `
+            --output none
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to create Private DNS Zone: $openaiDnsZoneName"
+            exit 1
+        }
+        Write-Success "Private DNS Zone created: $openaiDnsZoneName"
+    }
+    
+    # Link DNS Zone to VNet (idempotent — skip if link already exists)
+    $openaiDnsLinkName = "link-$($VNetName)-openai"
+    $linkExists = az network private-dns link vnet show `
+        --name $openaiDnsLinkName `
+        --zone-name $openaiDnsZoneName `
+        --resource-group $dnsZoneResourceGroup `
+        --subscription $dnsZoneSubscriptionId 2>&1
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Info "VNet link already exists: $openaiDnsLinkName"
+    } else {
+        Write-Info "Linking DNS Zone to VNet..."
+        az network private-dns link vnet create `
+            --name $openaiDnsLinkName `
+            --zone-name $openaiDnsZoneName `
+            --resource-group $dnsZoneResourceGroup `
+            --subscription $dnsZoneSubscriptionId `
+            --virtual-network $vnetResourceId `
+            --registration-enabled false `
+            --output none
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  ⚠️  Could not auto-link DNS zone to VNet. Please create the link manually:" -ForegroundColor Yellow
+            Write-Host "  az network private-dns link vnet create --name $openaiDnsLinkName --zone-name $openaiDnsZoneName --resource-group $dnsZoneResourceGroup --subscription $dnsZoneSubscriptionId --virtual-network $vnetResourceId --registration-enabled false" -ForegroundColor DarkGray
+        } else {
+            Write-Success "VNet linked to DNS Zone: $openaiDnsLinkName"
+        }
+    }
+    
+    # Create DNS Zone Group on the Private Endpoint (auto-registers A records)
+    Write-Info "Creating DNS Zone Group for automatic A record registration..."
+    $openaiDnsZoneId = "/subscriptions/$dnsZoneSubscriptionId/resourceGroups/$dnsZoneResourceGroup/providers/Microsoft.Network/privateDnsZones/$openaiDnsZoneName"
+    
+    az network private-endpoint dns-zone-group create `
+        --name "openai-dns-group" `
+        --endpoint-name $openaiPeName `
+        --resource-group $ResourceGroupName `
+        --private-dns-zone $openaiDnsZoneId `
+        --zone-name "openai" `
+        --output none 2>$null
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "DNS Zone Group configured — A records auto-registered"
+    } else {
+        Write-Info "DNS Zone Group may already exist (continuing...)"
+    }
+    
+    # Disable public network access on Azure OpenAI
+    Write-Info "Disabling public network access on Azure OpenAI..."
+    az cognitiveservices account update `
+        --name $OpenAIResourceName `
+        --resource-group $ResourceGroupName `
+        --public-network-access Disabled `
+        --output none 2>$null
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Public network access DISABLED on Azure OpenAI ✓"
+    } else {
+        Write-Host "  ⚠️  Could not disable public access on OpenAI. Disable manually:" -ForegroundColor Yellow
+        Write-Host "  az cognitiveservices account update --name $OpenAIResourceName --resource-group $ResourceGroupName --public-network-access Disabled" -ForegroundColor DarkGray
+    }
+    
+    Write-Host ""
+    Write-Host "  ✅ Azure OpenAI Private Endpoint configured:" -ForegroundColor Green
+    Write-Host "    Private Endpoint:     $openaiPeName" -ForegroundColor White
+    Write-Host "    DNS Zone:             $openaiDnsZoneName" -ForegroundColor White
+    Write-Host "    DNS Zone Location:    $dnsZoneResourceGroup ($dnsZoneSubscriptionId)" -ForegroundColor White
+    Write-Host "    VNet Link:            $openaiDnsLinkName" -ForegroundColor White
+    Write-Host "    Public Access:        DISABLED" -ForegroundColor White
+    Write-Host ""
+}
+
+# ============================================
 # STEP 4: CREATE CONTAINER REGISTRY
 # ============================================
 Write-Step "Step 4: Creating Azure Container Registry"
@@ -1007,6 +1311,155 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 Write-Success "Container image built and pushed: $acrServer/${ContainerImageName}:${ContainerImageTag}"
+
+# ============================================
+# STEP 5b (PRIVATE): PRIVATE ENDPOINT FOR ACR
+# ============================================
+if ($DeploymentMode -eq "Private") {
+    Write-Step "Step 5b: Creating Private Endpoint for Azure Container Registry"
+    
+    # NOTE: Image was built and pushed BEFORE disabling public access (intentional)
+    # Container App will pull via Private Endpoint after it's configured
+    
+    $acrResourceId = "/subscriptions/$subscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.ContainerRegistry/registries/$acrNameClean"
+    $acrPeName = "${acrNameClean}-pe"
+    $acrDnsZoneName = "privatelink.azurecr.io"
+    
+    # Check if PE already exists
+    $acrPeExists = az network private-endpoint show --name $acrPeName --resource-group $ResourceGroupName 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Info "Private Endpoint '$acrPeName' already exists"
+    } else {
+        Write-Info "Creating Private Endpoint for Azure Container Registry..."
+        az network private-endpoint create `
+            --name $acrPeName `
+            --resource-group $ResourceGroupName `
+            --location $Location `
+            --vnet-name $VNetName `
+            --subnet $PrivateEndpointSubnetName `
+            --private-connection-resource-id $acrResourceId `
+            --group-id "registry" `
+            --connection-name "${acrNameClean}-connection" `
+            --output none 2>$null
+        
+        if ($LASTEXITCODE -ne 0) {
+            # If VNet is in a different RG, use full subnet resource ID
+            Write-Info "Retrying with full subnet resource ID..."
+            az network private-endpoint create `
+                --name $acrPeName `
+                --resource-group $ResourceGroupName `
+                --location $Location `
+                --subnet $peSubnetResourceId `
+                --private-connection-resource-id $acrResourceId `
+                --group-id "registry" `
+                --connection-name "${acrNameClean}-connection" `
+                --output none
+            
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Failed to create Private Endpoint for ACR"
+                exit 1
+            }
+        }
+        Write-Success "Private Endpoint created: $acrPeName"
+    }
+    
+    # Create/find Private DNS Zone for ACR (in centralized subscription if specified)
+    Write-Info "Configuring Private DNS Zone: $acrDnsZoneName"
+    
+    $acrDnsZoneExists = az network private-dns zone show `
+        --name $acrDnsZoneName `
+        --resource-group $dnsZoneResourceGroup `
+        --subscription $dnsZoneSubscriptionId `
+        --query "name" -o tsv 2>&1
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Private DNS Zone already exists: $acrDnsZoneName (RG: $dnsZoneResourceGroup, Sub: $dnsZoneSubscriptionId)"
+    } else {
+        Write-Info "Creating Private DNS Zone: $acrDnsZoneName in RG '$dnsZoneResourceGroup' (Sub: $dnsZoneSubscriptionId)..."
+        az network private-dns zone create `
+            --name $acrDnsZoneName `
+            --resource-group $dnsZoneResourceGroup `
+            --subscription $dnsZoneSubscriptionId `
+            --output none
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to create Private DNS Zone: $acrDnsZoneName"
+            exit 1
+        }
+        Write-Success "Private DNS Zone created: $acrDnsZoneName"
+    }
+    
+    # Link DNS Zone to VNet
+    $acrDnsLinkName = "link-$($VNetName)-acr"
+    $acrLinkExists = az network private-dns link vnet show `
+        --name $acrDnsLinkName `
+        --zone-name $acrDnsZoneName `
+        --resource-group $dnsZoneResourceGroup `
+        --subscription $dnsZoneSubscriptionId 2>&1
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Info "VNet link already exists: $acrDnsLinkName"
+    } else {
+        Write-Info "Linking DNS Zone to VNet..."
+        az network private-dns link vnet create `
+            --name $acrDnsLinkName `
+            --zone-name $acrDnsZoneName `
+            --resource-group $dnsZoneResourceGroup `
+            --subscription $dnsZoneSubscriptionId `
+            --virtual-network $vnetResourceId `
+            --registration-enabled false `
+            --output none
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  ⚠️  Could not auto-link DNS zone to VNet. Create manually:" -ForegroundColor Yellow
+            Write-Host "  az network private-dns link vnet create --name $acrDnsLinkName --zone-name $acrDnsZoneName --resource-group $dnsZoneResourceGroup --subscription $dnsZoneSubscriptionId --virtual-network $vnetResourceId --registration-enabled false" -ForegroundColor DarkGray
+        } else {
+            Write-Success "VNet linked to DNS Zone: $acrDnsLinkName"
+        }
+    }
+    
+    # Create DNS Zone Group on the Private Endpoint (auto-registers A records)
+    Write-Info "Creating DNS Zone Group for automatic A record registration..."
+    $acrDnsZoneId = "/subscriptions/$dnsZoneSubscriptionId/resourceGroups/$dnsZoneResourceGroup/providers/Microsoft.Network/privateDnsZones/$acrDnsZoneName"
+    
+    az network private-endpoint dns-zone-group create `
+        --name "acr-dns-group" `
+        --endpoint-name $acrPeName `
+        --resource-group $ResourceGroupName `
+        --private-dns-zone $acrDnsZoneId `
+        --zone-name "acr" `
+        --output none 2>$null
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "DNS Zone Group configured — A records auto-registered"
+    } else {
+        Write-Info "DNS Zone Group may already exist (continuing...)"
+    }
+    
+    # Disable public network access on ACR
+    Write-Info "Disabling public network access on Azure Container Registry..."
+    az acr update `
+        --name $acrNameClean `
+        --resource-group $ResourceGroupName `
+        --public-network-enabled false `
+        --output none 2>$null
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Public network access DISABLED on ACR ✓"
+    } else {
+        Write-Host "  ⚠️  Could not disable public access on ACR. Disable manually:" -ForegroundColor Yellow
+        Write-Host "  az acr update --name $acrNameClean --resource-group $ResourceGroupName --public-network-enabled false" -ForegroundColor DarkGray
+    }
+    
+    Write-Host ""
+    Write-Host "  ✅ ACR Private Endpoint configured:" -ForegroundColor Green
+    Write-Host "    Private Endpoint:     $acrPeName" -ForegroundColor White
+    Write-Host "    DNS Zone:             $acrDnsZoneName" -ForegroundColor White
+    Write-Host "    DNS Zone Location:    $dnsZoneResourceGroup ($dnsZoneSubscriptionId)" -ForegroundColor White
+    Write-Host "    VNet Link:            $acrDnsLinkName" -ForegroundColor White
+    Write-Host "    Public Access:        DISABLED" -ForegroundColor White
+    Write-Host ""
+}
 
 # ============================================
 # STEP 6: CREATE CONTAINER APPS ENVIRONMENT
@@ -1121,10 +1574,100 @@ if ($DeploymentMode -eq "Private") {
     Write-Host "    Static IP (internal): $envStaticIp" -ForegroundColor White
     Write-Host "    Default Domain:       $envDefaultDomain" -ForegroundColor White
     Write-Host ""
-    Write-Host "  📋 DNS NOTE: To access the app by FQDN from your internal network," -ForegroundColor Yellow
-    Write-Host "  configure a Private DNS Zone or add a DNS record:" -ForegroundColor Yellow
-    Write-Host "    Zone: $envDefaultDomain" -ForegroundColor DarkGray
-    Write-Host "    A Record: * → $envStaticIp" -ForegroundColor DarkGray
+    
+    # ============================================
+    # STEP 6b (PRIVATE): PRIVATE DNS ZONE FOR CONTAINER APPS ENVIRONMENT
+    # ============================================
+    Write-Step "Step 6b: Creating Private DNS Zone for Container Apps Environment"
+    
+    Write-Info "Configuring Private DNS Zone: $envDefaultDomain"
+    
+    $envDnsExists = az network private-dns zone show `
+        --name $envDefaultDomain `
+        --resource-group $dnsZoneResourceGroup `
+        --subscription $dnsZoneSubscriptionId `
+        --query "name" -o tsv 2>&1
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Private DNS Zone already exists: $envDefaultDomain"
+    } else {
+        Write-Info "Creating Private DNS Zone: $envDefaultDomain in RG '$dnsZoneResourceGroup' (Sub: $dnsZoneSubscriptionId)..."
+        az network private-dns zone create `
+            --name $envDefaultDomain `
+            --resource-group $dnsZoneResourceGroup `
+            --subscription $dnsZoneSubscriptionId `
+            --output none
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  ⚠️  Could not create DNS Zone for Container Apps Environment. Create manually:" -ForegroundColor Yellow
+            Write-Host "  az network private-dns zone create --name $envDefaultDomain --resource-group $dnsZoneResourceGroup --subscription $dnsZoneSubscriptionId" -ForegroundColor DarkGray
+        } else {
+            Write-Success "Private DNS Zone created: $envDefaultDomain"
+        }
+    }
+    
+    # Add wildcard A record pointing to the environment's static IP
+    Write-Info "Adding wildcard A record: * → $envStaticIp"
+    
+    $existingRecord = az network private-dns record-set a show `
+        --name "*" `
+        --zone-name $envDefaultDomain `
+        --resource-group $dnsZoneResourceGroup `
+        --subscription $dnsZoneSubscriptionId 2>&1
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Info "Wildcard A record already exists — updating..."
+    }
+    
+    az network private-dns record-set a add-record `
+        --record-set-name "*" `
+        --zone-name $envDefaultDomain `
+        --resource-group $dnsZoneResourceGroup `
+        --subscription $dnsZoneSubscriptionId `
+        --ipv4-address $envStaticIp `
+        --output none 2>$null
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Wildcard A record configured: * → $envStaticIp"
+    } else {
+        Write-Host "  ⚠️  Could not create A record. Add manually:" -ForegroundColor Yellow
+        Write-Host "  az network private-dns record-set a add-record --record-set-name '*' --zone-name $envDefaultDomain --resource-group $dnsZoneResourceGroup --subscription $dnsZoneSubscriptionId --ipv4-address $envStaticIp" -ForegroundColor DarkGray
+    }
+    
+    # Link DNS Zone to VNet
+    $envDnsLinkName = "link-$($VNetName)-cae"
+    $envLinkExists = az network private-dns link vnet show `
+        --name $envDnsLinkName `
+        --zone-name $envDefaultDomain `
+        --resource-group $dnsZoneResourceGroup `
+        --subscription $dnsZoneSubscriptionId 2>&1
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Info "VNet link already exists: $envDnsLinkName"
+    } else {
+        Write-Info "Linking DNS Zone to VNet..."
+        az network private-dns link vnet create `
+            --name $envDnsLinkName `
+            --zone-name $envDefaultDomain `
+            --resource-group $dnsZoneResourceGroup `
+            --subscription $dnsZoneSubscriptionId `
+            --virtual-network $vnetResourceId `
+            --registration-enabled false `
+            --output none
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  ⚠️  Could not auto-link DNS zone to VNet." -ForegroundColor Yellow
+        } else {
+            Write-Success "VNet linked to DNS Zone: $envDnsLinkName"
+        }
+    }
+    
+    Write-Host ""
+    Write-Host "  ✅ Container Apps Environment Private DNS configured:" -ForegroundColor Green
+    Write-Host "    DNS Zone:       $envDefaultDomain" -ForegroundColor White
+    Write-Host "    A Record:       * → $envStaticIp" -ForegroundColor White
+    Write-Host "    VNet Link:      $envDnsLinkName" -ForegroundColor White
+    Write-Host "    DNS Location:   $dnsZoneResourceGroup ($dnsZoneSubscriptionId)" -ForegroundColor White
     Write-Host ""
 } else {
     Write-Success "Container Apps Environment ready: $ContainerAppEnvName"
@@ -1435,13 +1978,28 @@ if ($DeploymentMode -eq "Private") {
     Write-Host "" -ForegroundColor White
     Write-Host "  🔒 PRIVATE NETWORK CONFIGURATION" -ForegroundColor Magenta
     Write-Host "  VNet:                  $VNetName ($VNetResourceGroupName)" -ForegroundColor White
-    Write-Host "  Subnet:               $SubnetName" -ForegroundColor White
+    Write-Host "  CA Subnet:             $SubnetName (delegated: Microsoft.App/environments)" -ForegroundColor White
+    Write-Host "  PE Subnet:             $PrivateEndpointSubnetName (Private Endpoints)" -ForegroundColor White
     Write-Host "  Internal Ingress:      Yes (no public endpoint)" -ForegroundColor White
     if ($envStaticIp) {
         Write-Host "  Static IP (internal):  $envStaticIp" -ForegroundColor White
     }
     if ($envDefaultDomain) {
         Write-Host "  Internal Domain:       $envDefaultDomain" -ForegroundColor White
+    }
+    Write-Host "" -ForegroundColor White
+    Write-Host "  🔗 PRIVATE ENDPOINTS" -ForegroundColor Magenta
+    Write-Host "  Azure OpenAI PE:       ${OpenAIResourceName}-pe → privatelink.openai.azure.com" -ForegroundColor White
+    Write-Host "  ACR PE:                ${acrNameClean}-pe → privatelink.azurecr.io" -ForegroundColor White
+    Write-Host "  Container App Env:     VNet-injected (internal-only)" -ForegroundColor White
+    Write-Host "  Public Access:         DISABLED on all PaaS resources" -ForegroundColor White
+    Write-Host "" -ForegroundColor White
+    Write-Host "  🌐 PRIVATE DNS ZONES (Subscription: $dnsZoneSubscriptionId)" -ForegroundColor Magenta
+    Write-Host "  DNS Zone RG:           $dnsZoneResourceGroup" -ForegroundColor White
+    Write-Host "  privatelink.openai.azure.com → linked to $VNetName" -ForegroundColor White
+    Write-Host "  privatelink.azurecr.io       → linked to $VNetName" -ForegroundColor White
+    if ($envDefaultDomain) {
+        Write-Host "  $envDefaultDomain → * → $envStaticIp" -ForegroundColor White
     }
 }
 if ($EnableLogAnalytics) {
@@ -1513,8 +2071,13 @@ Write-Host "  ✅ Created Container Registry" -ForegroundColor Green
 Write-Host "  ✅ Built and pushed container image" -ForegroundColor Green
 if ($DeploymentMode -eq "Private") {
     Write-Host "  ✅ Validated VNet and subnet configuration" -ForegroundColor Green
+    Write-Host "  ✅ Validated/created Private Endpoint subnet" -ForegroundColor Green
     Write-Host "  ✅ Verified/applied subnet delegation (Microsoft.App/environments)" -ForegroundColor Green
+    Write-Host "  ✅ Created Private Endpoint for Azure OpenAI + DNS Zone + VNet link" -ForegroundColor Green
+    Write-Host "  ✅ Created Private Endpoint for ACR + DNS Zone + VNet link" -ForegroundColor Green
+    Write-Host "  ✅ Disabled public network access on OpenAI and ACR" -ForegroundColor Green
     Write-Host "  ✅ Created PRIVATE Container Apps Environment (VNet-integrated)" -ForegroundColor Green
+    Write-Host "  ✅ Created Private DNS Zone for Container App Env + wildcard A record" -ForegroundColor Green
     Write-Host "  ✅ Deployed Container App with INTERNAL ingress (no public access)" -ForegroundColor Green
 } else {
     Write-Host "  ✅ Created Container Apps Environment" -ForegroundColor Green

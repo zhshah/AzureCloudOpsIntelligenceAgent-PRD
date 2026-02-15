@@ -22,7 +22,7 @@ An enterprise-grade AI agent that transforms Azure cloud operations through natu
 - [Architecture Diagram Generation](#-architecture-diagram-generation)
 - [Prerequisites](#-prerequisites)
 - [Quick Start — Automated Deployment](#-quick-start--automated-deployment)
-- [Private (Internal-Only) Deployment](#-private-internal-only-deployment)
+- [Private (Internal-Only) Deployment — Zero-Trust](#-private-internal-only-deployment--zero-trust-end-to-end-private)
 - [Manual Deployment](#-manual-deployment)
 - [Configuration](#-configuration)
 - [Post-Deployment RBAC](#-post-deployment-rbac)
@@ -411,6 +411,9 @@ After the model is deployed, the script waits for stabilisation and then attempt
 | `-VNetResourceGroupName` | ⚠️ | — | Resource group containing the existing VNet (**required for Private mode**) |
 | `-VNetName` | ⚠️ | — | Existing VNet name to deploy into (**required for Private mode**) |
 | `-SubnetName` | ⚠️ | — | Subnet for Container Apps Environment (**required for Private mode**, see subnet requirements below) |
+| `-PrivateEndpointSubnetName` | ❌ | `pe-subnet` | Subnet for Private Endpoints (ACR, OpenAI) — auto-created if absent |
+| `-PrivateDnsZoneSubscriptionId` | ❌ | Deployment sub | Centralized subscription for Private DNS Zones (enterprise hub/connectivity sub) |
+| `-PrivateDnsZoneResourceGroupName` | ❌ | Deployment RG | Resource group for Private DNS Zones in the centralized subscription |
 
 ### Step 4: After Deployment — Add Redirect URI
 
@@ -426,35 +429,50 @@ After deployment completes, you'll receive the application URL. Then:
 
 ---
 
-## � Private (Internal-Only) Deployment
+## 🔒 Private (Internal-Only) Deployment — Zero-Trust, End-to-End Private
 
-For enterprise customers who require the application to run **entirely within their private network** — with no public endpoint exposed — the deployment script supports a **Private deployment mode** that integrates the Container App into your existing VNet.
+For enterprise customers who require **zero public exposure** — the deployment script supports a fully automated **Private deployment mode** that deploys **every resource privately** with Private Endpoints, disables public network access on all PaaS services, and configures Private DNS Zones (with support for centralized DNS subscriptions).
 
-> **🔑 Key Point:** In Private mode, the application is accessible **only from within your corporate network** (VPN, ExpressRoute, or VNet-peered resources). No traffic goes over the public internet.
+> **🔑 Key Point:** In Private mode, **all** resources are private. Azure OpenAI and ACR get Private Endpoints with public access disabled. The Container App runs inside your VNet with internal-only ingress. Private DNS Zones are auto-created and linked. Zero manual network configuration required.
+
+### What Gets Deployed Privately?
+
+| Resource | Private Mechanism | Public Access |
+|----------|-------------------|---------------|
+| **Azure Container App** | VNet injection + internal-only ingress | ❌ Disabled |
+| **Azure OpenAI (GPT-4o)** | Private Endpoint (`privatelink.openai.azure.com`) | ❌ Disabled |
+| **Azure Container Registry** | Private Endpoint (`privatelink.azurecr.io`) | ❌ Disabled |
+| **Private DNS Zones** | Auto-created in centralized or deployment subscription | N/A |
+| **DNS → VNet Links** | Auto-linked to your VNet for name resolution | N/A |
 
 ### Why Private Deployment?
 
 | Concern | Private Mode Solution |
 |---------|----------------------|
-| **Data Sovereignty** | All traffic stays within your Azure VNet |
-| **Compliance** | Meets regulatory requirements for internal-only access |
-| **Zero Public Exposure** | No public FQDN — Container App has internal-only ingress |
-| **Network Isolation** | Deployed inside your VNet with subnet delegation |
-| **Enterprise Security** | Access only via VPN, ExpressRoute, or VNet-peered resources |
+| **Data Sovereignty** | All traffic stays within your Azure VNet — no public internet |
+| **Compliance** | Meets regulatory requirements (ISO 27001, SOC 2, HIPAA) for internal-only access |
+| **Zero Public Exposure** | Public network access **disabled** on OpenAI, ACR, and Container App |
+| **Network Isolation** | Private Endpoints + VNet injection — all communication over Azure backbone |
+| **Enterprise DNS** | Supports centralized Private DNS Zones in hub/connectivity subscription |
+| **Zero-Touch** | Fully automated — no manual PE, DNS zone, or VNet link creation |
 
 ### Prerequisites for Private Deployment
 
 Before running the script in Private mode, ensure you have:
 
 1. **An existing VNet** in the same region as your deployment
-2. **A dedicated subnet** for the Container Apps Environment with:
+2. **A dedicated subnet for Container Apps** with:
    - Minimum size: `/27` (32 addresses) — **Recommended: `/23`** (512 addresses) for production
    - No other resources deployed in the subnet
    - Subnet delegation to `Microsoft.App/environments` (the script can apply this automatically)
-3. **Network connectivity** from your users to the VNet (VPN Gateway, ExpressRoute, or peered VNets)
+3. **A subnet for Private Endpoints** (optional — script auto-creates `pe-subnet` /27 if not provided)
+   - Must be a **different** subnet from the Container Apps subnet (delegated subnets cannot host PEs)
+4. **Network connectivity** from your users to the VNet (VPN Gateway, ExpressRoute, or peered VNets)
+5. **(Optional) Centralized DNS subscription** — If your organization keeps Private DNS Zones in a hub/connectivity subscription, provide `-PrivateDnsZoneSubscriptionId` and `-PrivateDnsZoneResourceGroupName`
 
 ### Private Deployment Command
 
+**Basic** (PE subnet auto-created, DNS zones in deployment subscription):
 ```powershell
 .\deploy-automated.ps1 `
     -ResourceGroupName "rg-cloudops-agent" `
@@ -469,19 +487,84 @@ Before running the script in Private mode, ensure you have:
     -SubnetName "container-apps-subnet"
 ```
 
+**Enterprise** (existing PE subnet, centralized DNS subscription):
+```powershell
+.\deploy-automated.ps1 `
+    -ResourceGroupName "rg-cloudops-agent" `
+    -Location "westeurope" `
+    -ContainerRegistryName "youracrname" `
+    -EntraAppClientId "<your-entra-app-client-id>" `
+    -EntraTenantId "<your-entra-tenant-id>" `
+    -SubscriptionId "<your-subscription-id>" `
+    -DeploymentMode "Private" `
+    -VNetResourceGroupName "rg-networking" `
+    -VNetName "corp-vnet" `
+    -SubnetName "container-apps-subnet" `
+    -PrivateEndpointSubnetName "pe-subnet" `
+    -PrivateDnsZoneSubscriptionId "<hub-subscription-id>" `
+    -PrivateDnsZoneResourceGroupName "rg-private-dns-zones"
+```
+
 ### What the Script Does in Private Mode
 
-The script performs these additional validations and configurations:
+The script performs **18 automated steps** for a complete zero-trust deployment:
 
 | Step | Action |
 |------|--------|
 | **VNet Validation** | Verifies the VNet exists and is accessible |
-| **Subnet Validation** | Checks subnet exists, verifies size (minimum /27), warns if smaller than /23 |
-| **Region Matching** | Auto-adjusts deployment region if VNet is in a different region |
-| **Subnet Delegation** | Checks for `Microsoft.App/environments` delegation — offers to apply it automatically if missing |
-| **Internal Environment** | Creates Container Apps Environment with `--internal-only` flag + VNet integration |
-| **Internal Ingress** | Configures Container App ingress as `internal` (no public endpoint) |
-| **DNS Guidance** | Provides Private DNS Zone setup instructions for name resolution |
+| **CA Subnet Validation** | Checks Container Apps subnet exists, verifies size (min /27, recommends /23) |
+| **PE Subnet Validation** | Validates or auto-creates the Private Endpoint subnet (`pe-subnet` /27) |
+| **PE Network Policies** | Disables private endpoint network policies on the PE subnet |
+| **Region Matching** | Auto-adjusts deployment location if VNet is in a different region |
+| **Subnet Delegation** | Checks for `Microsoft.App/environments` delegation — auto-applies if missing |
+| **DNS Subscription** | Validates access to centralized DNS subscription (if provided) |
+| **Create OpenAI** | Creates Azure OpenAI resource + deploys GPT-4o model |
+| **OpenAI PE** | Creates Private Endpoint for OpenAI → `privatelink.openai.azure.com` |
+| **OpenAI DNS** | Creates/finds Private DNS Zone, links to VNet, auto-registers A records |
+| **OpenAI Lockdown** | Disables public network access on Azure OpenAI |
+| **Create ACR** | Creates Azure Container Registry (Premium SKU for PE support) |
+| **Build Image** | Builds and pushes container image **before** disabling public ACR access |
+| **ACR PE** | Creates Private Endpoint for ACR → `privatelink.azurecr.io` |
+| **ACR DNS** | Creates/finds Private DNS Zone, links to VNet, auto-registers A records |
+| **ACR Lockdown** | Disables public network access on ACR |
+| **Internal Env** | Creates Container Apps Environment with `--internal-only` + VNet integration |
+| **Env DNS** | Creates Private DNS Zone for Container App Env domain + wildcard A record + VNet link |
+
+> **💡 Build-Before-Lockdown Pattern:** The script intentionally builds and pushes the container image to ACR **before** disabling public access. After the Private Endpoint and DNS zone are configured, the Container App pulls images through the private network.
+
+### Centralized Private DNS Zones (Enterprise Pattern)
+
+Most enterprises follow a **hub-spoke** topology where Private DNS Zones live in a centralized "connectivity" or "shared services" subscription — not in individual workload (spoke) subscriptions. The script fully supports this pattern:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Hub / Connectivity Subscription                      │
+│  (-PrivateDnsZoneSubscriptionId)                      │
+│                                                       │
+│  ┌─────────────────────────────────────────────────┐  │
+│  │  RG: rg-private-dns-zones                       │  │
+│  │  (-PrivateDnsZoneResourceGroupName)             │  │
+│  │                                                 │  │
+│  │  privatelink.openai.azure.com  ← VNet linked    │  │
+│  │  privatelink.azurecr.io        ← VNet linked    │  │
+│  │  <cae-default-domain>          ← VNet linked    │  │
+│  └─────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────┘
+                        │
+                   VNet Links
+                        │
+┌──────────────────────────────────────────────────────┐
+│  Spoke / Workload Subscription                        │
+│  (-SubscriptionId)                                    │
+│                                                       │
+│  ┌─── corp-vnet ──────────────────────────────────┐  │
+│  │  container-apps-subnet  →  Container App (PE)  │  │
+│  │  pe-subnet              →  OpenAI PE, ACR PE   │  │
+│  └────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────┘
+```
+
+If `-PrivateDnsZoneSubscriptionId` is **not** provided, the script creates DNS zones in the deployment subscription — suitable for single-subscription environments.
 
 ### Subnet Delegation
 
@@ -502,26 +585,40 @@ az network vnet subnet update \
 
 ### Accessing the Application (Private Mode)
 
-After private deployment, the app URL (e.g., `https://cloudops-agent.internal.<domain>`) is **only resolvable from within the VNet**. Choose one of these access methods:
+After private deployment, the app URL (e.g., `https://cloudops-agent.internal.<domain>`) is **only resolvable from within the VNet**.
 
-#### Option 1: Azure Private DNS Zone (Recommended)
+> **✅ DNS is fully automated.** The deployment script automatically creates Private DNS Zones for all resources (OpenAI, ACR, Container Apps Environment), adds the required A records, and links them to your VNet. No manual DNS configuration is needed.
 
-Create a Private DNS Zone linked to your VNet for seamless name resolution:
+Choose one of these methods to access the application from your network:
+
+#### Option 1: Jumpbox / Bastion (Quickest for Testing)
+
+- RDP/SSH to a VM (jumpbox) in the same VNet or a peered VNet
+- Open a browser and navigate to the internal URL shown in the deployment output
+- Azure Bastion can provide secure browser-based access without public IPs
+
+#### Option 2: VPN / ExpressRoute (Production Access)
+
+- Connect from your on-premises network via VPN Gateway or ExpressRoute
+- DNS forwarding to Azure Private DNS is required for name resolution
+- Users on the corporate network can access the app as if it were an internal application
+
+#### Option 3: Manual DNS (Only If Not Using Script Automation)
+
+If you need to create DNS zones manually (e.g., for custom configurations):
 
 ```bash
-# Create Private DNS Zone (use the defaultDomain from deployment output)
+# The deployment script does this automatically — only use if needed
 az network private-dns zone create \
     --resource-group rg-networking \
     --name "<environment-default-domain>"
 
-# Add wildcard A record pointing to the environment's static IP
 az network private-dns record-set a add-record \
     --resource-group rg-networking \
     --zone-name "<environment-default-domain>" \
     --record-set-name "*" \
     --ipv4-address "<environment-static-ip>"
 
-# Link DNS Zone to your VNet
 az network private-dns link vnet create \
     --resource-group rg-networking \
     --zone-name "<environment-default-domain>" \
@@ -530,46 +627,36 @@ az network private-dns link vnet create \
     --registration-enabled false
 ```
 
-#### Option 2: Jumpbox / Bastion
-
-- RDP/SSH to a VM (jumpbox) in the same VNet or a peered VNet
-- Open a browser and navigate to the internal URL
-- Azure Bastion can provide secure browser-based access without public IPs
-
-#### Option 3: VPN / ExpressRoute
-
-- Connect from your on-premises network via VPN Gateway or ExpressRoute
-- Configure DNS forwarding to resolve the Container App's internal FQDN
-- Users on the corporate network can access the app as if it were an internal application
-
 ### Network Architecture — Private Deployment
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     Your Corporate VNet                                 │
-│                                                                         │
-│  ┌──────────────────┐     ┌──────────────────────────────────────────┐  │
-│  │  Subnet:         │     │  Subnet: container-apps-subnet           │  │
-│  │  jumpbox / VMs   │     │  (Delegated: Microsoft.App/environments) │  │
-│  │                  │     │                                          │  │
-│  │  ┌────────────┐  │     │  ┌──────────────────────────────────┐   │  │
-│  │  │ Jumpbox VM │──│─────│──│  Container Apps Environment      │   │  │
-│  │  └────────────┘  │     │  │  (Internal Only)                 │   │  │
-│  │                  │     │  │                                  │   │  │
-│  │                  │     │  │  ┌────────────────────────────┐  │   │  │
-│  │                  │     │  │  │  CloudOps Intelligence     │  │   │  │
-│  │                  │     │  │  │  Agent (Container App)     │  │   │  │
-│  │                  │     │  │  │  Internal Ingress Only     │  │   │  │
-│  │                  │     │  │  └────────────────────────────┘  │   │  │
-│  │                  │     │  └──────────────────────────────────┘   │  │
-│  └──────────────────┘     └──────────────────────────────────────────┘  │
-│                                                                         │
-│  ┌──────────────────┐     ┌──────────────────┐                         │
-│  │ Private DNS Zone │     │ Azure OpenAI     │                         │
-│  │ (Name Resolution)│     │ (Managed Identity)│                         │
-│  └──────────────────┘     └──────────────────┘                         │
-│                                                                         │
-└───────────────────────────────┬─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          Your Corporate VNet                                │
+│                                                                             │
+│  ┌──────────────────────┐   ┌──────────────────────────────────────────┐   │
+│  │  Subnet: pe-subnet   │   │  Subnet: container-apps-subnet           │   │
+│  │  (Private Endpoints) │   │  (Delegated: Microsoft.App/environments) │   │
+│  │                      │   │                                          │   │
+│  │  ┌────────────────┐  │   │  ┌──────────────────────────────────┐   │   │
+│  │  │ OpenAI PE      │──│───│──│  Container Apps Environment      │   │   │
+│  │  │ (privatelink)  │  │   │  │  (Internal Only)                 │   │   │
+│  │  └────────────────┘  │   │  │                                  │   │   │
+│  │                      │   │  │  ┌────────────────────────────┐  │   │   │
+│  │  ┌────────────────┐  │   │  │  │  CloudOps Intelligence     │  │   │   │
+│  │  │ ACR PE         │──│───│──│  │  Agent (Container App)     │  │   │   │
+│  │  │ (privatelink)  │  │   │  │  │  Internal Ingress Only     │  │   │   │
+│  │  └────────────────┘  │   │  │  └────────────────────────────┘  │   │   │
+│  └──────────────────────┘   │  └──────────────────────────────────┘   │   │
+│                              └──────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  Private DNS Zones (Centralized or Local)                            │   │
+│  │  privatelink.openai.azure.com  → OpenAI Private IP                  │   │
+│  │  privatelink.azurecr.io        → ACR Private IP                     │   │
+│  │  <cae-default-domain>          → * → Environment Static IP          │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└───────────────────────────────┬─────────────────────────────────────────────┘
                                 │
                ┌────────────────┴───────────────────┐
                │   VPN Gateway / ExpressRoute        │
@@ -580,6 +667,14 @@ az network private-dns link vnet create \
                │   Corporate Users                   │
                │   (Internal Network Access Only)    │
                └────────────────────────────────────┘
+
+PaaS Resources (Public Access DISABLED):
+┌──────────────────┐ ┌──────────────────┐
+│  Azure OpenAI    │ │  Azure Container │
+│  (GPT-4o)        │ │  Registry (ACR)  │
+│  Public: ❌       │ │  Public: ❌       │
+│  PE: ✅ via VNet  │ │  PE: ✅ via VNet  │
+└──────────────────┘ └──────────────────┘
 ```
 
 ---
@@ -732,7 +827,7 @@ az role assignment create \
 - **Managed Identity** — All Azure API calls use `DefaultAzureCredential`; zero stored credentials
 - **Conditional Access** — Supports Entra ID conditional access policies
 - **Audit Logging** — Full audit trail via Azure Monitor and Log Analytics
-- **Private Endpoint Ready** — Container App and Azure OpenAI can be deployed with private endpoints for network isolation. See [Private (Internal-Only) Deployment](#-private-internal-only-deployment) for automated VNet-integrated deployment.
+- **Private Endpoint Ready** — Full zero-trust private deployment with Private Endpoints for Azure OpenAI, ACR, and Container Apps. Public access **disabled** on all PaaS resources. Supports centralized Private DNS Zones. See [Private (Internal-Only) Deployment](#-private-internal-only-deployment--zero-trust-end-to-end-private) for fully automated deployment.
 - **RBAC** — Fine-grained access control via Azure role assignments
 
 ### Network Architecture Options
@@ -746,15 +841,20 @@ Option 1: Public Endpoint (-DeploymentMode "Public" — Default)
 │  (Internet)  │     │  (Public FQDN)   │
 └──────────────┘     └──────────────────┘
 
-Option 2: Private / Internal-Only (-DeploymentMode "Private")
-┌──────────────┐     ┌──────────────────┐     ┌──────────────────────────┐
-│  Corporate   │────▶│  VPN Gateway /   │────▶│  Container App           │
-│  Users       │     │  ExpressRoute    │     │  (Internal Ingress Only) │
-│  (Internal)  │     │                  │     │  Inside Customer VNet    │
-└──────────────┘     └──────────────────┘     └──────────────────────────┘
+Option 2: Private / Zero-Trust (-DeploymentMode "Private")
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────────────────┐
+│  Corporate   │────▶│  VPN Gateway /   │────▶│  Container App               │
+│  Users       │     │  ExpressRoute    │     │  (Internal Ingress Only)     │
+│  (Internal)  │     │                  │     │  Inside Customer VNet        │
+└──────────────┘     └──────────────────┘     │                              │
+                                               │  Private Endpoints:          │
+                                               │  • Azure OpenAI (PE)         │
+                                               │  • ACR (PE)                  │
+                                               │  Public Access: ❌ DISABLED   │
+                                               └──────────────────────────────┘
 ```
 
-See [Private (Internal-Only) Deployment](#-private-internal-only-deployment) for full setup instructions.
+See [Private (Internal-Only) Deployment](#-private-internal-only-deployment--zero-trust-end-to-end-private) for full setup instructions.
 
 ### Compliance & Regional Deployment
 
